@@ -1,0 +1,116 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/power/rk3568-power.h>
+
+&{/} {
+	vcc_cam1: vcc-cam-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi0_pwr>;
+		compatible = "regulator-fixed";
+		enable-active-high;
+		// gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_cam1";
+		startup-delay-us = <250000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			imx335_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&imx335_1_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			csi_out: endpoint {
+				remote-endpoint = <&isp_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	/delete-node/ imx335;
+	/delete-node/ xc7160;
+	tca9546: multiplex@70 {
+		compatible = "nxp,pca9546";
+		pinctrl-names = "default";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		vcc-supply = <&vcc3v3_sys>;
+		vcc-pullup-supply = <&vcc3v3_sys>;
+		status = "okay";
+
+		i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			imx335_1: camera@1a {
+				compatible = "sony,imx335";
+				reg = <0x1a>;
+				clocks = <&xin24m>;
+				power-domains = <&power RK3568_PD_VI>;
+				avdd-supply = <&vcc_cam>;
+				dvdd-supply = <&vcc_cam>;
+				ovdd-supply = <&vcc_cam>;
+				status = "okay";
+
+				port {
+					imx335_1_out: endpoint {
+						data-lanes = <1 2>;
+						remote-endpoint = <&imx335_in>;
+						link-frequencies = /bits/ 64 <594000000>;
+					};
+				};
+			};
+		};
+
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			imx335_2: camera@1a {
+				compatible = "sony,imx335";
+				reg = <0x1a>;
+				clocks = <&xin24m>;
+				power-domains = <&power RK3568_PD_VI>;
+				avdd-supply = <&vcc_cam1>;
+				dvdd-supply = <&vcc_cam1>;
+				ovdd-supply = <&vcc_cam1>;
+				status = "disabled";
+			};
+		};
+	};
+};
+
+&pinctrl {
+
+	csi {
+		csi0_pwr: csi0-pwr-pins {
+			rockchip,pins =
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_PWREN0 */
+		};
+	};
+};

@@ -8,9 +8,13 @@
 #include <dt-bindings/power/rk3568-power.h>
 
 &{/} {
+	aliases {
+		camera0 = &imx335_1;
+	};
+
 	vcc_cam1: vcc-cam-regulator {
 		pinctrl-names = "default";
-		pinctrl-0 = <&csi0_pwr>;
+		pinctrl-0 = <&csi1_pwr>;
 		compatible = "regulator-fixed";
 		enable-active-high;
 		// gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
@@ -67,6 +71,22 @@
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			imx335_2: camera@1a {
+				compatible = "sony,imx335";
+				reg = <0x1a>;
+				clocks = <&xin24m>;
+				power-domains = <&power RK3568_PD_VI>;
+				avdd-supply = <&vcc_cam1>;
+				dvdd-supply = <&vcc_cam1>;
+				ovdd-supply = <&vcc_cam1>;
+				status = "disabled";
+			};
+		};
+
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			imx335_1: camera@1a {
 				compatible = "sony,imx335";
 				reg = <0x1a>;
@@ -86,29 +106,13 @@
 				};
 			};
 		};
-
-		i2c@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			imx335_2: camera@1a {
-				compatible = "sony,imx335";
-				reg = <0x1a>;
-				clocks = <&xin24m>;
-				power-domains = <&power RK3568_PD_VI>;
-				avdd-supply = <&vcc_cam1>;
-				dvdd-supply = <&vcc_cam1>;
-				ovdd-supply = <&vcc_cam1>;
-				status = "disabled";
-			};
-		};
 	};
 };
 
 &pinctrl {
 
 	csi {
-		csi0_pwr: csi0-pwr-pins {
+		csi1_pwr: csi1-pwr-pins {
 			rockchip,pins =
 				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_PWREN0 */
 		};

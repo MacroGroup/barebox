@@ -14,8 +14,9 @@
 	compatible = "diasom,ds-rk3568-som-evb", "diasom,ds-rk3568-som", "rockchip,rk3568";
 
 	aliases {
-		camera0 = &xc7160;
-		camera1 = &imx335;
+		camera0 = &imx335_1;
+		// camera0 = &xc7160;
+		// camera1 = &imx335;
 		can0 = &can1;
 		can1 = &can2;
 		ethernet0 = &gmac0;
@@ -230,6 +231,17 @@
 		startup-delay-us = <250000>;
 		vin-supply = <&vcc5v0_sys>;
 	};
+
+	vcc_cam1: vcc-cam-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi1_pwr>;
+		compatible = "regulator-fixed";
+		enable-active-high;
+		// gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_cam1";
+		startup-delay-us = <250000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
 };
 
 &can1 {
@@ -255,6 +267,42 @@
 	status = "okay";
 };
 
+// &csi2_dphy0 {
+// 	status = "okay";
+
+// 	ports {
+// 		#address-cells = <1>;
+// 		#size-cells = <0>;
+
+// 		port@0 {
+// 			reg = <0>;
+// 			#address-cells = <1>;
+// 			#size-cells = <0>;
+
+// 			xc7160_in: endpoint@0 {
+// 				reg = <0>;
+// 				remote-endpoint = <&xc7160_out>;
+// 				data-lanes = <1 2 3 4>;
+// 			};
+
+// 			imx335_in: endpoint@1 {
+// 				reg = <1>;
+// 				remote-endpoint = <&imx335_out>;
+// 				data-lanes = <1 2 3 4>;
+// 			};
+// 		};
+
+// 		port@1 {
+// 			reg = <1>;
+
+// 			csi_out: endpoint {
+// 				remote-endpoint = <&isp_in>;
+// 				data-lanes = <1 2 3 4>;
+// 			};
+// 		};
+// 	};
+// };
+
 &csi2_dphy0 {
 	status = "okay";
 
@@ -267,16 +315,10 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			xc7160_in: endpoint@0 {
+			imx335_in: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&xc7160_out>;
-				data-lanes = <1 2 3 4>;
-			};
-
-			imx335_in: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&imx335_out>;
-				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx335_1_out>;
+				data-lanes = <1 2>;
 			};
 		};
 
@@ -285,11 +327,12 @@
 
 			csi_out: endpoint {
 				remote-endpoint = <&isp_in>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
 };
+
 
 &csi2_dphy_hw {
 	status = "okay";
@@ -498,48 +541,120 @@
 
 		#sound-dai-cells = <0>;
 	};
+	
+	tca9546: multiplex@70 {
+		compatible = "nxp,pca9546";
+		pinctrl-names = "default";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		vcc-supply = <&vcc3v3_sys>;
+		vcc-pullup-supply = <&vcc3v3_sys>;
+		status = "okay";
 
-	imx335: camera@1a {
-		compatible = "sony,imx335";
-		reg = <0x1a>;
-		clocks = <&xin24m>;
-		power-domains = <&power RK3568_PD_VI>;
-		avdd-supply = <&vcc_cam>;
-		dvdd-supply = <&vcc_cam>;
-		ovdd-supply = <&vcc_cam>;
-		status = "disabled";
-
-		port {
-			imx335_out: endpoint {
-				data-lanes = <1 2 3 4>;
-				remote-endpoint = <&imx335_in>;
-				link-frequencies = /bits/ 64 <594000000>;
+		i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			imx335_2: camera@1a {
+				compatible = "sony,imx335";
+				reg = <0x1a>;
+				clocks = <&xin24m>;
+				power-domains = <&power RK3568_PD_VI>;
+				avdd-supply = <&vcc_cam1>;
+				dvdd-supply = <&vcc_cam1>;
+				ovdd-supply = <&vcc_cam1>;
+				status = "disabled";
 			};
 		};
-	};
 
-	xc7160: camera@1b {
-		pinctrl-names = "default";
-		pinctrl-0 = <&cif_clk &csi0_rst>;
-		compatible = "firefly,xc7160";
-		reg = <0x1b>;
-		clocks = <&cru CLK_CIF_OUT>;
-		clock-names = "xvclk";
-		power-domains = <&power RK3568_PD_VI>;
-		reset-gpios = <&gpio3 RK_PB6 GPIO_ACTIVE_HIGH>;
-		avdd-supply = <&vcc5v0_sys>;
-		dovdd-supply = <&vcc5v0_sys>;
-		dvdd-supply = <&vcc5v0_sys>;
-		status = "disabled";
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			imx335_1: camera@1a {
+				compatible = "sony,imx335";
+				reg = <0x1a>;
+				clocks = <&xin24m>;
+				power-domains = <&power RK3568_PD_VI>;
+				avdd-supply = <&vcc_cam>;
+				dvdd-supply = <&vcc_cam>;
+				ovdd-supply = <&vcc_cam>;
+				status = "okay";
 
-		port {
-			xc7160_out: endpoint {
-				data-lanes = <1 2 3 4>;
-				remote-endpoint = <&xc7160_in>;
+				port {
+					imx335_1_out: endpoint {
+						data-lanes = <1 2>;
+						remote-endpoint = <&imx335_in>;
+						link-frequencies = /bits/ 64 <594000000>;
+					};
+				};
 			};
 		};
 	};
 };
+
+
+// &i2c4 {
+// 	clock-frequency = <400000>;
+// 	status = "okay";
+
+// 	es8388: codec@10 {
+// 		compatible = "everest,es8388";
+// 		assigned-clocks = <&cru I2S1_MCLKOUT_TX>;
+// 		assigned-clock-rates = <12288000>;
+// 		assigned-clock-parents = <&cru CLK_I2S1_8CH_TX>;
+// 		reg = <0x10>;
+// 		clocks = <&cru I2S1_MCLKOUT_TX>;
+// 		DVDD-supply = <&vcc1v8_sys>;
+// 		AVDD-supply = <&vcc3v3_sys>;
+// 		PVDD-supply = <&vcc3v3_sys>;
+// 		HPVDD-supply = <&vcc3v3_sys>;
+
+// 		#sound-dai-cells = <0>;
+// 	};
+
+// 	imx335: camera@1a {
+// 		compatible = "sony,imx335";
+// 		reg = <0x1a>;
+// 		clocks = <&xin24m>;
+// 		power-domains = <&power RK3568_PD_VI>;
+// 		avdd-supply = <&vcc_cam>;
+// 		dvdd-supply = <&vcc_cam>;
+// 		ovdd-supply = <&vcc_cam>;
+// 		status = "disabled";
+
+// 		port {
+// 			imx335_out: endpoint {
+// 				data-lanes = <1 2 3 4>;
+// 				remote-endpoint = <&imx335_in>;
+// 				link-frequencies = /bits/ 64 <594000000>;
+// 			};
+// 		};
+// 	};
+
+// 	xc7160: camera@1b {
+// 		pinctrl-names = "default";
+// 		pinctrl-0 = <&cif_clk &csi0_rst>;
+// 		compatible = "firefly,xc7160";
+// 		reg = <0x1b>;
+// 		clocks = <&cru CLK_CIF_OUT>;
+// 		clock-names = "xvclk";
+// 		power-domains = <&power RK3568_PD_VI>;
+// 		reset-gpios = <&gpio3 RK_PB6 GPIO_ACTIVE_HIGH>;
+// 		avdd-supply = <&vcc5v0_sys>;
+// 		dovdd-supply = <&vcc5v0_sys>;
+// 		dvdd-supply = <&vcc5v0_sys>;
+// 		status = "disabled";
+
+// 		port {
+// 			xc7160_out: endpoint {
+// 				data-lanes = <1 2 3 4>;
+// 				remote-endpoint = <&xc7160_in>;
+// 			};
+// 		};
+// 	};
+// };
 
 &i2s0_8ch {
 	/* HDMI Sound */
@@ -816,6 +931,11 @@
 		csi0_pwr: csi0-pwr-pins {
 			rockchip,pins =
 				<2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_PWREN0 */
+		};
+
+		csi1_pwr: csi1-pwr-pins {
+			rockchip,pins =
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_PWREN0 */
 		};
 
 		/* csi1 clkout = refclk_pins */

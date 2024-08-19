@@ -501,22 +501,22 @@
 	};
 	
 	imx335: camera@1a {
-				compatible = "sony,imx335";
-				reg = <0x1a>;
-				clocks = <&xin24m>;
-				power-domains = <&power RK3568_PD_VI>;
-				avdd-supply = <&vcc_cam>;
-				dvdd-supply = <&vcc_cam>;
-				ovdd-supply = <&vcc_cam>;
+		compatible = "sony,imx335";
+		reg = <0x1a>;
+		clocks = <&xin24m>;
+		power-domains = <&power RK3568_PD_VI>;
+		avdd-supply = <&vcc_cam>;
+		dvdd-supply = <&vcc_cam>;
+		ovdd-supply = <&vcc_cam>;
 		status = "disabled";
 
-				port {
+		port {
 			imx335_out: endpoint {
 				data-lanes = <1 2 3 4>;
-						remote-endpoint = <&imx335_in>;
-						link-frequencies = /bits/ 64 <594000000>;
-					};
-				};
+				remote-endpoint = <&imx335_in>;
+				link-frequencies = /bits/ 64 <594000000>;
+			};
+		};
 	};
 
 	xc7160: camera@1b {

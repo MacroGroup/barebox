@@ -166,24 +166,24 @@ static int __init diasom_rk3568_late_init(void)
 		} else
 			pr_info("SOM version 1 detected.\n");
 
-		adapter = i2c_get_adapter(4);
+		// adapter = i2c_get_adapter(4);
 
-		if( !adapter ) {
-			pr_err("Cannot determine board version.\n");
-			return 0;
-		}
+		// if( !adapter ) {
+		// 	pr_err("Cannot determine board version.\n");
+		// 	return 0;
+		// }
 
-		if (!diasom_rk3568_probe_i2c(adapter, 0x70)) {
-			extern char __dtbo_rk3568_diasom_evb3_start[];
-			struct device_node *overlay;
+		// if (!diasom_rk3568_probe_i2c(adapter, 0x70)) {
+		// 	extern char __dtbo_rk3568_diasom_evb3_start[];
+		// 	struct device_node *overlay;
 
-			pr_info("EVB version 3 detected.\n");
+		// 	pr_info("EVB version 3 detected.\n");
 
-			overlay = of_unflatten_dtb(__dtbo_rk3568_diasom_evb3_start, INT_MAX);
-			of_overlay_apply_tree(of_get_root_node(), overlay);
-			of_probe();
-		} else
-			pr_info("EVB version 1-2 detected.\n");
+		// 	overlay = of_unflatten_dtb(__dtbo_rk3568_diasom_evb3_start, INT_MAX);
+		// 	of_overlay_apply_tree(of_get_root_node(), overlay);
+		// 	of_probe();
+		// } else
+		// 	pr_info("EVB version 1-2 detected.\n");
 	}
 
 	return 0;

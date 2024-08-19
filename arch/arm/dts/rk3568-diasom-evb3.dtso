@@ -10,7 +10,7 @@
 &{/} {
 	aliases {
 		camera0 = &imx335_1;
-		camera1 = &imx335_2;
+		// camera1 = &imx335_2;
 	};
 
 	vcc_cam1: vcc-cam-regulator {

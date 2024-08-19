@@ -47,9 +47,12 @@ static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 		of_register_set_status_fixup("camera1", true);
 		return 0;
 	}
-
-	pr_info("Assume camera XC7160 is used.\n");
-	of_register_set_status_fixup("camera0", true);
+	
+	if (!diasom_rk3568_probe_i2c(adapter, 0x1b)) {
+		pr_info("Camera XC7160 detected.\n");
+		of_register_set_status_fixup("camera0", true);
+		return 0;
+	}
 
 	return 0;
 }

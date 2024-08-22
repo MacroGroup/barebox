@@ -1,0 +1,228 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+
+#include "rk3568-diasom-sodimm.dts"
+
+/ {
+	model = "Diasom DS-RK3568-KORDA";
+	compatible = "diasom,ds-rk3568-som-korda", "diasom,ds-rk3568-som", "rockchip,rk3568";
+
+	vcc_cam: vcc-cam-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi0_pwr>;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_cam";
+		gpio = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+};
+
+&combphy1 {
+	/* USB3.0 HOST1 */
+	status = "okay";
+};
+
+&combphy2 {
+	/* PCI-E 2.0 */
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			imx335_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&imx335_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			csi_out: endpoint {
+				remote-endpoint = <&isp_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+
+&i2c2 {
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c2m1_xfer>;
+	status = "okay";
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	imx335: camera@1a {
+		compatible = "sony,imx335";
+		reg = <0x1a>;
+		// clocks = <&xin24m>;
+		power-domains = <&power RK3568_PD_VI>;
+		avdd-supply = <&vcc_cam>;
+		dvdd-supply = <&vcc_cam>;
+		ovdd-supply = <&vcc_cam>;
+		status = "disabled";
+
+		port {
+			imx335_out: endpoint {
+				data-lanes = <1 2>;
+				remote-endpoint = <&imx335_in>;
+				link-frequencies = /bits/ 64 <594000000>;
+			};
+		};
+	};
+};
+
+&isp {
+	status = "okay";
+};
+
+&isp_mmu {
+	status = "okay";
+};
+
+&isp_vir0 {
+	status = "okay";
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&csi_out>;
+		};
+	};
+};
+
+&pcie2x1 {
+	status = "disabled";
+};
+
+&pcie3x2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie30_pins>;
+	reset-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&pcie30phy {
+	status = "okay";
+};
+
+&pwm12 {
+	pinctrl-0 = <&pwm12m1_pins>;
+	status = "okay";
+};
+
+&saradc {
+	vref-supply = <&vcca_1v8>;
+	status = "okay";
+};
+
+
+&sdmmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_clk &sdmmc2m0_cmd>;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	vmmc-supply = <&vcc3v3_sys>;
+	vqmmc-supply = <&vcc_1v8>;
+	status = "okay";
+};
+
+&uart3 {
+	status = "disabled";
+};
+
+&uart5 {
+	pinctrl-0 = <&uart5m0_xfer>;
+	status = "okay";
+};
+
+&uart7 {
+	pinctrl-0 = <&uart7m1_xfer>;
+	status = "okay";
+};
+
+&usb_host0_xhci {
+	status = "okay";
+};
+
+&usb_host1_xhci {
+	status = "okay";
+};
+
+&usb2phy0 {
+	status = "okay";
+};
+
+&usb2phy0_host {
+	status = "okay";
+};
+
+&usb2phy0_otg {
+	status = "okay";
+};
+
+&pinctrl {
+	pinctrl-0 = <&board_pins>;
+	pinctrl-names = "default";
+
+	board {
+		board_pins: board-pins {
+			rockchip,pins =
+				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	csi {
+		csi0_pwr: csi0-pwr-pins {
+			rockchip,pins =
+				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_PWREN0 */
+		};
+	};
+
+	net {
+		gmac0_rst_pins: gmac0-rst-pins {
+			rockchip,pins =
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC0_RST */
+		};
+	};
+
+	pcie30 {
+		pcie30_pins: pcie30-pins {
+			rockchip,pins =
+				<4 RK_PC2 4 &pcfg_pull_none>,			/* PCIE30X2_CLKREQn_M2 */
+				<4 RK_PC3 4 &pcfg_pull_none>,			/* PCIE30X2_WAKEn_M2 */
+				<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;		/* PCIE30X2_PERSTn_M2 */
+		};
+	};
+};

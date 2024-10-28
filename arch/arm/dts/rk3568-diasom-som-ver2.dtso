@@ -4,6 +4,10 @@
 /dts-v1/;
 /plugin/;
 
+&bus_npu {
+	pvtm-supply = <&vdd_cpu>;
+};
+
 &cpu0 {
 	cpu-supply = <&vdd_cpu>;
 };

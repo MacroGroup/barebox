@@ -266,6 +266,12 @@
 	};
 };
 
+&bus_npu {
+	bus-supply = <&vdd_logic>;
+	pvtm-supply = <&vcc0v9_cpu>;
+	status = "okay";
+};
+
 &can1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&can1m0_pins>;
@@ -386,7 +392,7 @@
 };
 
 &isp {
-	status = "okay";
+	status = "disabled";
 };
 
 &isp_mmu {
@@ -394,7 +400,7 @@
 };
 
 &isp_vir0 {
-	status = "okay";
+	status = "disabled";
 
 	port {
 		#address-cells = <1>;
@@ -805,6 +811,15 @@
 };
 
 &rga {
+	status = "okay";
+};
+
+&rknpu {
+	rknpu-supply = <&vdd_npu>;
+	status = "okay";
+};
+
+&rknpu_mmu {
 	status = "okay";
 };
 

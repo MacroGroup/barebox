@@ -9,7 +9,7 @@
 #include <i2c/i2c.h>
 #include <mach/imx/bbu.h>
 
-static int diasom_imx8m_evb_probe_i2c(struct i2c_adapter *adapter, const int addr)
+static int diasom_imx8m_probe_i2c(struct i2c_adapter *adapter, const int addr)
 {
 	u8 buf[1];
 	struct i2c_msg msg = {
@@ -22,13 +22,13 @@ static int diasom_imx8m_evb_probe_i2c(struct i2c_adapter *adapter, const int add
 	return (i2c_transfer(adapter, &msg, 1) == 1) ? 0: -ENODEV;
 }
 
-static int diasom_imx8m_evb_fixup(struct device_node *, void *)
+static int diasom_imx8m_fixup(struct device_node *, void *)
 {
 	struct i2c_adapter *adapter;
 
 	adapter = i2c_get_adapter(2);
 	if (adapter) {
-		if (!diasom_imx8m_evb_probe_i2c(adapter, 0x3d)) {
+		if (!diasom_imx8m_probe_i2c(adapter, 0x3d)) {
 			pr_info("Camera AR0234 detected.\n");
 			of_register_set_status_fixup("camera1", true);
 			return 0;
@@ -44,7 +44,7 @@ static int diasom_imx8m_evb_fixup(struct device_node *, void *)
 	return 0;
 }
 
-static int diasom_imx8m_evb_probe(struct device *dev)
+static int diasom_imx8m_probe(struct device *dev)
 {
 	enum bootsource bootsource = bootsource_get();
 	int instance = bootsource_get_instance();
@@ -68,22 +68,22 @@ static int diasom_imx8m_evb_probe(struct device *dev)
 
 	imx8m_bbu_internal_mmcboot_register_handler("eMMC", "/dev/mmc0", flag);
 
-	defaultenv_append_directory(defaultenv_diasom_imx8m_evb);
+	defaultenv_append_directory(defaultenv_diasom_imx8m);
 
-	of_register_fixup(diasom_imx8m_evb_fixup, NULL);
+	of_register_fixup(diasom_imx8m_fixup, NULL);
 
 	return 0;
 }
 
-static const struct of_device_id diasom_imx8m_evb_of_match[] = {
+static const struct of_device_id diasom_imx8m_of_match[] = {
 	{ .compatible = "diasom,ds-imx8m-evb", },
 	{ }
 };
-BAREBOX_DEEP_PROBE_ENABLE(diasom_imx8m_evb_of_match);
+BAREBOX_DEEP_PROBE_ENABLE(diasom_imx8m_of_match);
 
-static struct driver diasom_imx8m_evb_driver = {
-	.name = "board-ds-imx8m-evb",
-	.probe = diasom_imx8m_evb_probe,
-	.of_compatible = diasom_imx8m_evb_of_match,
+static struct driver diasom_imx8m_driver = {
+	.name = "board-ds-imx8m",
+	.probe = diasom_imx8m_probe,
+	.of_compatible = diasom_imx8m_of_match,
 };
-coredevice_platform_driver(diasom_imx8m_evb_driver);
+coredevice_platform_driver(diasom_imx8m_driver);

@@ -2,7 +2,7 @@
 
 obj-y	+= board.o
 lwl-y	+= lowlevel.o lpddr4-timing.o
-bbenv-y	+= defaultenv-diasom-imx8m-evb
+bbenv-y	+= defaultenv-diasom-imx8m
 extra-y	+= imx8mm-diasom-evb-test.dtbo
 
 clean-files	:= *.dtb *.dtb.S .*.dtc .*.pre .*.dts *.dtb.z

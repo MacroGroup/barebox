@@ -69,7 +69,7 @@ static void power_init_board(void)
 	pmic_configure(i2c, 0x4b, bd71837_cfg, ARRAY_SIZE(bd71837_cfg));
 }
 
-extern struct dram_timing_info diasom_imx8m_evb_dram_timing;
+extern struct dram_timing_info diasom_imx8m_dram_timing;
 
 static void start_atf(void)
 {
@@ -85,7 +85,7 @@ static void start_atf(void)
 
 	power_init_board();
 
-	imx8mm_ddr_init(&diasom_imx8m_evb_dram_timing, DRAM_TYPE_LPDDR4);
+	imx8mm_ddr_init(&diasom_imx8m_dram_timing, DRAM_TYPE_LPDDR4);
 
 	imx8mm_load_and_start_image_via_tfa();
 }

@@ -22,7 +22,7 @@ static int diasom_imx8m_probe_i2c(struct i2c_adapter *adapter, const int addr)
 	return (i2c_transfer(adapter, &msg, 1) == 1) ? 0: -ENODEV;
 }
 
-static int diasom_imx8m_fixup(struct device_node *, void *)
+static int diasom_imx8m_evb_fixup(struct device_node *, void *)
 {
 	struct i2c_adapter *adapter;
 
@@ -70,13 +70,14 @@ static int diasom_imx8m_probe(struct device *dev)
 
 	defaultenv_append_directory(defaultenv_diasom_imx8m);
 
-	of_register_fixup(diasom_imx8m_fixup, NULL);
+	if (of_machine_is_compatible("diasom,ds-imx8m-evb"))
+		of_register_fixup(diasom_imx8m_evb_fixup, NULL);
 
 	return 0;
 }
 
 static const struct of_device_id diasom_imx8m_of_match[] = {
-	{ .compatible = "diasom,ds-imx8m-evb", },
+	{ .compatible = "diasom,ds-imx8m-som", },
 	{ }
 };
 BAREBOX_DEEP_PROBE_ENABLE(diasom_imx8m_of_match);

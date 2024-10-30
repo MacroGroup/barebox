@@ -12,7 +12,7 @@
 
 / {
 	model = "Diasom DS-IMX8M-EVB";
-	compatible = "diasom,ds-imx8m-evb", "fsl,imx8mm";
+	compatible = "diasom,ds-imx8m-evb", "diasom,ds-imx8m-som", "fsl,imx8mm";
 	chassis-type = "embedded";
 
 	chosen {

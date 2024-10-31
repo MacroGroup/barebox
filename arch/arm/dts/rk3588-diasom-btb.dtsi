@@ -49,16 +49,84 @@
 	status = "disabled";
 };
 
+&cpu_b0 {
+	cpu-supply = <&vdd_cpu_big0>;
+	mem-supply = <&vdd_cpu_big0>;
+};
+
+&cpu_b1 {
+	cpu-supply = <&vdd_cpu_big0>;
+	mem-supply = <&vdd_cpu_big0>;
+};
+
+&cpu_b2 {
+	cpu-supply = <&vdd_cpu_big1>;
+	mem-supply = <&vdd_cpu_big1>;
+};
+
+&cpu_b3 {
+	cpu-supply = <&vdd_cpu_big1>;
+	mem-supply = <&vdd_cpu_big1>;
+};
+
 &i2c0 {
 	pinctrl-0 = <&i2c0m2_xfer>;
 	status = "okay";
+
+	vdd_cpu_big0: regulator@42 {
+		compatible = "rockchip,rk8602";
+		reg = <0x42>;
+		fcs,suspend-voltage-selector = <1>;
+		regulator-name = "vdd_cpu_big0";
+		regulator-boot-on;
+		regulator-min-microvolt = <675000>; /* VDD_CPU_BIG0_MEM Min=0.675 */
+		regulator-max-microvolt = <1050000>;
+		regulator-ramp-delay = <2300>;
+		vin-supply = <&vcc4v0_sys>;
+
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
+	vdd_cpu_big1: regulator@43 {
+		compatible = "rockchip,rk8603", "rockchip,rk8602";
+		reg = <0x43>;
+		fcs,suspend-voltage-selector = <1>;
+		regulator-name = "vdd_cpu_big1";
+		regulator-boot-on;
+		regulator-min-microvolt = <675000>; /* VDD_CPU_BIG1_MEM Min=0.675 */
+		regulator-max-microvolt = <1050000>;
+		regulator-ramp-delay = <2300>;
+		vin-supply = <&vcc4v0_sys>;
+
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
 };
 
 &i2c2 {
 	status = "okay";
+
+	vdd_npu: regulator@42 {
+		compatible = "rockchip,rk8602";
+		reg = <0x42>;
+		fcs,suspend-voltage-selector = <1>;
+		regulator-name = "vdd_npu";
+		regulator-min-microvolt = <675000>; /* VDD_NPU_MEM Min=0.675 */
+		regulator-max-microvolt = <950000>;
+		regulator-ramp-delay = <2300>;
+		vin-supply = <&vcc4v0_sys>;
+
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
 };
 
 &i2c6 {
+	//FIXME: Should be enabled in EVB?
 	status = "okay";
 };
 

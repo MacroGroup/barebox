@@ -37,3 +37,10 @@ ENTRY_FUNCTION(start_rk3568_diasom_som_evb, r0, r1, r2)
 
 	start_rk3568_diasom(__dtb_rk3568_diasom_som_evb_start);
 }
+
+ENTRY_FUNCTION(start_rk3568_diasom_som_smarc_evb, r0, r1, r2)
+{
+	extern char __dtb_rk3568_diasom_som_smarc_evb_start[];
+
+	start_rk3568_diasom(__dtb_rk3568_diasom_som_smarc_evb_start);
+}

@@ -106,27 +106,24 @@ static void start_atf(void)
  *
  * 4. Standard barebox boot flow continues
  */
-static __noreturn noinline void diasom_imx8m_evb_start(void)
+static __noreturn noinline void diasom_imx8m_start(void *fdt)
 {
-	extern char __dtb_z_imx8mm_diasom_evb_start[];
-	void *fdt;
-
 	setup_uart();
 
 	start_atf();
-
-	fdt = __dtb_z_imx8mm_diasom_evb_start;
 
 	imx8mm_barebox_entry(fdt);
 }
 
 ENTRY_FUNCTION(start_diasom_imx8m_evb, r0, r1, r2)
 {
+	extern char __dtb_z_imx8mm_diasom_evb_start[];
+
 	imx8mm_cpu_lowlevel_init();
 
 	relocate_to_current_adr();
 
 	setup_c();
 
-	diasom_imx8m_evb_start();
+	diasom_imx8m_start(__dtb_z_imx8mm_diasom_evb_start);
 }

@@ -55,6 +55,8 @@
 	};
 };
 
+/delete-node/ &xin32k;
+
 &av1d {
 	status = "disabled";
 };
@@ -463,10 +465,6 @@
 &uart2 {
 	pinctrl-0 = <&uart2m0_xfer>;
 	status = "okay";
-};
-
-&xin32k {
-	status = "disabled";
 };
 
 &pinctrl {

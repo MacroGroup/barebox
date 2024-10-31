@@ -7,5 +7,7 @@
 
 / {
 	model = "Diasom DS-RK3588-BTB-EVB";
-	compatible = "diasom,ds-rk3588-btb-evb", "diasom,ds-rk3588-btb", "rockchip,rk3588";
+	compatible = "diasom,ds-rk3588-btb-evb",
+		     "diasom,ds-rk3588-btb",
+		     "rockchip,rk3588";
 };

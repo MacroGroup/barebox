@@ -9,7 +9,8 @@
 
 / {
 	model = "Diasom DS-RK3588-BTB";
-	compatible = "diasom,ds-rk3588-btb", "rockchip,rk3588";
+	compatible = "diasom,ds-rk3588-btb",
+		     "rockchip,rk3588";
 	chassis-type = "embedded";
 
 	chosen: chosen {

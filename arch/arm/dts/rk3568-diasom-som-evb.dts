@@ -11,7 +11,9 @@
 
 / {
 	model = "Diasom DS-RK3568-SOM-EVB";
-	compatible = "diasom,ds-rk3568-som-evb", "diasom,ds-rk3568-som", "rockchip,rk3568";
+	compatible = "diasom,ds-rk3568-som-evb",
+		     "diasom,ds-rk3568-som",
+		     "rockchip,rk3568";
 
 	aliases {
 		camera0 = &xc7160;

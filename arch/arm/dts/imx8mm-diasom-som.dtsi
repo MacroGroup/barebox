@@ -11,8 +11,9 @@
 #include "imx8mm.dtsi"
 
 / {
-	model = "Diasom DS-IMX8M-EVB";
-	compatible = "diasom,ds-imx8m-evb", "diasom,ds-imx8m-som", "fsl,imx8mm";
+	model = "Diasom DS-IMX8M-SOM";
+	compatible = "diasom,ds-imx8m-som",
+		     "fsl,imx8mm";
 	chassis-type = "embedded";
 
 	chosen {

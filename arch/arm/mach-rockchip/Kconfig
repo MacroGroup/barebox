@@ -69,7 +69,7 @@ if 64BIT
 
 config MACH_DIASOM_DS_RK3568
 	bool "Diasom DS-RK3568"
-	depends on $(success,test -e $(srctree)/arch/arm/boards/diasom-rk3568-evb/sdram-init.bin)
+	depends on $(success,test -e $(srctree)/arch/arm/boards/diasom-rk3568/sdram-init.bin)
 	select ARCH_RK3568
 	select AIODEV
 	select DEFAULT_ENVIRONMENT

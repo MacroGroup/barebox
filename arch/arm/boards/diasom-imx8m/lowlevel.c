@@ -115,9 +115,9 @@ static __noreturn noinline void diasom_imx8m_start(void *fdt)
 	imx8mm_barebox_entry(fdt);
 }
 
-ENTRY_FUNCTION(start_diasom_imx8m_evb, r0, r1, r2)
+ENTRY_FUNCTION(start_diasom_imx8m_som_evb, r0, r1, r2)
 {
-	extern char __dtb_z_imx8mm_diasom_evb_start[];
+	extern char __dtb_z_imx8mm_diasom_som_evb_start[];
 
 	imx8mm_cpu_lowlevel_init();
 
@@ -125,5 +125,5 @@ ENTRY_FUNCTION(start_diasom_imx8m_evb, r0, r1, r2)
 
 	setup_c();
 
-	diasom_imx8m_start(__dtb_z_imx8mm_diasom_evb_start);
+	diasom_imx8m_start(__dtb_z_imx8mm_diasom_som_evb_start);
 }

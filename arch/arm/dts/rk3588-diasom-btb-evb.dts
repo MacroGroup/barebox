@@ -11,3 +11,7 @@
 		     "diasom,ds-rk3588-btb",
 		     "rockchip,rk3588";
 };
+
+&av1d {
+	status = "okay";
+};

@@ -18,6 +18,10 @@
 	};
 };
 
+&av1d {
+	status = "disabled";
+};
+
 &uart2 {
 	pinctrl-0 = <&uart2m0_xfer>;
 	status = "okay";

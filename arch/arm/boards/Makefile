@@ -29,6 +29,7 @@ obj-$(CONFIG_MACH_CLEP7212)			+= clep7212/
 obj-$(CONFIG_MACH_DFI_FS700_M60)		+= dfi-fs700-m60/
 obj-$(CONFIG_MACH_DIASOM_DS_IMX8M)		+= diasom-imx8m/
 obj-$(CONFIG_MACH_DIASOM_DS_RK3568)		+= diasom-rk3568-evb/
+obj-$(CONFIG_MACH_DIASOM_DS_RK3588)		+= diasom-rk3588/
 obj-$(CONFIG_MACH_DIGI_CCIMX6ULSBCPRO)		+= digi-ccimx6ulsom/
 obj-$(CONFIG_MACH_DUCKBILL)			+= duckbill/
 obj-$(CONFIG_MACH_DSS11)			+= dss11/

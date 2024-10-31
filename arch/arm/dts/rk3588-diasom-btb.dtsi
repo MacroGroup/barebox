@@ -1,0 +1,26 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+
+#include <arm64/rockchip/rk3588.dtsi>
+//#include <dt-bindings/gpio/gpio.h>
+//#include <dt-bindings/input/input.h>
+//#include <dt-bindings/leds/common.h>
+
+#include "rk3588.dtsi"
+
+/ {
+	model = "Diasom DS-RK3588-BTB";
+	compatible = "diasom,ds-rk3588-btb", "rockchip,rk3588";
+	chassis-type = "embedded";
+
+	chosen: chosen {
+		stdout-path = "serial2:1500000n8";
+	};
+};
+
+&uart2 {
+	pinctrl-0 = <&uart2m0_xfer>;
+	status = "okay";
+};

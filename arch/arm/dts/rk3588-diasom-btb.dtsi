@@ -4,6 +4,8 @@
 /dts-v1/;
 
 #include <arm64/rockchip/rk3588j.dtsi>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 
 #include "rk3588.dtsi"
 
@@ -15,6 +17,22 @@
 
 	chosen: chosen {
 		stdout-path = "serial2:1500000n8";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_pins>;
+
+		led-live {
+			label = "som:live";
+			gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+			function = LED_FUNCTION_HEARTBEAT;
+			color = <LED_COLOR_ID_GREEN>;
+			linux,default-trigger = LED_FUNCTION_HEARTBEAT;
+			default-state = "off";
+			panic-indicator;
+		};
 	};
 };
 
@@ -29,4 +47,13 @@
 
 &xin32k {
 	status = "disabled";
+};
+
+&pinctrl {
+	leds {
+		leds_pins: leds-pins {
+			rockchip,pins =
+			<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };

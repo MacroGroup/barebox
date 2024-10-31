@@ -7,10 +7,8 @@
 #include <mach/rockchip/atf.h>
 #include <debug_ll.h>
 
-ENTRY_FUNCTION(start_rk3568_diasom, r0, r1, r2)
+static __noreturn inline void start_rk3568_diasom(void *fdt)
 {
-	extern char __dtb_rk3568_diasom_evb_start[];
-
 	/*
 	 * Enable vccio4 1.8V and vccio6 1.8V
 	 * Needed for GMAC to work.
@@ -30,5 +28,12 @@ ENTRY_FUNCTION(start_rk3568_diasom, r0, r1, r2)
 
 	setup_c();
 
-	rk3568_barebox_entry(__dtb_rk3568_diasom_evb_start);
+	rk3568_barebox_entry(fdt);
+}
+
+ENTRY_FUNCTION(start_rk3568_diasom_som_evb, r0, r1, r2)
+{
+	extern char __dtb_rk3568_diasom_som_evb_start[];
+
+	start_rk3568_diasom(__dtb_rk3568_diasom_som_evb_start);
 }

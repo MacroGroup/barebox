@@ -189,12 +189,12 @@ static int __init diasom_rk3568_late_init(void)
 		}
 
 		if (!diasom_rk3568_probe_i2c(adapter, 0x70)) {
-			extern char __dtbo_rk3568_diasom_evb_ver3_start[];
+			extern char __dtbo_rk3568_diasom_som_evb_ver3_start[];
 			struct device_node *overlay;
 
 			pr_info("EVB version 3 or above detected.\n");
 
-			overlay = of_unflatten_dtb(__dtbo_rk3568_diasom_evb_ver3_start, INT_MAX);
+			overlay = of_unflatten_dtb(__dtbo_rk3568_diasom_som_evb_ver3_start, INT_MAX);
 			of_overlay_apply_tree(of_get_root_node(), overlay);
 			of_probe();
 

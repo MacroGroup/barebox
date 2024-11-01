@@ -154,8 +154,14 @@
 };
 
 &i2c6 {
-	//FIXME: Should be enabled in EVB?
 	status = "okay";
+
+	eeprom@50 {
+		compatible = "microchip,24aa025e48";
+		reg = <0x50>;
+		pagesize = <8>;
+		vcc-supply = <&vcc_3v3>;
+	};
 };
 
 &spi2 {

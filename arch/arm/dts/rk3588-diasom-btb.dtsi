@@ -162,6 +162,23 @@
 		pagesize = <8>;
 		vcc-supply = <&vcc_3v3>;
 	};
+
+	rtc@68 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&clk32k_in &rtc_pins>;
+		compatible = "st,m41t62";
+		reg = <0x68>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
+		wakeup-source;
+
+		clock {
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+			clock-output-names = "xin32k";
+			#clock-cells = <0>;
+		};
+	};
 };
 
 &spi2 {
@@ -478,6 +495,13 @@
 		leds_pins: leds-pins {
 			rockchip,pins =
 			<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	rtc {
+		rtc_pins: rtc-pins {
+			rockchip,pins =
+			<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

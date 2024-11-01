@@ -90,12 +90,26 @@
 	pinctrl-0 = <&pcie2x1l0_pins>;
 	/* Wrong wiring on pcie20x1_2_perstn_m1, fixed */
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	/*
+		WAKEn: R30, AL28, D27
+		CLKREQn: T31, AL29, E25
+		PERSTn: P30, AK27, E24
+	*/
 	status = "okay";
 };
 
 &pcie2x1l2 {
 	/* Wrong wiring CLKREQn, WAKEn */
-	//TODO:
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie2x1l2_pins>;
+	//Wrong wiring on pcie30x1_0_perstn_m1, fixed */
+	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+	/*
+		WAKEn: AH24, AJ25
+		CLKREQn: AJ24, AJ28
+		PERSTn: AG23, AK24
+	*/
+	status = "okay";
 };
 
 &sdmmc {
@@ -119,6 +133,11 @@
 		pcie2x1l0_pins: pcie2x1l0-pins {
 			rockchip,pins =
 				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		pcie2x1l2_pins: pcie2x1l2-pins {
+			rockchip,pins =
+				<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

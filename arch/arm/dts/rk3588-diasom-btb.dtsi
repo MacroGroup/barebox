@@ -188,12 +188,14 @@
 
 	rtc@68 {
 		pinctrl-names = "default";
-		pinctrl-0 = <&clk32k_in &rtc_pins>;
+		pinctrl-0 = <&clk32k_in>;
+		/* Disable interrupt due cross with sdmmc_det on EVB */
+//		pinctrl-0 = <&clk32k_in &rtc_pins>;
 		compatible = "st,m41t62";
 		reg = <0x68>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
-		wakeup-source;
+//		interrupt-parent = <&gpio0>;
+//		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
+//		wakeup-source;
 
 		clock {
 			compatible = "fixed-clock";

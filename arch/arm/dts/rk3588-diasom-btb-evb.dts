@@ -57,3 +57,14 @@
 &av1d {
 	status = "okay";
 };
+
+&i2c3 {
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c7 {
+	/* Limit frequency due 1.8v EEPROM */
+	clock-frequency = <100000>;
+	status = "okay";
+};

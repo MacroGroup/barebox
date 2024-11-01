@@ -111,6 +111,7 @@
 
 &i2c0 {
 	pinctrl-0 = <&i2c0m2_xfer>;
+	clock-frequency = <400000>;
 	status = "okay";
 
 	vdd_cpu_big0: regulator@42 {
@@ -147,6 +148,7 @@
 };
 
 &i2c2 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	vdd_npu: regulator@42 {
@@ -166,6 +168,7 @@
 };
 
 &i2c6 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	eeprom@50 {

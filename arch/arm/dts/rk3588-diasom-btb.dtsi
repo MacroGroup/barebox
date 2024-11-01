@@ -109,6 +109,11 @@
 	cpu-supply = <&vdd_cpu_lit>;
 };
 
+&gpu {
+	mali-supply = <&vdd_gpu>;
+	sram-supply = <&vdd_gpu>;
+};
+
 &i2c0 {
 	pinctrl-0 = <&i2c0m2_xfer>;
 	clock-frequency = <400000>;

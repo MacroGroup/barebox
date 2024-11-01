@@ -60,7 +60,7 @@
 
 &combphy0_ps {
 	/* pcie2x1l2 */
-	status = "okay";
+//	status = "okay";
 };
 
 &combphy1_ps {
@@ -100,16 +100,16 @@
 
 &pcie2x1l2 {
 	/* Wrong wiring CLKREQn, WAKEn */
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie2x1l2_pins>;
-	//Wrong wiring on pcie30x1_0_perstn_m1, fixed */
-	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
-	/*
-		WAKEn: AH24, AJ25
-		CLKREQn: AJ24, AJ28
-		PERSTn: AG23, AK24
-	*/
-	status = "okay";
+//	pinctrl-names = "default";
+//	pinctrl-0 = <&pcie2x1l2_pins>;
+//	//Wrong wiring on pcie30x1_0_perstn_m1, fixed */
+//	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+//	/*
+//		WAKEn: AH24, AJ25
+//		CLKREQn: AJ24, AJ28
+//		PERSTn: AG23, AK24
+//	*/
+//	status = "okay";
 };
 
 &sdmmc {

@@ -554,21 +554,21 @@
 	pwr {
 		brg_pwr_pins: brg-pwr-pins {
 			rockchip,pins =
-			<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	leds {
 		leds_pins: leds-pins {
 			rockchip,pins =
-			<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	rtc {
 		rtc_pins: rtc-pins {
 			rockchip,pins =
-			<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

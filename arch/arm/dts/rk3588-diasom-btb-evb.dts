@@ -85,10 +85,16 @@
 };
 
 &pcie2x1l0 {
-	//TODO:
+	/* Wrong wiring CLKREQn, WAKEn */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie2x1l0_pins>;
+	/* Wrong wiring on pcie20x1_2_perstn_m1, fixed */
+	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 };
 
 &pcie2x1l2 {
+	/* Wrong wiring CLKREQn, WAKEn */
 	//TODO:
 };
 
@@ -106,4 +112,13 @@
 	vmmc-supply = <&vccio_sd>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
+};
+
+&pinctrl {
+	pcie {
+		pcie2x1l0_pins: pcie2x1l0-pins {
+			rockchip,pins =
+				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 };

@@ -178,6 +178,14 @@
 		vcc-supply = <&vcc_3v3>;
 	};
 
+	/* Should not work without interrupt
+	hdmi@41 {
+		compatible = "rockchip,rk628";
+		reg = <0x51>;
+		//TODO
+	};
+	*/
+
 	rtc@68 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&clk32k_in &rtc_pins>;
@@ -198,6 +206,19 @@
 
 &saradc {
 	vref-supply = <&vcca_1v8>;
+	status = "okay";
+};
+
+&sdhci {
+	bus-width = <8>;
+	cap-mmc-hw-reset;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	non-removable;
+	no-sd;
+	no-sdio;
+	vmmc-supply = <&vcc_3v3>;
+	vqmmc-supply = <&vcc_1v8>;
 	status = "okay";
 };
 

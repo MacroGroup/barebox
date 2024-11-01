@@ -35,6 +35,18 @@
 		};
 	};
 
+	brg_vcc_3v3: brg-vcc-3v3-regulator {
+		pinctrl-0 = <&brg_pwr_pins>;
+		pinctrl-names = "default";
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		regulator-name = "brg_vcc_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3>;
+	};
+
 	vcc_1v1_nldo: vcc1v1-nldo-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v1_nldo";
@@ -493,6 +505,13 @@
 };
 
 &pinctrl {
+	pwr {
+		brg_pwr_pins: brg-pwr-pins {
+			rockchip,pins =
+			<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	leds {
 		leds_pins: leds-pins {
 			rockchip,pins =

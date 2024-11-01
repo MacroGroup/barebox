@@ -272,6 +272,8 @@
 
 			dcdc-reg4 {
 				regulator-name = "vdd_vdenc";
+				regulator-always-on;
+				regulator-boot-on;
 				regulator-min-microvolt = <675000>;
 				regulator-max-microvolt = <825000>;
 				regulator-ramp-delay = <12500>;

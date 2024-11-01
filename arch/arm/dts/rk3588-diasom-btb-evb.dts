@@ -99,7 +99,7 @@
 };
 
 &sdmmc {
-	/* Disable sdmmc_det due bug with RTC INT */
+	/* Disable sdmmc_det due cross with RTC INT */
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_bus4>;
 	bus-width = <4>;
 	cap-mmc-highspeed;

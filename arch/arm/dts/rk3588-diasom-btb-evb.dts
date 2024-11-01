@@ -58,6 +58,21 @@
 	status = "okay";
 };
 
+&combphy0_ps {
+	/* pcie2x1l2 */
+	status = "okay";
+};
+
+&combphy1_ps {
+	/* pcie2x1l0 */
+	status = "okay";
+};
+
+&combphy2_psu {
+	/* usb_host2_xhci */
+	//TODO:
+};
+
 &i2c3 {
 	clock-frequency = <400000>;
 	status = "okay";
@@ -67,6 +82,14 @@
 	/* Limit frequency due 1.8v EEPROM */
 	clock-frequency = <100000>;
 	status = "okay";
+};
+
+&pcie2x1l0 {
+	//TODO:
+};
+
+&pcie2x1l2 {
+	//TODO:
 };
 
 &sdmmc {

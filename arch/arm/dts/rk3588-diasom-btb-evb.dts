@@ -77,19 +77,14 @@
 	status = "okay";
 };
 
-&combphy0_ps {
-	/* pcie2x1l2 */
-//	status = "okay";
-};
-
 &combphy1_ps {
 	/* pcie2x1l0 */
 	status = "okay";
 };
 
 &combphy2_psu {
-	/* usb_host2_xhci */
-	//TODO:
+	/* pcie2x1l1 */
+	status = "okay";
 };
 
 &gpu {
@@ -144,19 +139,19 @@
 	status = "okay";
 };
 
-&pcie2x1l2 {
+&pcie2x1l1 {
 	/* Wrong wiring CLKREQn, WAKEn */
-//	pinctrl-names = "default";
-//	pinctrl-0 = <&pcie2x1l2_pins>;
-//	//Wrong wiring on pcie30x1_0_perstn_m1, fixed */
-//	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
-//	vpcie3v3-supply = <&vcc_3v3_sys>;
-//	/*
-//		WAKEn: AH24, AJ25
-//		CLKREQn: AJ24, AJ28
-//		PERSTn: AG23, AK24
-//	*/
-//	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie2x1l1_pins>;
+	/* Wrong wiring on pcie30x1_0_perstn_m1, fixed */
+	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc_3v3_sys>;
+	/*
+		WAKEn: R29, AL30, A25
+		CLKREQn: P29, AK30, A24
+		PERSTn: T28, AM29, C25
+	*/
+	status = "okay";
 };
 
 &sdmmc {
@@ -191,7 +186,7 @@
 				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		pcie2x1l2_pins: pcie2x1l2-pins {
+		pcie2x1l1_pins: pcie2x1l1-pins {
 			rockchip,pins =
 				<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};

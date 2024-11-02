@@ -75,22 +75,18 @@
 
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0>;
-	mem-supply = <&vdd_cpu_big0>;
 };
 
 &cpu_b1 {
 	cpu-supply = <&vdd_cpu_big0>;
-	mem-supply = <&vdd_cpu_big0>;
 };
 
 &cpu_b2 {
 	cpu-supply = <&vdd_cpu_big1>;
-	mem-supply = <&vdd_cpu_big1>;
 };
 
 &cpu_b3 {
 	cpu-supply = <&vdd_cpu_big1>;
-	mem-supply = <&vdd_cpu_big1>;
 };
 
 &cpu_l0 {

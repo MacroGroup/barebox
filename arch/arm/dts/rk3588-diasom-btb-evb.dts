@@ -254,6 +254,22 @@
 	status = "okay";
 };
 
+&usb_host1_ehci {
+	/* USB20_HOST1 X27 */
+	status = "okay";
+};
+
+&u2phy3 {
+	status = "okay";
+};
+
+&u2phy3_host {
+	/* Power is missing! */
+	// phy-supply = <&vbus_host20_1>;
+	status = "okay";
+};
+
+
 &vcc4v0_sys {
 	vin-supply = <&v_sys>;
 };

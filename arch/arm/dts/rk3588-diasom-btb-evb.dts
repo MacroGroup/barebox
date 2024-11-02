@@ -13,32 +13,6 @@
 		     "diasom,ds-rk3588-btb",
 		     "rockchip,rk3588";
 
-	adc-keys-0 {
-		compatible = "adc-keys";
-		io-channels = <&saradc 0>;
-		io-channel-names = "buttons";
-		keyup-threshold-microvolt = <1800000>;
-		poll-interval = <100>;
-
-		button-maskrom-usb {
-			label = "Maskrom USB";
-			linux,code = <KEY_MACRO1>;
-			press-threshold-microvolt = <150000>;
-		};
-
-		button-maskrom-sd-usb {
-			label = "Maskrom SD-USB";
-			linux,code = <KEY_MACRO2>;
-			press-threshold-microvolt = <500000>;
-		};
-
-		button-maskrom-emmc-usb {
-			label = "Maskrom EMMC-USB";
-			linux,code = <KEY_MACRO3>;
-			press-threshold-microvolt = <800000>;
-		};
-	};
-
 	adc-keys-1 {
 		compatible = "adc-keys";
 		io-channels = <&saradc 1>;

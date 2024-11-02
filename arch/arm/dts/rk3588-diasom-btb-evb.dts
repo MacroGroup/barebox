@@ -46,6 +46,16 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	vcc_1v8_sys: vcc-1v8_sys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_5v0_sys>;
+	};
+
 	vcc_3v3_pi6: vcc-3v3_pi6-regulator {
 		pinctrl-0 = <&pcie_pi6_pins>;
 		pinctrl-names = "default";

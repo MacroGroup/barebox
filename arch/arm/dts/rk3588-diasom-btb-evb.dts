@@ -15,6 +15,7 @@
 
 	aliases {
 		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
 		mmc1 = &sdmmc;
 	};
 
@@ -80,6 +81,20 @@
 	status = "okay";
 };
 
+&gmac1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&gmac1_miim &gmac1_tx_bus2 &gmac1_rx_bus2
+		&gmac1_rgmii_clk &gmac1_rgmii_bus &eth1_pins
+	>;
+	clock_in_out = "output";
+	phy-handle = <&rgmii_phy1>;
+	phy-mode = "rgmii-rxid";
+	rx_delay = <0x00>;
+	tx_delay = <0x44>;
+	status = "okay";
+};
+
 &gpu {
 	status = "okay";
 };
@@ -122,6 +137,14 @@
 		/* RTL8211F */
 		compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
 		reg = <0x1>;
+	};
+};
+
+&mdio1 {
+	rgmii_phy1: ethernet-phy@2 {
+		/* RTL8211F */
+		compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
+		reg = <0x2>;
 	};
 };
 

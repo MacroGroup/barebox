@@ -13,6 +13,10 @@
 		     "diasom,ds-rk3588-btb",
 		     "rockchip,rk3588";
 
+	aliases {
+		mmc1 = &sdmmc;
+	};
+
 	adc-keys-1 {
 		compatible = "adc-keys";
 		io-channels = <&saradc 1>;

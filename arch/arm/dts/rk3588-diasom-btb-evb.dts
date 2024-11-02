@@ -42,6 +42,18 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	vcc_3v3_pi6: vcc-3v3_pi6-regulator {
+		pinctrl-0 = <&pcie_pi6_pins>;
+		pinctrl-names = "default";
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_3v3_pi6";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_5v0_sys>;
+	};
+
 	vcc_3v3_sys: vcc-3v3_sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3_sys";
@@ -49,7 +61,17 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc4v0_sys>;
+		vin-supply = <&v_sys>;
+	};
+
+	vcc_5v0_sys: vcc-5v03_sys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&v_sys>;
 	};
 };
 
@@ -178,6 +200,18 @@
 	status = "okay";
 };
 
+&pcie30phy {
+	status = "okay";
+};
+
+&pcie3x4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie3x4_pins>;
+	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc_3v3_pi6>;
+	status = "okay";
+};
+
 &sdmmc {
 	bus-width = <4>;
 	cap-mmc-highspeed;
@@ -205,6 +239,11 @@
 	};
 
 	pcie {
+		pcie_pi6_pins: pcie-pi6-pins {
+			rockchip,pins =
+				<1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
 		pcie2x1l0_pins: pcie2x1l0-pins {
 			rockchip,pins =
 				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -213,6 +252,11 @@
 		pcie2x1l1_pins: pcie2x1l1-pins {
 			rockchip,pins =
 				<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		pcie3x4_pins: pci3x4-pins {
+			rockchip,pins =
+				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

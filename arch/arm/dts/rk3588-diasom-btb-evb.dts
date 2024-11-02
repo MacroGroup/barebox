@@ -14,6 +14,7 @@
 		     "rockchip,rk3588";
 
 	aliases {
+		ethernet0 = &gmac0;
 		mmc1 = &sdmmc;
 	};
 
@@ -65,6 +66,20 @@
 	status = "okay";
 };
 
+&gmac0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&gmac0_miim &gmac0_tx_bus2 &gmac0_rx_bus2
+		&gmac0_rgmii_clk &gmac0_rgmii_bus &eth0_pins
+	>;
+	clock_in_out = "output";
+	phy-handle = <&rgmii_phy0>;
+	phy-mode = "rgmii-rxid";
+	rx_delay = <0x00>;
+	tx_delay = <0x44>;
+	status = "okay";
+};
+
 &gpu {
 	status = "okay";
 };
@@ -99,6 +114,14 @@
 		color = <LED_COLOR_ID_GREEN>;
 		linux,default-trigger = LED_FUNCTION_ACTIVITY;
 		default-state = "off";
+	};
+};
+
+&mdio0 {
+	rgmii_phy0: ethernet-phy@1 {
+		/* RTL8211F */
+		compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
 	};
 };
 

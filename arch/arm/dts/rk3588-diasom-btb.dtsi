@@ -242,7 +242,10 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA7 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pmic_pins &rk806_dvs1_null &rk806_dvs2_null &rk806_dvs3_null>;
+		pinctrl-0 = <
+			&pmic_pins &rk806_dvs1_null
+			&rk806_dvs2_null &rk806_dvs3_null
+		>;
 		spi-max-frequency = <20000000>;
 		system-power-controller;
 

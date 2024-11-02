@@ -22,7 +22,7 @@
 	leds: leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&leds_pins>;
+		pinctrl-0 = <&leds_som_pins>;
 
 		led-live {
 			label = "som:live";
@@ -562,7 +562,7 @@
 	};
 
 	leds {
-		leds_pins: leds-pins {
+		leds_som_pins: leds-som-pins {
 			rockchip,pins =
 				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};

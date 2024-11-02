@@ -73,6 +73,10 @@
 	//TODO:
 };
 
+&gpu {
+	status = "okay";
+};
+
 &i2c3 {
 	clock-frequency = <400000>;
 	status = "okay";

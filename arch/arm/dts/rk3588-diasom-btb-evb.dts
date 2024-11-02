@@ -89,7 +89,14 @@
 };
 
 &leds {
-// GPIO0_C5
+	led-act {
+		label = "evb:act";
+		gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		function = LED_FUNCTION_ACTIVITY;
+		color = <LED_COLOR_ID_GREEN>;
+		linux,default-trigger = LED_FUNCTION_ACTIVITY;
+		default-state = "off";
+	};
 };
 
 &pcie2x1l0 {
@@ -135,6 +142,13 @@
 };
 
 &pinctrl {
+	leds {
+		leds_pins: leds-pins {
+			rockchip,pins =
+				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	pcie {
 		pcie2x1l0_pins: pcie2x1l0-pins {
 			rockchip,pins =

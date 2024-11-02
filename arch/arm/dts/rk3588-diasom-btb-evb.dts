@@ -52,6 +52,25 @@
 			press-threshold-microvolt = <100000>;
 		};
 	};
+
+	v_sys: v-sys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "v_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	vcc_3v3_sys: vcc-3v3_sys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc4v0_sys>;
+	};
 };
 
 &av1d {
@@ -80,6 +99,15 @@
 &i2c3 {
 	clock-frequency = <400000>;
 	status = "okay";
+
+	i2c_mux: i2c-mux@70 {
+		compatible = "nxp,pca9546";
+		reg = <0x70>;
+		i2c-mux-idle-disconnect;
+		vdd-supply = <&vcc_3v3_sys>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 };
 
 &i2c7 {
@@ -141,6 +169,10 @@
 	vmmc-supply = <&vccio_sd>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
+};
+
+&vcc4v0_sys {
+	vin-supply = <&v_sys>;
 };
 
 &pinctrl {

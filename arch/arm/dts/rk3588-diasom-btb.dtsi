@@ -40,7 +40,7 @@
 	};
 
 	brg_vcc_3v3: brg-vcc-3v3-regulator {
-		pinctrl-0 = <&brg_pwr_pins>;
+		pinctrl-0 = <&brg_vcc_pins>;
 		pinctrl-names = "default";
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -561,8 +561,8 @@
 };
 
 &pinctrl {
-	pwr {
-		brg_pwr_pins: brg-pwr-pins {
+	brg {
+		brg_vcc_pins: brg-vcc-pins {
 			rockchip,pins =
 				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};

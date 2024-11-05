@@ -269,6 +269,26 @@
 	status = "okay";
 };
 
+&usb_host1_xhci {
+	/* USB3_HOST_1 X25 */
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbdp_phy1 {
+	status = "okay";
+};
+
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy1_otg {
+	/* Power is missing! */
+	// phy-supply = <&vbus_host30_1>;
+	status = "okay";
+};
+
 &u2phy3 {
 	status = "okay";
 };

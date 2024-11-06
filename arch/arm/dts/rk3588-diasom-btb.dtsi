@@ -183,8 +183,8 @@
 		vcc-supply = <&vcc_3v3>;
 	};
 
-	/* Should not work without interrupt
-	hdmi@41 {
+	/* Should not work without IRQ and RESET pins
+	hdmi@51 {
 		compatible = "rockchip,rk628";
 		reg = <0x51>;
 		//TODO

@@ -334,8 +334,7 @@
 	no-sdio;
 	no-mmc;
 	sd-uhs-sdr104;
-	/* Wrong wiring VCCIO_SD to SD VCC */
-	vmmc-supply = <&vccio_sd>;
+	vmmc-supply = <&vcc_3v3_sys>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
 };

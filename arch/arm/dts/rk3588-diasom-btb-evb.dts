@@ -24,6 +24,14 @@
 		mmc1 = &sdmmc;
 	};
 
+	chosen {
+		environment-sd {
+			compatible = "barebox,environment";
+			device-path = &sdmmc, "partname:env";
+			status = "disabled";
+		};
+	};
+
 	adc-keys-1 {
 		compatible = "adc-keys";
 		io-channels = <&saradc 1>;

@@ -224,9 +224,12 @@
 	status = "okay";
 
 	i2c_mux: i2c-mux@70 {
+		pinctrl-0 = <&mux_pins>;
+		pinctrl-names = "default";
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;
+		reset-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 		vdd-supply = <&vcc_3v3_sys>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -453,6 +456,13 @@
 		leds_evb_pins: leds-evb-pins {
 			rockchip,pins =
 				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	mux {
+		mux_pins: mux-pins {
+			rockchip,pins =
+				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 

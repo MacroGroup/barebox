@@ -5,6 +5,7 @@
 
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/soc/rockchip,vop2.h>
+#include <dt-bindings/usb/pd.h>
 
 #include "rk3588-diasom-btb.dtsi"
 
@@ -106,6 +107,20 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
+	};
+
+	vbus_typec: vbus-typec-regulator {
+		/* Incorrect wiring 1.8v - 3.3v */
+//		pinctrl-0 = <&typec_pins>;
+//		pinctrl-names = "default";
+		compatible = "regulator-fixed";
+//		enable-active-high;
+//		gpio = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vbus_typec";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 	};
 
 	vcc_1v8_sys: vcc-1v8_sys-regulator {
@@ -250,6 +265,58 @@
 			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			usb@22 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&fusb302_pins>;
+				compatible = "fcs,fusb302";
+				reg = <0x22>;
+				interrupt-parent = <&gpio4>;
+				interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+				vbus-supply = <&vbus_typec>;
+
+				connector {
+					compatible = "usb-c-connector";
+					label = "USB-C";
+					data-role = "dual";
+					op-sink-microwatt = <1000000>;
+					power-role = "dual";
+					sink-pdos =
+						<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
+					source-pdos =
+						<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+					try-power-role = "source";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							usbc0_hs: endpoint {
+								remote-endpoint = <&usb_host0_xhci_drd_sw>;
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+
+							usbc0_ss: endpoint {
+								remote-endpoint = <&usbdp_phy0_typec_ss>;
+							};
+						};
+
+						port@2 {
+							reg = <2>;
+
+							usbc0_sbu: endpoint {
+								remote-endpoint = <&usbdp_phy0_typec_sbu>;
+							};
+						};
+					};
+				};
+			};
 		};
 
 		i2c12: i2c@3 {
@@ -357,11 +424,11 @@
 	usb-role-switch;
 	status = "okay";
 
-//	port {
-//		usb_host0_xhci_drd_sw: endpoint {
-//			remote-endpoint = <&usbc0_hs>;
-//		};
-//	};
+	port {
+		usb_host0_xhci_drd_sw: endpoint {
+			remote-endpoint = <&usbc0_hs>;
+		};
+	};
 };
 
 &usb_host1_ehci {
@@ -377,25 +444,25 @@
 
 &usbdp_phy0 {
 	mode-switch;
-//	orientation-switch;
+	orientation-switch;
 //	sbu1-dc-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
 //	sbu2-dc-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-//	port {
-//		#address-cells = <1>;
-//		#size-cells = <0>;
-//
-//		usbdp_phy0_typec_ss: endpoint@0 {
-//			reg = <0>;
-//			remote-endpoint = <&usbc0_ss>;
-//		};
-//
-//		usbdp_phy0_typec_sbu: endpoint@1 {
-//			reg = <1>;
-//			remote-endpoint = <&usbc0_sbu>;
-//		};
-//	};
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbdp_phy0_typec_ss: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_ss>;
+		};
+
+		usbdp_phy0_typec_sbu: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&usbc0_sbu>;
+		};
+	};
 };
 
 &usbdp_phy1 {
@@ -411,8 +478,7 @@
 };
 
 &u2phy0_otg {
-	/* Power is missing! */
-	// phy-supply = <&vbus_typec>;
+	phy-supply = <&vbus_typec>;
 	status = "okay";
 };
 
@@ -485,6 +551,13 @@
 		pcie3x4_pins: pci3x4-pins {
 			rockchip,pins =
 				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	usb {
+		fusb302_pins: fusb302-pins {
+			rockchip,pins =
+				<4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

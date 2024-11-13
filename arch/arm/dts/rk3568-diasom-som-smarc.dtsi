@@ -40,6 +40,12 @@
 	};
 };
 
+&combphy2 {
+	/* PCI-E 2.0 */
+	phy-supply = <&vcc3v3_sys>;
+	status = "okay";
+};
+
 &display_subsystem {
 	status = "okay";
 };

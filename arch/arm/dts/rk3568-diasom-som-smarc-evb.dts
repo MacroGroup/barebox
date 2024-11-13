@@ -12,3 +12,18 @@
 		     "diasom,ds-rk3568-som",
 		     "rockchip,rk3568";
 };
+
+&uart4 {
+	pinctrl-0 = <&uart4m0_xfer &uart4m0_ctsn &uart4m0_rtsn>;
+	status = "okay";
+};
+
+&uart8 {
+	pinctrl-0 = <&uart8m1_xfer>;
+	status = "okay";
+};
+
+&uart9 {
+	pinctrl-0 = <&uart9m1_xfer>;
+	status = "okay";
+};

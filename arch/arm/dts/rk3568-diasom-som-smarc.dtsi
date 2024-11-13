@@ -15,6 +15,18 @@
 		ethernet0 = &gmac0;
 		ethernet1 = &gmac1;
 	};
+
+	vcc3v3_pcie30: vcc3v3-pcie30-regulator {
+		pinctrl-0 = <&pcie30_pwr_pins>;
+		pinctrl-names = "default";
+		compatible = "regulator-fixed";
+		gpio = <&gpio2 RK_PD0 GPIO_ACTIVE_LOW>;
+		regulator-name = "3v3_pcie30";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
 };
 
 &display_subsystem {
@@ -105,6 +117,11 @@
 	status = "okay";
 };
 
+&pcie30phy {
+	phy-supply = <&vcc3v3_pcie30>;
+	status = "okay";
+};
+
 &rga {
 	status = "okay";
 };
@@ -170,6 +187,11 @@
 			rockchip,pins =
 				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,	/* PCI20_PERSTm */
 				<1 RK_PB1 4 &pcfg_pull_none>;			/* pcie20_wakenm2 */
+		};
+
+		pcie30_pwr_pins: pcie30-pwr-pins {
+			rockchip,pins =
+				<2 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_CLK_IC_PDN */
 		};
 	};
 

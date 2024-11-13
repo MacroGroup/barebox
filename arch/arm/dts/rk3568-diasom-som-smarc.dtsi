@@ -42,6 +42,7 @@
 
 &i2c2 {
 	pinctrl-0 = <&i2c2m1_xfer>;
+	clock-frequency = <400000>;
 	status = "okay";
 
 	//TODO: mux + gpio exp
@@ -49,6 +50,7 @@
 
 &i2c3 {
 	/* I2C_GP */
+	clock-frequency = <400000>;
 	status = "okay";
 
 	eeprom@50 {

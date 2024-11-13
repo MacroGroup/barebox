@@ -44,7 +44,21 @@
 	/* I2C_GP */
 	status = "okay";
 
-	//TODO: eeprom * 2
+	eeprom@50 {
+		compatible = "microchip,24aa025e48";
+		reg = <0x50>;
+		pagesize = <8>;
+		vcc-supply = <&vcc3v3_sys>;
+	};
+
+	eeprom@51 {
+		compatible = "microchip,24aa025e48";
+		reg = <0x51>;
+		pagesize = <8>;
+		vcc-supply = <&vcc3v3_sys>;
+	};
+
+	//TODO: rtc
 };
 
 &i2c4 {

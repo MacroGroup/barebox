@@ -16,6 +16,13 @@
 		ethernet1 = &gmac1;
 	};
 
+	pps {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pps_pins>;
+		compatible = "pps-gpio";
+		gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+	};
+
 	vcc3v3_pcie30: vcc3v3-pcie30-regulator {
 		pinctrl-0 = <&pcie30_pwr_pins>;
 		pinctrl-names = "default";
@@ -58,7 +65,22 @@
 		vcc-supply = <&vcc3v3_sys>;
 	};
 
-	//TODO: rtc
+	rtc@68 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_pins>;
+		compatible = "st,m41t62";
+		reg = <0x68>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PD1 IRQ_TYPE_LEVEL_LOW>;
+		wakeup-source;
+
+		clock {
+			compatible = "fixed-clock";
+			clock-frequency = <1>;
+			clock-output-names = "pps";
+			#clock-cells = <0>;
+		};
+	};
 };
 
 &i2c4 {
@@ -200,6 +222,18 @@
 };
 
 &pinctrl {
+	net {
+		gmac0_rst_pins: gmac0-rst-pins {
+			rockchip,pins =
+				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC0_RST */
+		};
+
+		gmac1_rst_pins: gmac1-rst-pins {
+			rockchip,pins =
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC1_RST */
+		};
+	};
+
 	pci {
 		pcie2x1_pins: pcie2x1-pins {
 			rockchip,pins =
@@ -213,15 +247,17 @@
 		};
 	};
 
-	net {
-		gmac0_rst_pins: gmac0-rst-pins {
+	pps {
+		pps_pins: pps-pins {
 			rockchip,pins =
-				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC0_RST */
+				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_SQW */
 		};
+	};
 
-		gmac1_rst_pins: gmac1-rst-pins {
+	rtc {
+		rtc_pins: rtc-pins {
 			rockchip,pins =
-				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC1_RST */
+				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_IRQ */
 		};
 	};
 };

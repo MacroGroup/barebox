@@ -24,9 +24,19 @@
 &i2c2 {
 	pinctrl-0 = <&i2c2m1_xfer>;
 	status = "okay";
+
+	//TODO: mux + gpio exp
+};
+
+&i2c3 {
+	/* I2C_GP */
+	status = "okay";
+
+	//TODO: eeprom * 2
 };
 
 &i2c4 {
+	/* I2C_PM */
 	status = "okay";
 };
 

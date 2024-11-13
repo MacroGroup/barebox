@@ -35,7 +35,7 @@
 	assigned-clock-parents = <&cru SCLK_GMAC0_RGMII_SPEED>;
 	assigned-clock-rates = <0>, <125000000>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_miim &gmac0_tx_bus2 &gmac0_rx_bus2 &gmac0_rgmii_clk &gmac0_rgmii_bus>;
+	pinctrl-0 = <&gmac0_tx_bus2 &gmac0_rx_bus2 &gmac0_rgmii_clk &gmac0_rgmii_bus>;
 	clock_in_out = "output";
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-id";
@@ -61,26 +61,28 @@
 };
 
 &mdio0 {
-	rgmii_phy0: phy@0 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac0_rst_pins>;
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x0>;
-		reset-assert-us = <20000>;
-		reset-deassert-us = <100000>;
-		reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
-	};
+	status = "disabled";
 };
 
 &mdio1 {
-	rgmii_phy1: phy@0 {
+	rgmii_phy0: phy@2 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&gmac0_rst_pins>;
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x2>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <100000>;
+		reset-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
+	};
+
+	rgmii_phy1: phy@4 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac1_rst_pins>;
 		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x0>;
+		reg = <0x4>;
 		reset-assert-us = <20000>;
 		reset-deassert-us = <100000>;
-		reset-gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -155,12 +157,12 @@
 	net {
 		gmac0_rst_pins: gmac0-rst-pins {
 			rockchip,pins =
-				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC0_RST */
+				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC0_RST */
 		};
 
 		gmac1_rst_pins: gmac1-rst-pins {
 			rockchip,pins =
-				<2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC1_RST */
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC1_RST */
 		};
 	};
 };

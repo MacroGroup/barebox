@@ -49,7 +49,20 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	i2c_mux: i2c-mux@70 {
+	exp: gpio@23 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&exp_pins>;
+		compatible = "nxp,pcal6524";
+		reg = <0x23>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <RK_PD1 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;
@@ -84,8 +97,6 @@
 			#size-cells = <0>;
 		};
 	};
-
-	//TODO: gpio exp
 };
 
 &i2c3 {
@@ -264,6 +275,13 @@
 };
 
 &pinctrl {
+	exp {
+		exp_pins: exp-pins {
+			rockchip,pins =
+				<2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;	/* GPIO_EXP_INT */
+		};
+	};
+
 	net {
 		gmac0_rst_pins: gmac0-rst-pins {
 			rockchip,pins =

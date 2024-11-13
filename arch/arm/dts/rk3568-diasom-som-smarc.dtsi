@@ -135,6 +135,7 @@
 
 		clock {
 			compatible = "fixed-clock";
+			clock-accuracy = <2000>;
 			clock-frequency = <1>;
 			clock-output-names = "pps";
 			#clock-cells = <0>;

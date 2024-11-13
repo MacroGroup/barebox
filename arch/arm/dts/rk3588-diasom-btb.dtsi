@@ -201,6 +201,7 @@
 
 		clock {
 			compatible = "fixed-clock";
+			clock-accuracy = <2000>;
 			clock-frequency = <32768>;
 			clock-output-names = "xin32k";
 			#clock-cells = <0>;

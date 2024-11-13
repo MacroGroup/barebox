@@ -97,9 +97,10 @@
 };
 
 &pcie2x1 {
+	/* PCIE_C */
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie20m2_pins>;
-	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&pcie2x1_pins>;
+	reset-gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_sys>;
 	status = "okay";
 };
@@ -164,6 +165,14 @@
 };
 
 &pinctrl {
+	pci {
+		pcie2x1_pins: pcie2x1-pins {
+			rockchip,pins =
+				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,	/* PCI20_PERSTm */
+				<1 RK_PB1 4 &pcfg_pull_none>;			/* pcie20_wakenm2 */
+		};
+	};
+
 	net {
 		gmac0_rst_pins: gmac0-rst-pins {
 			rockchip,pins =

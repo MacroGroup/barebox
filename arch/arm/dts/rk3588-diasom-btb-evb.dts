@@ -191,6 +191,8 @@
 	phy-mode = "rgmii-rxid";
 	rx_delay = <0x00>;
 	tx_delay = <0x44>;
+	nvmem-cells = <&mac0>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 

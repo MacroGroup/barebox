@@ -115,6 +115,12 @@
 		reg = <0x50>;
 		pagesize = <8>;
 		vcc-supply = <&vcc3v3_sys>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mac0: mac-address@fa {
+			reg = <0xfa 0x06>;
+		};
 	};
 
 	eeprom@51 {
@@ -122,6 +128,12 @@
 		reg = <0x51>;
 		pagesize = <8>;
 		vcc-supply = <&vcc3v3_sys>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mac1: mac-address@fa {
+			reg = <0xfa 0x06>;
+		};
 	};
 
 	rtc@68 {
@@ -155,6 +167,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac0_tx_bus2 &gmac0_rx_bus2 &gmac0_rgmii_clk &gmac0_rgmii_bus>;
 	clock_in_out = "output";
+	nvmem-cells = <&mac0>;
+	nvmem-cell-names = "mac-address";
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;
@@ -168,6 +182,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac1m1_miim &gmac1m1_tx_bus2 &gmac1m1_rx_bus2 &gmac1m1_rgmii_clk &gmac1m1_rgmii_bus>;
 	clock_in_out = "output";
+	nvmem-cells = <&mac1>;
+	nvmem-cell-names = "mac-address";
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;

@@ -175,6 +175,12 @@
 		reg = <0x50>;
 		pagesize = <8>;
 		vcc-supply = <&vcc_3v3>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mac0: mac-address@fa {
+			reg = <0xfa 0x06>;
+		};
 	};
 
 	hdmi@51 {

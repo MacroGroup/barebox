@@ -239,6 +239,16 @@
 	status = "okay";
 };
 
+&pwm4 {
+	/* LCD0_BKLT_PWM */
+	status = "okay";
+};
+
+&pwm5 {
+	/* LCD1_BKLT_PWM */
+	status = "okay";
+};
+
 &rga {
 	status = "okay";
 };

@@ -31,7 +31,8 @@
 		pinctrl-0 = <&pcie30_pwr_pins>;
 		pinctrl-names = "default";
 		compatible = "regulator-fixed";
-		gpio = <&gpio2 RK_PD0 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+		gpio = <&gpio2 RK_PD0 GPIO_ACTIVE_HIGH>;
 		regulator-name = "3v3_pcie30";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;

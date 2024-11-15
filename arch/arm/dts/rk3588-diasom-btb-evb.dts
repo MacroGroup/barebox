@@ -138,7 +138,7 @@
 		pinctrl-names = "default";
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_pcie30";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -170,13 +170,13 @@
 	status = "okay";
 };
 
-&combphy1_ps {
-	/* pcie2x1l0 */
+&combphy0_ps {
+	/* pcie2x1l2 (PCIE20_0) */
 	status = "okay";
 };
 
-&combphy2_psu {
-	/* pcie2x1l1 */
+&combphy1_ps {
+	/* pcie2x1l0 (PCIE20_1) */
 	status = "okay";
 };
 
@@ -367,32 +367,20 @@
 };
 
 &pcie2x1l0 {
-	/* Wrong wiring CLKREQn, WAKEn */
+	/* PCIE20_1 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie2x1l0_pins>;
-	/* Wrong wiring on pcie20x1_2_perstn_m1, fixed */
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
-	/*
-		WAKEn: R30, AL28, D27
-		CLKREQn: T31, AL29, E25
-		PERSTn: P30, AK27, E24
-	*/
 	status = "okay";
 };
 
-&pcie2x1l1 {
-	/* Wrong wiring CLKREQn, WAKEn */
+&pcie2x1l2 {
+	/* PCIE20_0 */
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie2x1l1_pins>;
-	/* Wrong wiring on pcie30x1_0_perstn_m1, fixed */
+	pinctrl-0 = <&pcie2x1l2_pins>;
 	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
-	/*
-		WAKEn: R29, AL30, A25
-		CLKREQn: P29, AK30, A24
-		PERSTn: T28, AM29, C25
-	*/
 	status = "okay";
 };
 
@@ -537,17 +525,21 @@
 	pcie {
 		pcie2x1l0_pins: pcie2x1l0-pins {
 			rockchip,pins =
-				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+				<4 RK_PB7 4 &pcfg_pull_none>,			/* pcie20x1_2_clkreqn_m1 */
+				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,	/* pcie20x1_2_perstn_m1 */
+				<4 RK_PC0 4 &pcfg_pull_none>;			/* pcie20x1_2_waken_m1 */
 		};
 
-		pcie2x1l1_pins: pcie2x1l1-pins {
+		pcie2x1l2_pins: pcie2x1l2-pins {
 			rockchip,pins =
-				<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+				<4 RK_PA3 4 &pcfg_pull_none>,			/* pcie30x1_0_clkreqn_m1 */
+				<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,	/* pcie30x1_0_perstn_m1 */
+				<4 RK_PA4 4 &pcfg_pull_none>;			/* pcie30x1_0_waken_m1 */
 		};
 
 		pcie30_vcc_pins: pcie30-vcc-pins {
 			rockchip,pins =
-				<1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		pcie3x4_pins: pci3x4-pins {

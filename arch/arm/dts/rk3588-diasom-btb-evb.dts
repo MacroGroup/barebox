@@ -340,7 +340,7 @@
 
 	led-act {
 		label = "evb:act";
-		gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio1 RK_PC5 GPIO_ACTIVE_HIGH>;
 		function = LED_FUNCTION_ACTIVITY;
 		color = <LED_COLOR_ID_GREEN>;
 		linux,default-trigger = LED_FUNCTION_ACTIVITY;
@@ -511,7 +511,7 @@
 	leds {
 		leds_evb_pins: leds-evb-pins {
 			rockchip,pins =
-				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* VD19 */
+				<1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* VD19 */
 		};
 	};
 

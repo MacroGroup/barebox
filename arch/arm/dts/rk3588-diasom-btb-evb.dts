@@ -148,18 +148,6 @@
 		vin-supply = <&vcc_5v0_sys>;
 	};
 
-	vcc_pcie30: vcc-pcie30-regulator {
-		pinctrl-0 = <&pcie30_vcc_pins>;
-		pinctrl-names = "default";
-		compatible = "regulator-fixed";
-		enable-active-high;
-		gpio = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
-		regulator-name = "vcc_pcie30";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_5v0_sys>;
-	};
-
 	vcc_3v3_sys: vcc-3v3_sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3_sys";
@@ -178,6 +166,18 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&v_sys>;
+	};
+
+	vcc_pcie30: vcc-pcie30-regulator {
+		pinctrl-0 = <&pcie30_vcc_pins>;
+		pinctrl-names = "default";
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_pcie30";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_5v0_sys>;
 	};
 };
 

@@ -111,11 +111,11 @@
 
 	vbus_typec: vbus-typec-regulator {
 		/* Incorrect wiring 1.8v - 3.3v */
-//		pinctrl-0 = <&typec_pins>;
-//		pinctrl-names = "default";
+		pinctrl-0 = <&typec_pins>;
+		pinctrl-names = "default";
 		compatible = "regulator-fixed";
-//		enable-active-high;
-//		gpio = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vbus_typec";
 		regulator-always-on;
 		regulator-boot-on;
@@ -594,6 +594,11 @@
 		fusb302_pins: fusb302-pins {
 			rockchip,pins =
 				<4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;	/* TYPEC0_INT */
+		};
+
+		typec_pins: typec-pins {
+			rockchip,pins =
+				<4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;	/* TYPEC0_PWREN */
 		};
 	};
 };

@@ -511,14 +511,14 @@
 	leds {
 		leds_evb_pins: leds-evb-pins {
 			rockchip,pins =
-				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* VD19 */
 		};
 	};
 
 	mux {
 		mux_pins: mux-pins {
 			rockchip,pins =
-				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;		/* CAM_I2C_MUX_RST */
 		};
 	};
 
@@ -539,7 +539,7 @@
 
 		pcie30_vcc_pins: pcie30-vcc-pins {
 			rockchip,pins =
-				<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_PWREN */
 		};
 
 		pcie3x4_pins: pci3x4-pins {
@@ -553,7 +553,7 @@
 	usb {
 		fusb302_pins: fusb302-pins {
 			rockchip,pins =
-				<4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;	/* TYPEC0_INT */
 		};
 	};
 };

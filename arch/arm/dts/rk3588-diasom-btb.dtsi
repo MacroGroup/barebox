@@ -568,21 +568,21 @@
 	brg {
 		brg_pins: brg-pins {
 			rockchip,pins =
-				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;	/* LVDS_BRG_EN */
 		};
 	};
 
 	leds {
 		leds_som_pins: leds-som-pins {
 			rockchip,pins =
-				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;	/* VD2 */
 		};
 	};
 
 	rtc {
 		rtc_pins: rtc-pins {
 			rockchip,pins =
-				<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_INT */
 		};
 	};
 };

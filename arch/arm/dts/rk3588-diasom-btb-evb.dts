@@ -552,7 +552,9 @@
 
 		pcie3x4_pins: pci3x4-pins {
 			rockchip,pins =
-				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+				<1 RK_PB0 4 &pcfg_pull_none>,			/* pcie30x4_clkreqn_m3 */
+				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,	/* pcie30x4_perstn_m3 */
+				<1 RK_PB1 4 &pcfg_pull_none>;			/* pcie30x4_waken_m3 */
 		};
 	};
 

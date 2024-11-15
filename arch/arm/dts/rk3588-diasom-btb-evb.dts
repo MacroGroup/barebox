@@ -207,6 +207,8 @@
 	phy-mode = "rgmii-rxid";
 	rx_delay = <0x00>;
 	tx_delay = <0x44>;
+	nvmem-cells = <&mac1>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -330,9 +332,47 @@
 };
 
 &i2c7 {
-	/* Limit frequency due 1.8v EEPROM */
 	clock-frequency = <100000>;
 	status = "okay";
+
+	eeprom@50 {
+		compatible = "microchip,24aa025e48";
+		reg = <0x50>;
+		pagesize = <8>;
+		vcc-supply = <&vcc_1v8_sys>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mac1: mac-address@fa {
+			reg = <0xfa 0x06>;
+		};
+	};
+
+	eeprom@51 {
+		compatible = "microchip,24aa025e48";
+		reg = <0x51>;
+		pagesize = <8>;
+		vcc-supply = <&vcc_1v8_sys>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mac2: mac-address@fa {
+			reg = <0xfa 0x06>;
+		};
+	};
+
+	eeprom@52 {
+		compatible = "microchip,24aa025e48";
+		reg = <0x52>;
+		pagesize = <8>;
+		vcc-supply = <&vcc_1v8_sys>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mac3: mac-address@fa {
+			reg = <0xfa 0x06>;
+		};
+	};
 };
 
 &leds {

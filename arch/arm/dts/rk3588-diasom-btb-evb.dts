@@ -467,6 +467,7 @@
 	no-sdio;
 	no-mmc;
 	sd-uhs-sdr104;
+	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&vcc_3v3_sys>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";

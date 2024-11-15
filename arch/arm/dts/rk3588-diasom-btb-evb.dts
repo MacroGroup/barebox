@@ -100,6 +100,21 @@
 		};
 	};
 
+	pcie_refclk: pcie-refclk-clock {
+		pinctrl-0 = <&pcie30_clk_pins>;
+		pinctrl-names = "default";
+		compatible = "gpio-gate-clock";
+		clocks = <&pcie_refclk_gen>;
+		#clock-cells = <0>;
+		enable-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
+	};
+
+	pcie_refclk_gen: pcie-refclk-gen-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+	};
+
 	v_sys: v-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "v_sys";
@@ -431,6 +446,14 @@
 &pcie3x4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie3x4_pins>;
+	clocks = <&cru ACLK_PCIE_4L_MSTR>, <&cru ACLK_PCIE_4L_SLV>,
+		 <&cru ACLK_PCIE_4L_DBI>, <&cru PCLK_PCIE_4L>,
+		 <&cru CLK_PCIE_AUX0>, <&cru CLK_PCIE4L_PIPE>,
+		 <&pcie_refclk>;
+	clock-names = "aclk_mst", "aclk_slv",
+		      "aclk_dbi", "pclk",
+		      "aux", "pipe",
+		      "ref";
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_pcie30>;
 	status = "okay";
@@ -575,6 +598,11 @@
 				<4 RK_PA3 4 &pcfg_pull_none>,			/* pcie30x1_0_clkreqn_m1 */
 				<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,	/* pcie30x1_0_perstn_m1 */
 				<4 RK_PA4 4 &pcfg_pull_none>;			/* pcie30x1_0_waken_m1 */
+		};
+
+		pcie30_clk_pins: pcie30-clk-pins {
+			rockchip,pins =
+				<1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_CLK_PWREN */
 		};
 
 		pcie30_vcc_pins: pcie30-vcc-pins {

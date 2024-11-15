@@ -316,7 +316,7 @@
 	pci {
 		pcie2x1_pins: pcie2x1-pins {
 			rockchip,pins =
-				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,	/* PCI20_PERSTm */
+				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,	/* PCIE_C_RST# */
 				<1 RK_PB1 4 &pcfg_pull_none>;			/* pcie20_wakenm2 */
 		};
 

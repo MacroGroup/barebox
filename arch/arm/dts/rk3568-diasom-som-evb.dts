@@ -265,6 +265,8 @@
 		regulator-name = "vcc_cam1";
 		startup-delay-us = <250000>;
 		vin-supply = <&vcc5v0_sys>;
+		/* In the SOM v3+ this pin is unused */
+		status = "disabled";
 	};
 };
 

@@ -13,6 +13,8 @@
 };
 
 &vcc_cam0 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
 	vin-supply = <&vcc3v3_sys>;
 };
 
@@ -25,5 +27,7 @@
 };
 
 &vcc_cam1 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
 	vin-supply = <&vcc_cam1_v3>;
 };

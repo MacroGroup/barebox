@@ -171,7 +171,7 @@
 	status = "okay";
 
 	eeprom@50 {
-		compatible = "microchip,24aa025e48";
+		compatible = "microchip,24aa02e48", "microchip,24aa025e48", "atmel,at24c02";
 		reg = <0x50>;
 		pagesize = <8>;
 		vcc-supply = <&vcc_3v3>;
@@ -180,6 +180,7 @@
 
 		mac0: mac-address@fa {
 			reg = <0xfa 0x06>;
+			read-only;
 		};
 	};
 

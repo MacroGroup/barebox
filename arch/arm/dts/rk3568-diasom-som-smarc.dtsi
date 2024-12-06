@@ -126,28 +126,30 @@
 	status = "okay";
 
 	eeprom@50 {
-		compatible = "microchip,24aa025e48";
+		compatible = "microchip,24aa025e48", "atmel,at24c02";
 		reg = <0x50>;
-		pagesize = <8>;
+		pagesize = <16>;
 		vcc-supply = <&vcc3v3_sys>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
 		mac0: mac-address@fa {
 			reg = <0xfa 0x06>;
+			read-only;
 		};
 	};
 
 	eeprom@51 {
-		compatible = "microchip,24aa025e48";
+		compatible = "microchip,24aa025e48", "atmel,at24c02";
 		reg = <0x51>;
-		pagesize = <8>;
+		pagesize = <16>;
 		vcc-supply = <&vcc3v3_sys>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
 		mac1: mac-address@fa {
 			reg = <0xfa 0x06>;
+			read-only;
 		};
 	};
 

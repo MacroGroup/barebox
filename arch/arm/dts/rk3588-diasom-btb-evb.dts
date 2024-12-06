@@ -431,7 +431,7 @@
 	pinctrl-0 = <&pcie2x1l0_pins>;
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
-	status = "okay";
+//	status = "okay";
 };
 
 &pcie2x1l2 {
@@ -440,7 +440,7 @@
 	pinctrl-0 = <&pcie2x1l2_pins>;
 	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
-	status = "okay";
+//	status = "okay";
 };
 
 &pcie30phy {
@@ -460,7 +460,7 @@
 		      "ref";
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_pcie30>;
-	status = "okay";
+//	status = "okay";
 };
 
 &sdmmc {
@@ -480,7 +480,7 @@
 &usb_host0_xhci {
 	/* USB3_HOST_0 X28 */
 	usb-role-switch;
-	status = "okay";
+//	status = "okay";
 
 	port {
 		usb_host0_xhci_drd_sw: endpoint {
@@ -491,13 +491,13 @@
 
 &usb_host1_ehci {
 	/* USB20_HOST1 X27 */
-	status = "okay";
+//	status = "okay";
 };
 
 &usb_host1_xhci {
 	/* USB3_HOST_1 X25 */
 	dr_mode = "host";
-	status = "okay";
+//	status = "okay";
 };
 
 &usbdp_phy0 {
@@ -531,12 +531,12 @@
 	status = "okay";
 };
 
-&u2phy1 {
-	status = "okay";
-};
-
 &u2phy0_otg {
 	phy-supply = <&vbus_typec>;
+//	status = "okay";
+};
+
+&u2phy1 {
 	status = "okay";
 };
 

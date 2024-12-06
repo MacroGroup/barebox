@@ -357,8 +357,6 @@
 				regulator-name = "vdd2_ddr";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <1045000>;
-				regulator-max-microvolt = <1155000>;
 
 				regulator-state-mem {
 					regulator-on-in-suspend;
@@ -394,8 +392,6 @@
 				regulator-name = "vddq_ddr";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <570000>;
-				regulator-max-microvolt = <630000>;
 
 				regulator-state-mem {
 					regulator-off-in-suspend;

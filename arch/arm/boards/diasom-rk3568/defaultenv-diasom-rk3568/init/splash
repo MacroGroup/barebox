@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Enable framebuffer on HDMI output
+if [ -e /dev/fb0 ]; then
+	fb0.enable=1
+
+	LOGODIR=/mnt/mmc0.2/usr/local/share/weston
+	[ -d $LOGODIR ] || DTBODIR=/mnt/mmc1.2/usr/local/share/weston
+
+	# Show DIASOM logo
+	if [ -f $LOGODIR/diasom.png ]; then
+		splash -f /dev/fb0 $LOGODIR/diasom.png
+	fi
+fi
+
+exit 0

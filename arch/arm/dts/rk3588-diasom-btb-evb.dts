@@ -352,7 +352,7 @@
 	status = "okay";
 
 	eeprom@50 {
-		compatible = "microchip,24aa025e48", "atmel,at24c02";
+		compatible = "microchip,24aa025e48", "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 		vcc-supply = <&vcc_1v8_sys>;
@@ -366,7 +366,7 @@
 	};
 
 	eeprom@51 {
-		compatible = "microchip,24aa025e48", "atmel,at24c02";
+		compatible = "microchip,24aa025e48", "atmel,24c02";
 		reg = <0x51>;
 		pagesize = <16>;
 		vcc-supply = <&vcc_1v8_sys>;
@@ -380,7 +380,7 @@
 	};
 
 	eeprom@52 {
-		compatible = "microchip,24aa025e48", "atmel,at24c02";
+		compatible = "microchip,24aa025e48", "atmel,24c02";
 		reg = <0x52>;
 		pagesize = <16>;
 		vcc-supply = <&vcc_1v8_sys>;

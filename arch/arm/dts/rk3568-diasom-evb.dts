@@ -462,7 +462,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	usb@22 {
+	usb_type_c: usb@22 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb302_pins>;
 		compatible = "fcs,fusb302";

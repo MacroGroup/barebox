@@ -209,6 +209,7 @@ static int __init diasom_rk3568_late_init(void)
 			of_overlay_apply_tree(of_get_root_node(), overlay);
 			of_probe();
 
+			of_register_fixup(diasom_rk3568_evb_fixup, NULL);
 		} else {
 			pr_info("EVB version 2 or earlier detected.\n");
 			of_register_fixup(diasom_rk3568_evb_fixup, NULL);

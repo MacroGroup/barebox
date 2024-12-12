@@ -706,20 +706,16 @@ int i2c_add_numbered_adapter(struct i2c_adapter *adapter)
 	int ret;
 
 	if (adapter->nr < 0) {
-		if (!adapter->dev.of_node) {
-			int nr = adapter->dev.id;
+		int nr;
 
-			for (nr = 0;; nr++)
-				if (!i2c_get_adapter(nr))
-					break;
-			adapter->nr = nr;
-		} else
-			adapter->nr =
-				of_alias_get_id(adapter->dev.of_node, "i2c");
+		for (nr = 0;; nr++)
+			if (!i2c_get_adapter(nr))
+				break;
+		adapter->nr = nr;
+	} else {
+		if (i2c_get_adapter(adapter->nr))
+			return -EBUSY;
 	}
-
-	if (i2c_get_adapter(adapter->nr))
-		return -EBUSY;
 
 	adapter->dev.id = adapter->nr;
 	dev_set_name(&adapter->dev, "i2c");

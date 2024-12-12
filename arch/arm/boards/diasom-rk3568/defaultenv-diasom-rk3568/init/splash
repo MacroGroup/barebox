@@ -4,11 +4,8 @@
 if [ -e /dev/fb0 ]; then
 	fb0.enable=1
 
-	LOGO=/mnt/mmc0.2/usr/local/share/weston/diasom.png
-	[ -f $LOGO ] || DTBODIR=/mnt/mmc1.2/usr/local/share/weston/diasom.png
-
 	# Show DIASOM logo
-	[ -f $LOGO ] && splash -f /dev/fb0 $LOGO
+	splash -f /dev/fb0 /env/data/logo.png
 fi
 
 exit 0

@@ -1,11 +1,13 @@
 #!/bin/sh
 
-# Enable framebuffer on HDMI output
-if [ -e /dev/fb0 ]; then
-	fb0.enable=1
+# Check for HDMI on /dev/fb0
+[ -e /dev/fb0 ] || exit 0
+[ -e /dev/fb1 ] || exit 0
 
-	# Show DIASOM logo
-	splash -f /dev/fb0 /env/data/logo.png
-fi
+# Enable framebuffer on HDMI output
+fb0.enable=1
+
+# Show DIASOM logo
+splash -f /dev/fb0 /env/data/logo.png
 
 exit 0

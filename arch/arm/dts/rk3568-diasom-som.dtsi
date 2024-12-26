@@ -158,24 +158,6 @@
 
 /delete-node/ &xin32k;
 
-&can1 {
-	/* Keep CAN node until update to 6.12 kernel */
-	compatible = "rockchip,rk3568-can-2.0";
-	clock-names = "baudclk", "apb_pclk";
-	reset-names = "can", "can-apb";
-	tx-fifo-depth = <1>;
-	rx-fifo-depth = <6>;
-};
-
-&can2 {
-	/* Keep CAN node until update to 6.12 kernel */
-	compatible = "rockchip,rk3568-can-2.0";
-	clock-names = "baudclk", "apb_pclk";
-	reset-names = "can", "can-apb";
-	tx-fifo-depth = <1>;
-	rx-fifo-depth = <6>;
-};
-
 &combphy0 {
 	/* USB3.0 OTG0 */
 	status = "okay";

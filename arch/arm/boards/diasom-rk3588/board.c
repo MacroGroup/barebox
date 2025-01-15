@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
 
+#include <bootsource.h>
 #include <common.h>
 #include <deep-probe.h>
 #include <environment.h>
@@ -9,7 +10,13 @@
 
 static int __init diasom_rk3588_probe(struct device *dev)
 {
+	enum bootsource bootsource = bootsource_get();
+	int instance = bootsource_get_instance();
+
 	barebox_set_hostname("diasom");
+
+	pr_info("Boot source: %s, instance %i\n",
+		bootsource_to_string(bootsource), instance);
 
 	defaultenv_append_directory(defaultenv_diasom_rk3588);
 

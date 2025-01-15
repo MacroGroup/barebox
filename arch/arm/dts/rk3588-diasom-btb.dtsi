@@ -84,10 +84,6 @@
 
 /delete-node/ &xin32k;
 
-&av1d {
-	status = "disabled";
-};
-
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0>;
 };

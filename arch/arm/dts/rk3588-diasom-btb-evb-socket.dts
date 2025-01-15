@@ -71,6 +71,10 @@
 	};
 };
 
+&gpu {
+	status = "okay";
+};
+
 &i2c7 {
 	clock-frequency = <100000>;
 	status = "okay";

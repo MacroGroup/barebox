@@ -182,10 +182,6 @@
 	};
 };
 
-&av1d {
-	status = "okay";
-};
-
 &combphy0_ps {
 	/* pcie2x1l2 (PCIE20_0) */
 	status = "okay";

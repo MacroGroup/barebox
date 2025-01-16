@@ -39,7 +39,7 @@ static int __init diasom_rk3588_check_adc(void)
 		return ret;
 	}
 
-	if (val < 300) {
+	if (val < 350) {
 		som_revision = 0;
 	} else {
 		pr_warn("Unhandled BTB revision ADC value: %i!\n", val);

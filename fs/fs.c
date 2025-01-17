@@ -933,6 +933,13 @@ int fsdev_open_cdev(struct fs_device *fsdev)
 			return ret;
 
 		fsdev->cdev = cdev_create_loop(fsdev->backingstore, O_RDWR, offset);
+		if (fsdev->cdev) {
+			ret = cdev_open(fsdev->cdev, O_RDWR);
+			if (ret) {
+				cdev_remove_loop(fsdev->cdev);
+				fsdev->cdev = NULL;
+			}
+		}
 	} else {
 		fsdev->cdev = cdev_open_by_name(fsdev->backingstore, O_RDWR);
 	}
@@ -1523,9 +1530,6 @@ static struct dentry *d_lookup(struct dentry *parent, const struct qstr *name)
 {
 	struct dentry *dentry;
 
-	if (d_same_name(parent, name))
-		return dget(parent);
-
 	list_for_each_entry(dentry, &parent->d_subdirs, d_child) {
 		if (d_same_name(dentry, name))
 			return dget(dentry);
@@ -1570,6 +1574,7 @@ static struct dentry *lookup_dcache(const struct qstr *name,
 			if (!error)
 				d_invalidate(dentry);
 			dput(dentry);
+			dentry_kill(dentry);
 			return ERR_PTR(error);
 		}
 	}

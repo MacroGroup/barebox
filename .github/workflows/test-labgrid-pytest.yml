@@ -16,6 +16,10 @@ jobs:
 
         include:
           - ARCH: arm
+            lgenv: 'test/arm/*@multi_v5_v6_defconfig.yaml'
+            defconfig: multi_v5_v6_defconfig
+
+          - ARCH: arm
             lgenv: 'test/arm/*@multi_v7_defconfig.yaml'
             defconfig: multi_v7_defconfig
 
@@ -59,7 +63,7 @@ jobs:
       run: |
         export ARCH=${{matrix.arch}}
 
-        ./MAKEALL -O build-${{matrix.arch}} \
+        ./MAKEALL -O build-${{matrix.arch}} -l "" -v 0 \
                 -k common/boards/configs/enable_self_test.config \
                 -k common/boards/configs/disable_target_tools.config \
                 ${{matrix.defconfig}}

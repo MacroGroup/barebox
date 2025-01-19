@@ -29,6 +29,18 @@
 		mmc0 = &sdhci;
 	};
 
+	hdmi0-con {
+		/* In fact, port connected to RK628, leave this as is for now */
+		compatible = "hdmi-connector";
+		type = "a";
+		
+		port {
+			hdmi0_con_in: endpoint {
+				remote-endpoint = <&hdmi0_out_con>;
+			};
+		};
+	};
+
 	leds: leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -119,6 +131,32 @@
 &gpu {
 	mali-supply = <&vdd_gpu>;
 	sram-supply = <&vdd_gpu>;
+};
+
+&gpu {
+	status = "okay";
+};
+
+&hdmi0 {
+	/* CEC is not used here */
+	pinctrl-0 = <&hdmim0_tx0_hpd &hdmim0_tx0_scl &hdmim0_tx0_sda>;
+	status = "okay";
+};
+
+&hdmi0_in {
+	hdmi0_in_vp0: endpoint {
+		remote-endpoint = <&vp0_out_hdmi0>;
+	};
+};
+
+&hdmi0_out {
+	hdmi0_out_con: endpoint {
+		remote-endpoint = <&hdmi0_con_in>;
+	};
+};
+
+&hdptxphy_hdmi0 {
+	status = "okay";
 };
 
 &i2c0 {
@@ -572,6 +610,21 @@
 &uart2 {
 	pinctrl-0 = <&uart2m0_xfer>;
 	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vp0 {
+	vp0_out_hdmi0: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
+		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
+		remote-endpoint = <&hdmi0_in_vp0>;
+	};
 };
 
 &pinctrl {

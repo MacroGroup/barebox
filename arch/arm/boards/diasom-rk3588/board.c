@@ -27,13 +27,19 @@ static int diasom_rk3588_probe_i2c(struct i2c_adapter *adapter, const int addr)
 
 static int __init diasom_rk3588_check_adc(void)
 {
+	struct device *i2c_dev, *aio_dev;
 	struct i2c_adapter *adapter;
-	struct device *aio_dev;
 	struct aiochannel *aio_ch;
 	int val, ret;
 
 	if (!of_machine_is_compatible("diasom,ds-rk3588-btb"))
 		return 0;
+
+	i2c_dev = of_device_enable_and_register_by_name("i2c@feaa0000");
+	if (!i2c_dev) {
+		pr_err("Unable to access to I2C2 bus!\n");
+		return -ENODEV;
+	}
 
 	adapter = i2c_get_adapter(2);
 	if (!adapter) {

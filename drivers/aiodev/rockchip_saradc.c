@@ -233,6 +233,8 @@ static int rockchip_saradc_probe(struct device *dev)
 		 data->config->init(data);
 
 	data->reset = reset_control_get(dev, "saradc-apb");
+	if (IS_ERR(data->reset))
+		data->reset = NULL;
 
 	ret = aiodevice_register(&data->aiodev);
 	if (ret)

@@ -8,17 +8,45 @@
 #include <environment.h>
 #include <envfs.h>
 #include <init.h>
+#include <i2c/i2c.h>
 
 static int som_revision = -1;
 
+static int diasom_rk3588_probe_i2c(struct i2c_adapter *adapter, const int addr)
+{
+	u8 buf[1];
+	struct i2c_msg msg = {
+		.addr = addr,
+		.buf = buf,
+		.len = sizeof(buf),
+		.flags = I2C_M_RD,
+	};
+
+	return (i2c_transfer(adapter, &msg, 1) == 1) ? 0: -ENODEV;
+}
+
 static int __init diasom_rk3588_check_adc(void)
 {
+	struct i2c_adapter *adapter;
 	struct device *aio_dev;
 	struct aiochannel *aio_ch;
 	int val, ret;
 
 	if (!of_machine_is_compatible("diasom,ds-rk3588-btb"))
 		return 0;
+
+	adapter = i2c_get_adapter(2);
+	if (!adapter) {
+		pr_err("Could get I2C2 bus. "
+		       "Probably this is not Diasom board!\n");
+		return -ENODEV;
+	}
+
+	if (diasom_rk3588_probe_i2c(adapter, 0x42)) {
+		pr_err("Could get I2C2 device. "
+		       "Probably this is not Diasom board!\n");
+		return -ENODEV;
+	}
 
 	aio_dev = of_device_enable_and_register_by_name("adc@fec10000");
 	if (!aio_dev) {

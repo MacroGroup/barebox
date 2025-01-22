@@ -47,6 +47,14 @@
 		};
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm4 0 1000 0>;
+		brightness-levels = <0 255>;
+		num-interpolated-steps = <256>;
+		default-brightness-level = <255>;
+	};
+
 	pcie_refclk: pcie-refclk-clock {
 		pinctrl-0 = <&pcie30_clk_pins>;
 		pinctrl-names = "default";
@@ -126,6 +134,40 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_5v0_sys>;
+	};
+
+	vcc_lcd: vcc-lcd-regulator {
+		pinctrl-0 = <&lcd_vcc_pins>;
+		pinctrl-names = "default";
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_lcd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_sys>;
+	};
+};
+
+&brg {
+	pinctrl-0 = <&brg_pins &brg_evb_pins>;
+	reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
+	panel-backlight = <&backlight>;
+	panel-power-supply = <&vcc_lcd>;
+	panel-reset-delay-ms = <10>;
+	panel-enable-delay-ms = <10>;
+	panel-prepare-delay-ms = <60>;
+	panel-unprepare-delay-ms = <10>;
+	panel-disable-delay-ms = <60>;
+	status = "okay";
+
+	rk628-lvds-out {
+		bus-format = "jeida_24";
+		link-type = "dual_link_odd_even_pixels";
+	};
+
+	display-timings {
+		/* COG-TA25F325P-L */
 	};
 };
 
@@ -383,6 +425,10 @@
 //	status = "okay";
 };
 
+&pwm4 {
+	status = "okay";
+};
+
 &sdmmc {
 	bus-width = <4>;
 	cap-mmc-highspeed;
@@ -481,6 +527,18 @@
 };
 
 &pinctrl {
+	brg {
+		brg_evb_pins: brg-evb-pins {
+			rockchip,pins =
+				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_nRESET */
+		};
+
+		lcd_vcc_pins: lcd-vcc-pins {
+			rockchip,pins =
+				<1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_PWREN_H */
+		};
+	};
+
 	leds {
 		leds_evb_pins: leds-evb-pins {
 			rockchip,pins =

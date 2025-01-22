@@ -236,14 +236,13 @@
 		};
 	};
 
-	hdmi@51 {
-		pinctrl-0 = <&brg_pins>;
+	brg: hdmi@51 {
 		pinctrl-names = "default";
+		pinctrl-0 = <&brg_pins>;
 		compatible = "rockchip,rk628";
 		reg = <0x51>;
 		enable-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-		/* Should not work without IRQ and RESET pins */
-		//TODO
+		rk628-hdmi-in;
 		status = "disabled";
 	};
 

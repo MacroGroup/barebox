@@ -26,7 +26,7 @@
 	};
 
 	aliases {
-		mmc0 = &sdhci;
+		mmc1 = &sdhci;
 	};
 
 	hdmi0-con {

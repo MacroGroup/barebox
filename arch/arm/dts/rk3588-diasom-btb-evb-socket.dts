@@ -16,7 +16,7 @@
 		     "rockchip,rk3588";
 
 	aliases {
-		mmc1 = &sdmmc;
+		mmc0 = &sdmmc;
 	};
 
 	chosen {

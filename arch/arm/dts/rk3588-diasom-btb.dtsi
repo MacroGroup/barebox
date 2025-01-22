@@ -30,7 +30,7 @@
 	};
 
 	hdmi0-con {
-		/* In fact, port connected to RK628, leave this as is for now */
+		/* RK628 */
 		compatible = "hdmi-connector";
 		type = "a";
 		
@@ -57,7 +57,7 @@
 		};
 	};
 
-	/* FIXME: First BTB sample crash with DABT at 0x3fc000200 & 0x3fff00000 */
+	/* BTB crashed with DABT at 0x3fc000200 & 0x3fff00000 */
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;

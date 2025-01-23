@@ -117,7 +117,7 @@ device_initcall(diasom_rk3568_check_recovery);
 									\
 		__res = resp[__off] >> __shft;				\
 		if (__size + __shft > 32)				\
-		__res |= resp[__off-1] << ((32 - __shft) % 32);		\
+			__res |= resp[__off-1] << ((32 - __shft) % 32);	\
 		__res & __mask;						\
 	})
 
@@ -138,7 +138,7 @@ static int __init diasom_rk3568_machine_id(void)
 	struct mci *mci;
 	unsigned serial;
 
-	if (!of_machine_is_compatible("diasom,ds-rk3568-som"))
+	if (!of_machine_is_compatible("rockchip,rk3568"))
 		return 0;
 
 	mci = mci_get_device_by_name("mmc0");

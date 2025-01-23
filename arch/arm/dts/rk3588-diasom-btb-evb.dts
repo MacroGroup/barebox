@@ -82,6 +82,17 @@
 		clock-frequency = <100000000>;
 	};
 
+	thermal-sensor {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&saradc 3>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <0 603
+					    25000 1309
+					    50000 2172
+					    75000 2905>;
+	};
+
 	v_sys: v-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "v_sys";

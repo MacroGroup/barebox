@@ -332,6 +332,11 @@
 	};
 };
 
+&i2s5_8ch {
+	/* HDMI0 Sound */
+	status = "okay";
+};
+
 &saradc {
 	vref-supply = <&vcca_1v8>;
 	status = "okay";

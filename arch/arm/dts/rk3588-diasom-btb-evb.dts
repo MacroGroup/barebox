@@ -162,8 +162,9 @@
 };
 
 &brg {
-	pinctrl-0 = <&brg_pins &brg_evb_pins>;
-	reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&brg_pins &lvds_pins>;
+	panel-enable-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+	panel-reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
 	panel-backlight = <&backlight>;
 	panel-power-supply = <&vcc_lcd>;
 	panel-reset-delay-ms = <10>;
@@ -563,14 +564,15 @@
 
 &pinctrl {
 	brg {
-		brg_evb_pins: brg-evb-pins {
-			rockchip,pins =
-				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_nRESET */
-		};
-
 		lcd_vcc_pins: lcd-vcc-pins {
 			rockchip,pins =
 				<1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_PWREN_H */
+		};
+
+		lvds_pins: lvds-pins {
+			rockchip,pins =
+				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD_nRESET */
+				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_nSTBYB */
 		};
 	};
 

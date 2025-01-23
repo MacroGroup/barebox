@@ -29,7 +29,7 @@
 		i2c8 = &i2c8;
 		i2c9 = &i2c9;
 		i2c10 = &i2c10;
-		mmc0 = &sdmmc0;
+		mmc1 = &sdmmc0;
 		sound0 = &sound0;
 	};
 

@@ -141,7 +141,7 @@ static int __init diasom_rk3568_machine_id(void)
 	if (!of_machine_is_compatible("diasom,ds-rk3568-som"))
 		return 0;
 
-	mci = mci_get_device_by_name("mmc1");
+	mci = mci_get_device_by_name("mmc0");
 	if (!mci) {
 		pr_err("Unable to get MCI device!\n");
 		return -ENODEV;
@@ -216,7 +216,7 @@ static int __init diasom_rk3568_probe(struct device *dev)
 
 	barebox_set_hostname("diasom");
 
-	if (bootsource != BOOTSOURCE_MMC || instance) {
+	if (bootsource != BOOTSOURCE_MMC || !instance) {
 		if (bootsource != BOOTSOURCE_MMC) {
 			pr_info("Boot source: %s, instance %i\n",
 				bootsource_to_string(bootsource),
@@ -228,9 +228,9 @@ static int __init diasom_rk3568_probe(struct device *dev)
 	} else
 		of_device_enable_path("/chosen/environment-sd");
 
-	rk3568_bbu_mmc_register("sd", 0, "/dev/mmc0");
+	rk3568_bbu_mmc_register("sd", 0, "/dev/mmc1");
 	rk3568_bbu_mmc_register("emmc", BBU_HANDLER_FLAG_DEFAULT,
-				"/dev/mmc1");
+				"/dev/mmc0");
 
 	defaultenv_append_directory(defaultenv_diasom_rk3568);
 

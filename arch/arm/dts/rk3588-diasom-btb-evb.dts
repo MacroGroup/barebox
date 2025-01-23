@@ -195,10 +195,8 @@
 
 &gmac0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <
-		&gmac0_miim &gmac0_tx_bus2 &gmac0_rx_bus2
-		&gmac0_rgmii_clk &gmac0_rgmii_bus &eth0_pins
-	>;
+	pinctrl-0 = <&gmac0_miim &gmac0_tx_bus2 &gmac0_rx_bus2
+		     &gmac0_rgmii_clk &gmac0_rgmii_bus &eth0_pins>;
 	clock_in_out = "output";
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-rxid";
@@ -211,10 +209,8 @@
 
 &gmac1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <
-		&gmac1_miim &gmac1_tx_bus2 &gmac1_rx_bus2
-		&gmac1_rgmii_clk &gmac1_rgmii_bus &eth1_pins
-	>;
+	pinctrl-0 = <&gmac1_miim &gmac1_tx_bus2 &gmac1_rx_bus2
+		     &gmac1_rgmii_clk &gmac1_rgmii_bus &eth1_pins>;
 	clock_in_out = "output";
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-rxid";

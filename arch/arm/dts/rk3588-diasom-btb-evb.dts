@@ -192,6 +192,14 @@
 
 	display-timings {
 		/* COG-TA25F325P-L */
+
+		src-timing {
+			//TODO:
+		};
+
+		dst-timing {
+			//TODO:
+		};
 	};
 };
 

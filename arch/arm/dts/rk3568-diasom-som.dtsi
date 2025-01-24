@@ -160,7 +160,19 @@
 
 &combphy0 {
 	/* USB3.0 OTG0 */
+	/* Temporary fix until 6.13+ DTS */
+	reset-names = "phy";
 	status = "okay";
+};
+
+&combphy1 {
+	/* Temporary fix until 6.13+ DTS */
+	reset-names = "phy";
+};
+
+&combphy2 {
+	/* Temporary fix until 6.13+ DTS */
+	reset-names = "phy";
 };
 
 &cpu0 {

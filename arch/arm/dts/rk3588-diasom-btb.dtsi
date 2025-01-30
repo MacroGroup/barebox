@@ -674,7 +674,7 @@
 &tsadc {
 	/* Fix pinctrl names until it fixed in mainline */
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&tsadc_shut>;
+	pinctrl-0 = <&tsadc_shut_org>;
 	pinctrl-1 = <&tsadc_gpio_func>;
 	status = "okay";
 };

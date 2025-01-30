@@ -414,6 +414,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac0_miim &gmac0_tx_bus2 &gmac0_rx_bus2 &gmac0_rgmii_clk &gmac0_rgmii_bus>;
 	clock_in_out = "output";
+	nvmem-cells = <&mac0>;
+	nvmem-cell-names = "mac-address";
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;
@@ -427,6 +429,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac1m1_miim &gmac1m1_tx_bus2 &gmac1m1_rx_bus2 &gmac1m1_rgmii_clk &gmac1m1_rgmii_bus>;
 	clock_in_out = "output";
+	nvmem-cells = <&mac1>;
+	nvmem-cell-names = "mac-address";
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;
@@ -462,7 +466,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	usb_type_c: usb@22 {
+	usb@22 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb302_pins>;
 		compatible = "fcs,fusb302";
@@ -735,6 +739,31 @@
 			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+		};
+	};
+
+    eeprom@50 {
+		compatible = "microchip,24aa025e48", "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc3v3_sys>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		mac0: mac-address@fa {
+			reg = <0xfa 0x06>;
+			read-only;
+		};
+	};
+	eeprom@51 {
+		compatible = "microchip,24aa025e48", "atmel,24c02";
+		reg = <0x51>;
+		pagesize = <16>;
+		vcc-supply = <&vcc3v3_sys>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		mac1: mac-address@fa {
+			reg = <0xfa 0x06>;
+			read-only;
 		};
 	};
 };

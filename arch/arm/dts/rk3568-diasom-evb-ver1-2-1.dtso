@@ -20,10 +20,13 @@
     gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 };
 
-&usb_type_c {
-	interrupt-parent = <&gpio1>;
-	interrupts = <RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+&i2c1 {
+    usb@22 {
+	    interrupt-parent = <&gpio1>;
+	    interrupts = <RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+    };
 };
+
 
 &csi1_pwr {
     rockchip,pins =

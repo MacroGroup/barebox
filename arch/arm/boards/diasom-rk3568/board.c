@@ -159,10 +159,9 @@ of_populate_initcall(diasom_rk3568_machine_id);
 
 static void __init diasom_rk3568_load_overlay(const void *ovl)
 {
-	int ret;
-
 	if (ovl) {
 		struct device_node *root = of_get_root_node();
+		int ret;
 
 		ret = of_overlay_apply_dtbo(root, ovl);
 		if (ret) {

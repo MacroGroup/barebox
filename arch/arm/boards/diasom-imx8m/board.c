@@ -44,7 +44,7 @@ static int diasom_imx8m_evb_fixup(struct device_node *, void *)
 	return 0;
 }
 
-static int diasom_imx8m_probe(struct device *dev)
+static int __init diasom_imx8m_probe(struct device *dev)
 {
 	enum bootsource bootsource = bootsource_get();
 	int instance = bootsource_get_instance();
@@ -76,13 +76,13 @@ static int diasom_imx8m_probe(struct device *dev)
 	return 0;
 }
 
-static const struct of_device_id diasom_imx8m_of_match[] = {
+static const struct of_device_id __init diasom_imx8m_of_match[] = {
 	{ .compatible = "diasom,ds-imx8m-som", },
 	{ }
 };
 BAREBOX_DEEP_PROBE_ENABLE(diasom_imx8m_of_match);
 
-static struct driver diasom_imx8m_driver = {
+static struct driver __init diasom_imx8m_driver = {
 	.name = "board-ds-imx8m",
 	.probe = diasom_imx8m_probe,
 	.of_compatible = diasom_imx8m_of_match,

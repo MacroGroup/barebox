@@ -121,7 +121,7 @@ device_initcall(diasom_rk3568_check_recovery);
 		__res & __mask;						\
 	})
 
-static unsigned extract_psn(struct mci *mci)
+static unsigned __init extract_psn(struct mci *mci)
 {
 	if (!IS_SD(mci)) {
 		if (mci->version > MMC_VERSION_1_4)
@@ -157,10 +157,32 @@ static int __init diasom_rk3568_machine_id(void)
 }
 of_populate_initcall(diasom_rk3568_machine_id);
 
+static void __init diasom_rk3568_load_overlay(const void *ovl)
+{
+	int ret;
+
+	if (ovl) {
+		struct device_node *root = of_get_root_node();
+
+		ret = of_overlay_apply_dtbo(root, ovl);
+		if (ret) {
+			pr_err("Cannot apply overlay: %pe!\n", ERR_PTR(ret));
+			return;
+		}
+
+		of_probe();
+
+		/* Ensure reload aliases & model name */
+		of_set_root_node(NULL);
+		of_set_root_node(root);
+	}
+}
+
 static int __init diasom_rk3568_late_init(void)
 {
 	if (of_machine_is_compatible("diasom,ds-rk3568-som")) {
 		struct i2c_adapter *adapter = i2c_get_adapter(0);
+		void *som_ovl = NULL;
 
 		if (!adapter) {
 			pr_err("Cannot determine SOM version.\n");
@@ -169,19 +191,19 @@ static int __init diasom_rk3568_late_init(void)
 
 		if (!diasom_rk3568_probe_i2c(adapter, 0x1c)) {
 			extern char __dtbo_rk3568_diasom_som_ver2_start[];
-			struct device_node *overlay;
 
 			pr_info("SOM version 2+ detected.\n");
 
-			overlay = of_unflatten_dtb(__dtbo_rk3568_diasom_som_ver2_start, INT_MAX);
-			of_overlay_apply_tree(of_get_root_node(), overlay);
-			of_probe();
+			som_ovl = __dtbo_rk3568_diasom_som_ver2_start;
 		} else
 			pr_info("SOM version 1 detected.\n");
+
+		diasom_rk3568_load_overlay(som_ovl);
 	}
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-evb")) {
 		struct i2c_adapter *adapter = i2c_get_adapter(4);
+		void *evb_ovl = NULL;
 
 		if (!adapter) {
 			pr_err("Cannot determine EVB version.\n");
@@ -190,19 +212,18 @@ static int __init diasom_rk3568_late_init(void)
 
 		if (!diasom_rk3568_probe_i2c(adapter, 0x70)) {
 			extern char __dtbo_rk3568_diasom_som_evb_ver3_start[];
-			struct device_node *overlay;
 
 			pr_info("EVB version 1.3+ detected.\n");
 
-			overlay = of_unflatten_dtb(__dtbo_rk3568_diasom_som_evb_ver3_start, INT_MAX);
-			of_overlay_apply_tree(of_get_root_node(), overlay);
-			of_probe();
+			evb_ovl = __dtbo_rk3568_diasom_som_evb_ver3_start;;
 
 			of_register_fixup(diasom_rk3568_evb_ver3_fixup, NULL);
 		} else {
 			pr_info("EVB version 1.2 or earlier detected.\n");
 			of_register_fixup(diasom_rk3568_evb_fixup, NULL);
 		}
+
+		diasom_rk3568_load_overlay(evb_ovl);
 	};
 
 	return 0;
@@ -237,13 +258,13 @@ static int __init diasom_rk3568_probe(struct device *dev)
 	return 0;
 }
 
-static const struct of_device_id diasom_rk3568_of_match[] = {
+static const struct of_device_id __init diasom_rk3568_of_match[] = {
 	{ .compatible = "diasom,ds-rk3568-som" },
 	{ },
 };
 BAREBOX_DEEP_PROBE_ENABLE(diasom_rk3568_of_match);
 
-static struct driver diasom_rk3568_driver = {
+static struct driver __init diasom_rk3568_driver = {
 	.name = "board-ds-rk3568-som",
 	.probe = diasom_rk3568_probe,
 	.of_compatible = diasom_rk3568_of_match,

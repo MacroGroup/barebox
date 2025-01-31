@@ -14,7 +14,8 @@
 
 static int som_revision = -1;
 
-static int diasom_rk3588_probe_i2c(struct i2c_adapter *adapter, const int addr)
+static int __init diasom_rk3588_probe_i2c(struct i2c_adapter *adapter,
+					  const int addr)
 {
 	u8 buf[1];
 	struct i2c_msg msg = {
@@ -103,7 +104,7 @@ device_initcall(diasom_rk3588_check_adc);
 		__res & __mask;						\
 	})
 
-static unsigned extract_psn(struct mci *mci)
+static unsigned __init extract_psn(struct mci *mci)
 {
 	if (!IS_SD(mci)) {
 		if (mci->version > MMC_VERSION_1_4)
@@ -173,13 +174,13 @@ static int __init diasom_rk3588_probe(struct device *dev)
 	return 0;
 }
 
-static const struct of_device_id diasom_rk3588_of_match[] = {
+static const struct of_device_id __init diasom_rk3588_of_match[] = {
 	{ .compatible = "diasom,ds-rk3588-btb" },
 	{ },
 };
 BAREBOX_DEEP_PROBE_ENABLE(diasom_rk3588_of_match);
 
-static struct driver diasom_rk3588_driver = {
+static struct driver __init diasom_rk3588_driver = {
 	.name = "board-ds-rk3588",
 	.probe = diasom_rk3588_probe,
 	.of_compatible = diasom_rk3588_of_match,

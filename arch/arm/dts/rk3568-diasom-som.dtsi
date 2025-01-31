@@ -126,16 +126,6 @@
 		};
 	};
 
-	vcc0v9_cpu: vcc0v9-cpu-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "0v9_cpu";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <900000>;
-		regulator-max-microvolt = <900000>;
-		vin-supply = <&vcc3v3_pmu>;
-	};
-
 	vcc3v3_sys: vcc3v3-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "3v3_sys";
@@ -173,22 +163,6 @@
 &combphy2 {
 	/* Temporary fix until 6.13+ DTS */
 	reset-names = "phy";
-};
-
-&cpu0 {
-	cpu-supply = <&vcc0v9_cpu>;
-};
-
-&cpu1 {
-	cpu-supply = <&vcc0v9_cpu>;
-};
-
-&cpu2 {
-	cpu-supply = <&vcc0v9_cpu>;
-};
-
-&cpu3 {
-	cpu-supply = <&vcc0v9_cpu>;
 };
 
 &cpu0_opp_table {

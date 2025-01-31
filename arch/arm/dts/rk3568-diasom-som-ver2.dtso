@@ -58,7 +58,3 @@
 		};
 	};
 };
-
-&vcc0v9_cpu {
-	status = "disabled";
-};

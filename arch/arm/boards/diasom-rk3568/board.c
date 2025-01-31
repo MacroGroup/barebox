@@ -192,11 +192,14 @@ static int __init diasom_rk3568_late_init(void)
 		if (!diasom_rk3568_probe_i2c(adapter, 0x1c)) {
 			extern char __dtbo_rk3568_diasom_som_ver2_start[];
 
-			pr_info("SOM version 2+ detected.\n");
-
 			som_ovl = __dtbo_rk3568_diasom_som_ver2_start;
-		} else
+			pr_info("SOM version 2+ detected.\n");
+		} else {
+			extern char __dtbo_rk3568_diasom_som_ver1_start[];
+
+			som_ovl = __dtbo_rk3568_diasom_som_ver1_start;
 			pr_info("SOM version 1 detected.\n");
+		}
 
 		diasom_rk3568_load_overlay(som_ovl);
 	}

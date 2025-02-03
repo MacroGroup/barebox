@@ -190,12 +190,11 @@ static int __init diasom_rk3568_init(void)
 	if (of_machine_is_compatible("diasom,ds-rk3568-som")) {
 		struct i2c_adapter *adapter =
 			diasom_rk3568_i2c_get_adapter("i2c0", 0);
-		void *som_ovl = NULL;
+		void *som_ovl;
 
 		if (!adapter) {
 			pr_err("Cannot determine SOM version.\n");
-			ret = -ENOTSUPP;
-			goto out;
+			return -ENOTSUPP;
 		}
 
 		if (!diasom_rk3568_probe_i2c(adapter, 0x1c)) {
@@ -218,7 +217,7 @@ static int __init diasom_rk3568_init(void)
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-evb")) {
 		struct i2c_adapter *adapter =
 			diasom_rk3568_i2c_get_adapter("i2c4", 4);
-		void *evb_ovl = NULL;
+		void *evb_ovl;
 
 		if (!adapter) {
 			pr_err("Cannot determine EVB version.\n");

@@ -181,16 +181,14 @@
 	};
 
 	vcc3v3_pcie20: vcc3v3-pcie20-pwr-regulator {
-		pinctrl-0 = <&pcie20_pwr_pins>;
-		pinctrl-names = "default";
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio3 RK_PD3 GPIO_ACTIVE_HIGH>;
 		regulator-name = "3v3_pcie20";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		startup-delay-us = <20000>;
 		vin-supply = <&vcc3v3_sys>;
+		status = "disabled";
 	};
 
 	vcc3v3_pcie30: vcc3v3-pcie30-regulator {
@@ -221,28 +219,24 @@
 	};
 
 	vcc5v0_usb3_host1: vcc5v0-usb3-host1-regulator {
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb3_host1_en_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc5v0_usb3_host1";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		startup-delay-us = <20000>;
 		vin-supply = <&vcc5v0_sys>;
+		status = "disabled";
 	};
 
 	vcc5v0_usb3_otg0: vcc5v0-usb3-otg0-regulator {
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb3_otg0_en_pins>;
 		compatible = "regulator-fixed";
-		gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_LOW>;
 		regulator-name = "vcc5v0_usb3_otg0";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		startup-delay-us = <20000>;
 		vin-supply = <&vcc5v0_sys>;
+		status = "disabled";
 	};
 
 	vcc_cam0: vcc-cam0-regulator {
@@ -259,7 +253,6 @@
 	};
 
 	vcc_cam1: vcc-cam1-regulator {
-		pinctrl-names = "default";
 		compatible = "regulator-fixed";
 		enable-active-high;
 		regulator-name = "vcc_cam1";
@@ -415,7 +408,6 @@
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;
-	status = "okay";
 };
 
 &gmac1 {
@@ -428,7 +420,6 @@
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;
-	status = "okay";
 };
 
 &gpu {
@@ -460,14 +451,11 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	usb@22 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&fusb302_pins>;
+	typec: usb@22 {
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PC1 IRQ_TYPE_LEVEL_LOW>;
 		vbus-supply = <&vcc5v0_usb3_otg0>;
+		status = "disabled";
 
 		connector {
 			compatible = "usb-c-connector";
@@ -993,11 +981,6 @@
 			rockchip,pins =
 				<3 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_RESET0# */
 		};
-
-		csi1_rst: csi1-rst-pins {
-			rockchip,pins =
-				<1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_RESET1# */
-		};
 	};
 
 	dsi {
@@ -1005,13 +988,6 @@
 			rockchip,pins =
 				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>,		/* DSI_PWREN */
 				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;		/* DSI_RESET# */
-		};
-	};
-
-	fusb302 {
-		fusb302_pins: fusb302-pins {
-			rockchip,pins =
-				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;		/* USB3_OTG_INT */
 		};
 	};
 
@@ -1050,11 +1026,6 @@
 				<2 RK_PD1 4 &pcfg_pull_none>,			/* PCIE20_WAKEn_M1 */
 				<1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE20_PERST */
 		};
-
-		pcie20_pwr_pins: pcie20-pwr-pins {
-			rockchip,pins =
-				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE20_PWREN */
-		};
 	};
 
 	pcie30 {
@@ -1073,18 +1044,6 @@
 		pcie30_pwr_pins: pcie30-pwr-pins {
 			rockchip,pins =
 				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;		/* PCIE30_PWREN */
-		};
-	};
-
-	usb {
-		usb3_host1_en_pins: usb3-host1-en-pins {
-			rockchip,pins =
-				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;	/* USB3_HOST1_EN */
-		};
-
-		usb3_otg0_en_pins: usb3-otg0-en-pins {
-			rockchip,pins =
-				<1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;	/* USB3_OTG0_EN */
 		};
 	};
 

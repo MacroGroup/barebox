@@ -30,9 +30,18 @@ static int diasom_rk3568_probe_i2c(struct i2c_adapter *adapter, const int addr)
 	return (i2c_transfer(adapter, &msg, 1) == 1) ? 0: -ENODEV;
 }
 
+static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const char *alias,
+							 const int num)
+{
+	if (!of_device_enable_and_register_by_alias(alias))
+		return NULL;
+
+	return i2c_get_adapter(num);
+}
+
 static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 {
-	struct i2c_adapter *adapter = i2c_get_adapter(4);
+	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter("i2c4", 4);
 	if (!adapter)
 		return -ENODEV;
 
@@ -56,7 +65,7 @@ static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 					    void *unused)
 {
-	struct i2c_adapter *adapter = i2c_get_adapter(7);
+	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter("i2c7", 7);
 	if (!adapter)
 		return -ENODEV;
 
@@ -158,35 +167,35 @@ static int __init diasom_rk3568_machine_id(void)
 }
 of_populate_initcall(diasom_rk3568_machine_id);
 
-static void __init diasom_rk3568_load_overlay(const void *ovl)
+static bool __init diasom_rk3568_load_overlay(const void *ovl)
 {
 	if (ovl) {
-		struct device_node *root = of_get_root_node();
 		int ret;
 
-		ret = of_overlay_apply_dtbo(root, ovl);
-		if (ret) {
-			pr_err("Cannot apply overlay: %pe!\n", ERR_PTR(ret));
-			return;
-		}
+		ret = of_overlay_apply_dtbo(of_get_root_node(), ovl);
+		if (!ret)
+			return true;
 
-		of_probe();
-
-		/* Ensure reload aliases & model name */
-		of_set_root_node(NULL);
-		of_set_root_node(root);
+		pr_err("Cannot apply overlay: %pe!\n", ERR_PTR(ret));
 	}
+
+	return false;
 }
 
-static int __init diasom_rk3568_late_init(void)
+static int __init diasom_rk3568_init(void)
 {
+	bool do_probe = false;
+	int ret = 0;
+
 	if (of_machine_is_compatible("diasom,ds-rk3568-som")) {
-		struct i2c_adapter *adapter = i2c_get_adapter(0);
+		struct i2c_adapter *adapter =
+			diasom_rk3568_i2c_get_adapter("i2c0", 0);
 		void *som_ovl = NULL;
 
 		if (!adapter) {
 			pr_err("Cannot determine SOM version.\n");
-			return 0;
+			ret = -ENOTSUPP;
+			goto out;
 		}
 
 		if (!diasom_rk3568_probe_i2c(adapter, 0x1c)) {
@@ -201,16 +210,20 @@ static int __init diasom_rk3568_late_init(void)
 			pr_info("SOM version 1 detected.\n");
 		}
 
-		diasom_rk3568_load_overlay(som_ovl);
-	}
+		if (diasom_rk3568_load_overlay(som_ovl))
+			do_probe = true;
+	} else
+		return 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-evb")) {
-		struct i2c_adapter *adapter = i2c_get_adapter(4);
+		struct i2c_adapter *adapter =
+			diasom_rk3568_i2c_get_adapter("i2c4", 4);
 		void *evb_ovl = NULL;
 
 		if (!adapter) {
 			pr_err("Cannot determine EVB version.\n");
-			return 0;
+			ret = -ENOTSUPP;
+			goto out;
 		}
 
 		if (!diasom_rk3568_probe_i2c(adapter, 0x70)) {
@@ -220,6 +233,13 @@ static int __init diasom_rk3568_late_init(void)
 			evb_ovl = __dtbo_rk3568_diasom_som_evb_ver1_3_0_start;
 
 			of_register_fixup(diasom_rk3568_evb_ver1_3_0_fixup, NULL);
+		} else if (!diasom_rk3568_probe_i2c(adapter, 0x50)) {
+			extern char __dtbo_rk3568_diasom_som_evb_ver1_2_1_start[];
+
+			pr_info("EVB version 1.2.1+ detected.\n");
+			evb_ovl = __dtbo_rk3568_diasom_som_evb_ver1_2_1_start;
+
+			of_register_fixup(diasom_rk3568_evb_fixup, NULL);
 		} else {
 			extern char __dtbo_rk3568_diasom_som_evb_ver1_1_0_start[];
 
@@ -229,12 +249,24 @@ static int __init diasom_rk3568_late_init(void)
 			of_register_fixup(diasom_rk3568_evb_fixup, NULL);
 		}
 
-		diasom_rk3568_load_overlay(evb_ovl);
+		if (diasom_rk3568_load_overlay(evb_ovl))
+			do_probe = true;
 	};
 
-	return 0;
+out:
+	if (do_probe) {
+		struct device_node *root = of_get_root_node();
+
+		of_probe();
+
+		/* Ensure reload aliases & model name */
+		of_set_root_node(NULL);
+		of_set_root_node(root);
+	}
+
+	return ret;
 }
-late_initcall(diasom_rk3568_late_init);
+device_initcall(diasom_rk3568_init);
 
 static int __init diasom_rk3568_probe(struct device *dev)
 {

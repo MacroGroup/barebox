@@ -1,0 +1,37 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+&i2c4 {
+	clock-frequency = <400000>;
+};
+
+&vcc_cam0 {
+	regulator-min-microvolt = <5000000>;
+	regulator-max-microvolt = <5000000>;
+	vin-supply = <&vcc5v0_sys>;
+	status = "okay";
+};
+
+&vcc_cam1 {
+	pinctrl-0 = <&csi1_pwr>;
+	gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+	regulator-min-microvolt = <5000000>;
+	regulator-max-microvolt = <5000000>;
+	vin-supply = <&vcc5v0_sys>;
+	status = "okay";
+};
+
+&pinctrl {
+	csi {
+		csi1_pwr: csi1-pwr-pins {
+			rockchip,pins =
+				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_PWREN1 */
+		};
+	};
+};

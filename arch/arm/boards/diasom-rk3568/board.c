@@ -53,7 +53,8 @@ static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 	return 0;
 }
 
-static int diasom_rk3568_evb_ver3_fixup(struct device_node *root, void *unused)
+static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
+					    void *unused)
 {
 	struct i2c_adapter *adapter = i2c_get_adapter(7);
 	if (!adapter)
@@ -213,15 +214,18 @@ static int __init diasom_rk3568_late_init(void)
 		}
 
 		if (!diasom_rk3568_probe_i2c(adapter, 0x70)) {
-			extern char __dtbo_rk3568_diasom_som_evb_ver3_start[];
+			extern char __dtbo_rk3568_diasom_som_evb_ver1_3_0_start[];
 
-			pr_info("EVB version 1.3+ detected.\n");
+			pr_info("EVB version 1.3.0+ detected.\n");
+			evb_ovl = __dtbo_rk3568_diasom_som_evb_ver1_3_0_start;
 
-			evb_ovl = __dtbo_rk3568_diasom_som_evb_ver3_start;;
-
-			of_register_fixup(diasom_rk3568_evb_ver3_fixup, NULL);
+			of_register_fixup(diasom_rk3568_evb_ver1_3_0_fixup, NULL);
 		} else {
-			pr_info("EVB version 1.2 or earlier detected.\n");
+			extern char __dtbo_rk3568_diasom_som_evb_ver1_1_0_start[];
+
+			pr_info("EVB version 1.2.0 or earlier detected.\n");
+			evb_ovl = __dtbo_rk3568_diasom_som_evb_ver1_1_0_start;
+
 			of_register_fixup(diasom_rk3568_evb_fixup, NULL);
 		}
 

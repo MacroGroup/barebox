@@ -27,7 +27,7 @@ static struct i2c_adapter *diasom_imx8m_i2c_get_adapter(const char *alias,
 {
 	if (!of_device_enable_and_register_by_alias(alias))
 		return NULL;
-	
+
 	return i2c_get_adapter(num);
 }
 

@@ -22,11 +22,20 @@ static int diasom_imx8m_probe_i2c(struct i2c_adapter *adapter, const int addr)
 	return (i2c_transfer(adapter, &msg, 1) == 1) ? 0: -ENODEV;
 }
 
+static struct i2c_adapter *diasom_imx8m_i2c_get_adapter(const char *alias,
+							const int num)
+{
+	if (!of_device_enable_and_register_by_alias(alias))
+		return NULL;
+	
+	return i2c_get_adapter(num);
+}
+
 static int diasom_imx8m_evb_fixup(struct device_node *, void *)
 {
 	struct i2c_adapter *adapter;
 
-	adapter = i2c_get_adapter(2);
+	adapter = diasom_imx8m_i2c_get_adapter("i2c2", 2);
 	if (adapter) {
 		if (!diasom_imx8m_probe_i2c(adapter, 0x3d)) {
 			pr_info("Camera AR0234 detected.\n");

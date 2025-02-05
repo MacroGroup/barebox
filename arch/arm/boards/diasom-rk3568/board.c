@@ -30,18 +30,22 @@ static int diasom_rk3568_probe_i2c(struct i2c_adapter *adapter, const int addr)
 	return (i2c_transfer(adapter, &msg, 1) == 1) ? 0: -ENODEV;
 }
 
-static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const char *alias,
-							 const int num)
+static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const int nr)
 {
-	if (!of_device_enable_and_register_by_alias(alias))
+	char *alias = basprintf("i2c%i", nr);
+	struct device *dev;
+
+	dev = of_device_enable_and_register_by_alias(alias);
+	free(alias);
+	if (!dev)
 		return NULL;
 
-	return i2c_get_adapter(num);
+	return i2c_get_adapter(nr);
 }
 
 static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 {
-	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter("i2c4", 4);
+	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(4);
 	if (!adapter)
 		return -ENODEV;
 
@@ -65,7 +69,7 @@ static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 					    void *unused)
 {
-	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter("i2c7", 7);
+	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(7);
 	if (!adapter)
 		return -ENODEV;
 
@@ -189,7 +193,7 @@ static int __init diasom_rk3568_init(void)
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som")) {
 		struct i2c_adapter *adapter =
-			diasom_rk3568_i2c_get_adapter("i2c0", 0);
+			diasom_rk3568_i2c_get_adapter(0);
 		void *som_ovl;
 
 		if (!adapter) {
@@ -216,7 +220,7 @@ static int __init diasom_rk3568_init(void)
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-evb")) {
 		struct i2c_adapter *adapter =
-			diasom_rk3568_i2c_get_adapter("i2c4", 4);
+			diasom_rk3568_i2c_get_adapter(4);
 		void *evb_ovl;
 
 		if (!adapter) {

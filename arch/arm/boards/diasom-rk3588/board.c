@@ -28,13 +28,17 @@ static int __init diasom_rk3588_probe_i2c(struct i2c_adapter *adapter,
 	return (i2c_transfer(adapter, &msg, 1) == 1) ? 0: -ENODEV;
 }
 
-static struct i2c_adapter __init *diasom_rk3588_i2c_get_adapter(const char *alias,
-								const int num)
+static struct i2c_adapter __init *diasom_rk3588_i2c_get_adapter(const int nr)
 {
-	if (!of_device_enable_and_register_by_alias(alias))
+	char *alias = basprintf("i2c%i", nr);
+	struct device *dev;
+
+	dev = of_device_enable_and_register_by_alias(alias);
+	free(alias);
+	if (!dev)
 		return NULL;
 
-	return i2c_get_adapter(num);
+	return i2c_get_adapter(nr);
 }
 
 static int __init diasom_rk3588_check_adc(void)
@@ -47,7 +51,7 @@ static int __init diasom_rk3588_check_adc(void)
 	if (!of_machine_is_compatible("diasom,ds-rk3588-btb"))
 		return 0;
 
-	adapter = diasom_rk3588_i2c_get_adapter("i2c2", 2);
+	adapter = diasom_rk3588_i2c_get_adapter(2);
 	if (!adapter) {
 		pr_err("Could get I2C2 bus. "
 		       "Probably this is not Diasom board!\n");

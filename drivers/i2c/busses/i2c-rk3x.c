@@ -1073,7 +1073,7 @@ MODULE_DEVICE_TABLE(of, rk3x_i2c_match);
 static int rk3x_i2c_probe(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
-	struct rk3x_i2c_soc_data *data;
+	const struct rk3x_i2c_soc_data *data;
 	struct resource *iores;
 	unsigned long clk_rate;
 	struct rk3x_i2c *i2c;

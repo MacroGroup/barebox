@@ -942,7 +942,6 @@ static int rk3x_i2c_wait_xfer_poll(struct rk3x_i2c *i2c)
 		rk3x_i2c_irq(i2c);
 		if (i2c->state == STATE_IDLE)
 			return 0;
-		udelay(5);
 	}
 
 	return -ETIMEDOUT;
@@ -1083,9 +1082,9 @@ static int rk3x_i2c_probe(struct device *dev)
 	i2c = xzalloc(sizeof(*i2c));
 	i2c->dev = dev;
 
-	ret = dev_get_drvdata(dev, (const void **)&data);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "Failed to retrieve driver data\n");
+	data = device_get_match_data(dev);
+	if (!data)
+		return dev_err_probe(dev, -EINVAL, "Failed to retrieve driver data\n");
 
 	i2c->soc_data = data;
 

@@ -83,7 +83,7 @@ static int __init diasom_imx8m_probe(struct device *dev)
 
 	defaultenv_append_directory(defaultenv_diasom_imx8m);
 
-	if (of_machine_is_compatible("diasom,ds-imx8m-evb"))
+	if (of_machine_is_compatible("diasom,ds-imx8m-som-evb"))
 		of_register_fixup(diasom_imx8m_evb_fixup, NULL);
 
 	return 0;

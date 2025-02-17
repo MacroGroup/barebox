@@ -43,6 +43,44 @@ static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const int nr)
 	return i2c_get_adapter(nr);
 }
 
+/*
+	Cameras mapping:
+		camera0 = XC7160/I2C4
+		camera1 = IMX335/I2C4
+		camera2 = IMX335/I2C7
+		camera3 = DS90UB954/I2C7 -> DS90UB953 -> AR0233
+		camera4 = IMX415/I2C4
+		camera5 = IMX415/I2C7
+*/
+
+static int diasom_rk3568_sony_camera_detect(struct i2c_adapter *adapter,
+					    const char *imx335,
+					    const char *imx415)
+{
+#define CAMERA_I2C_ADDR		0x1a
+	struct i2c_client client;
+	u8 buf[1];
+	int ret;
+
+	if (diasom_rk3568_probe_i2c(adapter, CAMERA_I2C_ADDR))
+		return -ENODEV;
+
+	client.adapter = adapter;
+	client.addr = CAMERA_I2C_ADDR;
+	/* 0x4001 == 1 or 3 -> IMX415 */
+	ret = i2c_read_reg(&client, 0x4001 | I2C_ADDR_16_BIT, buf, sizeof(buf));
+	if (ret == sizeof(buf) && (buf[0] == 1 || buf[0] == 3)) {
+		pr_info("Camera IMX415 detected.\n");
+		of_register_set_status_fixup(imx415, true);
+		return 0;
+	}
+
+	pr_info("Camera IMX335 detected.\n");
+	of_register_set_status_fixup(imx335, true);
+
+	return 0;
+}
+
 static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 {
 	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(4);
@@ -54,11 +92,8 @@ static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 		of_register_set_status_fixup("sound0", false);
 	}
 
-	if (!diasom_rk3568_probe_i2c(adapter, 0x1a)) {
-		pr_info("Camera IMX335 detected.\n");
-		of_register_set_status_fixup("camera1", true);
+	if (!diasom_rk3568_sony_camera_detect(adapter, "camera1", "camera4"))
 		return 0;
-	}
 
 	pr_info("Assume camera XC7160 is used.\n");
 	of_register_set_status_fixup("camera0", true);
@@ -76,10 +111,8 @@ static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 	if (!diasom_rk3568_probe_i2c(adapter, 0x30)) {
 		pr_info("FPD-Link deserializer detected.\n");
 		of_register_set_status_fixup("camera3", true);
-	} else if (!diasom_rk3568_probe_i2c(adapter, 0x1a)) {
-		pr_info("Camera IMX335 detected.\n");
-		of_register_set_status_fixup("camera2", true);
-	}
+	} else
+		diasom_rk3568_sony_camera_detect(adapter, "camera2", "camera5");
 
 	return 0;
 }

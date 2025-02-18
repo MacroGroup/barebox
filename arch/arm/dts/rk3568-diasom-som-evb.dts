@@ -585,7 +585,7 @@
 			imx415_i2c4_out: endpoint {
 				data-lanes = <1 2>;
 				remote-endpoint = <&imx415_i2c4_in>;
-				link-frequencies = /bits/ 64 <445500000>;
+				link-frequencies = /bits/ 64 <891000000>;
 			};
 		};
 	};
@@ -666,7 +666,7 @@
 					imx415_i2c7_out: endpoint {
 						data-lanes = <1 2>;
 						remote-endpoint = <&imx415_i2c7_in>;
-						link-frequencies = /bits/ 64 <445500000>;
+						link-frequencies = /bits/ 64 <891000000>;
 					};
 				};
 			};

@@ -41,6 +41,8 @@
 #include <net.h>
 #include <efi/efi-mode.h>
 #include <bselftest.h>
+#include <pbl/handoff-data.h>
+#include <libfile.h>
 
 extern initcall_t __barebox_initcalls_start[], __barebox_early_initcalls_end[],
 		  __barebox_initcalls_end[];
@@ -252,6 +254,8 @@ static int run_init(void)
 	struct stat s;
 	glob_t g;
 	int i, ret;
+	size_t size;
+	void *ext_dtb;
 
 	setenv("PATH", "/env/bin");
 	export("PATH");
@@ -304,6 +308,10 @@ static int run_init(void)
 		console_ctrlc_allow();
 		run_command("source /cmdline");
 	}
+
+	ext_dtb = handoff_data_get_entry(HANDOFF_DATA_EXTERNAL_DT, &size);
+	if (ext_dtb)
+		write_file("/external-devicetree", ext_dtb, size);
 
 	/* source matching script in /env/bmode/ */
 	bmode = reboot_mode_get();
@@ -360,15 +368,14 @@ static void do_ctors(void)
 #endif
 }
 
-int (*barebox_main)(void);
+int (*barebox_main)(void)
+	= !IS_ENABLED(CONFIG_SHELL_NONE) &&
+           IS_ENABLED(CONFIG_COMMAND_SUPPORT) ? run_init : NULL;
 
 void __noreturn start_barebox(void)
 {
 	initcall_t *initcall;
 	int result;
-
-	if (!IS_ENABLED(CONFIG_SHELL_NONE) && IS_ENABLED(CONFIG_COMMAND_SUPPORT))
-		barebox_main = run_init;
 
 	do_ctors();
 

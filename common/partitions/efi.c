@@ -375,7 +375,7 @@ compare_gpts(struct device *dev, gpt_header *pgpt, gpt_header *agpt,
 	}
 
 	if (error_found)
-		dev_warn(dev, "GPT: Use GNU Parted to correct GPT errors.\n");
+		dev_warn(dev, "GPT: Use parted to correct GPT errors.\n");
 	return;
 }
 
@@ -651,8 +651,8 @@ static __maybe_unused int efi_partition_mkpart(struct partition_desc *pd,
 	}
 
 	if (end_lba >= last_lba(pd->blk) - 33) {
-		pr_err("invalid end LBA %lld, maximum is %lld\n", start_lba,
-		       last_lba(pd->blk) - 33);
+		pr_err("invalid end LBA %lld, maximum is %lld\n", end_lba,
+		       last_lba(pd->blk) - 34);
 		return -EINVAL;
 	}
 
@@ -758,6 +758,7 @@ static __maybe_unused int efi_partition_write(struct partition_desc *pd)
 		le32_to_cpu(gpt->sizeof_partition_entry);
 
 	gpt->my_lba = cpu_to_le64(1);
+	gpt->alternate_lba = cpu_to_le64(last_lba(blk));
 	gpt->partition_entry_array_crc32 = cpu_to_le32(efi_crc32(
 			(const unsigned char *)epd->ptes, count));
 	gpt->header_crc32 = 0;

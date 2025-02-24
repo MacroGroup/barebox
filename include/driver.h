@@ -21,7 +21,7 @@
 
 #include <param.h>
 
-struct filep;
+struct file;
 struct bus_type;
 struct generic_pm_domain;
 
@@ -353,12 +353,12 @@ ssize_t mem_copy(struct device *dev, void *dst, const void *src,
 int generic_memmap_ro(struct cdev *dev, void **map, int flags);
 int generic_memmap_rw(struct cdev *dev, void **map, int flags);
 
-static inline int dev_open_default(struct device *dev, struct filep *f)
+static inline int dev_open_default(struct device *dev, struct file *f)
 {
 	return 0;
 }
 
-static inline int dev_close_default(struct device *dev, struct filep *f)
+static inline int dev_close_default(struct device *dev, struct file *f)
 {
 	return 0;
 }
@@ -583,6 +583,7 @@ extern struct list_head cdev_list;
 #define DEVFS_PARTITION_BOOTABLE_ESP	(1U << 12)
 #define DEVFS_PARTITION_FOR_FIXUP	(1U << 13)
 #define DEVFS_WRITE_AUTOERASE		(1U << 14)
+#define DEVFS_PARTITION_CAN_OVERLAP	(1U << 15)
 
 /**
  * cdev_write_requires_erase - Check whether writes must be done to erased blocks

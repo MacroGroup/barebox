@@ -241,6 +241,11 @@
 	status = "okay";
 };
 
+&hdmi0 {
+	/* HPD disabled, pin used as LCD_PWREN_H */
+	pinctrl-0 = <&hdmim0_tx0_scl &hdmim0_tx0_sda>;
+};
+
 &hdmi1 {
 	status = "okay";
 };

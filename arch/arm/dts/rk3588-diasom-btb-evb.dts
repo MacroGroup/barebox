@@ -173,7 +173,8 @@
 };
 
 &brg {
-	pinctrl-0 = <&brg_pins &lvds_pins>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lvds_pins>;
 	panel-enable-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
 	panel-reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
 	panel-backlight = <&backlight>;
@@ -194,11 +195,35 @@
 		/* COG-TA25F325P-L */
 
 		src-timing {
-			//TODO:
+			clock-frequency = <47060000>;
+			hactive = <1920>;
+			vactive = <720>;
+			hfront-porch = <56>;
+			hsync-len = <12>;
+			hback-porch = <16>;
+			vfront-porch = <16>;
+			vsync-len = <3>;
+			vback-porch = <24>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
 		};
 
 		dst-timing {
-			//TODO:
+			clock-frequency = <47060000>;
+			hactive = <1920>;
+			vactive = <720>;
+			hfront-porch = <56>;
+			hsync-len = <12>;
+			hback-porch = <16>;
+			vfront-porch = <16>;
+			vsync-len = <3>;
+			vback-porch = <24>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
 		};
 	};
 };

@@ -102,6 +102,45 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	/* Unconnected in DTS yet */
+	vbus_host20_1: vbus-host20-1-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&host20_1_pins>;
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vbus_host20_1";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc_5v0_sys>;
+	};
+
+	/* Unconnected in DTS yet */
+	vbus_host30_1: vbus-host30-1-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&host30_1_pins>;
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vbus_host30_1";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc_5v0_sys>;
+	};
+
+	/* Unconnected in DTS yet */
+	vbus_host30_2: vbus-host30-2-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&host30_2_pins>;
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vbus_host30_2";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc_5v0_sys>;
+	};
+
 	vbus_typec: vbus-typec-regulator {
 		pinctrl-names = "default";
 		pinctrl-0 = <&typec_pins>;
@@ -677,6 +716,21 @@
 		fusb302_pins: fusb302-pins {
 			rockchip,pins =
 				<4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;	/* TYPEC0_INT */
+		};
+
+		host20_1_pins: host20-1-pins {
+			rockchip,pins =
+				<4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;	/* HOST20_PWREN */
+		};
+
+		host30_1_pins: host30-1-pins {
+			rockchip,pins =
+				<4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;	/* HOST30_1_PWREN */
+		};
+
+		host30_2_pins: host30-2-pins {
+			rockchip,pins =
+				<1 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;	/* HOST30_2_PWREN */
 		};
 
 		sbu_pins: sbu-pins {

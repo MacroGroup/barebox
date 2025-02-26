@@ -200,8 +200,8 @@
 	};
 
 	vcc3v3_pcie30: vcc3v3-pcie30-regulator {
-		pinctrl-0 = <&pcie30_pwr_pins>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&pcie30_pwr_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
@@ -213,8 +213,8 @@
 	};
 
 	vcc3v3_pi6c: vcc3v3-pi6c-regulator {
-		pinctrl-0 = <&pcie30_oe_pins>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&pcie30_oe_pins>;
 		compatible = "regulator-fixed";
 		/* Fixup for PCI-e in the bootloader */
 		regulator-boot-on;
@@ -1016,8 +1016,8 @@
 };
 
 &pinctrl {
-	pinctrl-0 = <&board_pins>;
 	pinctrl-names = "default";
+	pinctrl-0 = <&board_pins>;
 
 	board {
 		board_pins: board-pins {

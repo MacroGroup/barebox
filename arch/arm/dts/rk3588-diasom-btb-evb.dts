@@ -68,8 +68,8 @@
 	};
 
 	pcie_refclk: pcie-refclk-clock {
-		pinctrl-0 = <&pcie30_clk_pins>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&pcie30_clk_pins>;
 		compatible = "gpio-gate-clock";
 		clocks = <&pcie_refclk_gen>;
 		#clock-cells = <0>;
@@ -104,8 +104,8 @@
 
 	vbus_typec: vbus-typec-regulator {
 		/* Incorrect wiring 1.8v - 3.3v */
-		pinctrl-0 = <&typec_pins>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&typec_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
@@ -148,8 +148,8 @@
 	};
 
 	vcc_pcie30: vcc-pcie30-regulator {
-		pinctrl-0 = <&pcie30_vcc_pins>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&pcie30_vcc_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
@@ -160,8 +160,8 @@
 	};
 
 	vcc_lcd: vcc-lcd-regulator {
-		pinctrl-0 = <&lcd_vcc_pins>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_vcc_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
@@ -296,8 +296,8 @@
 	status = "okay";
 
 	i2c_mux: i2c-mux@70 {
-		pinctrl-0 = <&mux_pins>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&mux_pins>;
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;

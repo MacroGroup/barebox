@@ -103,7 +103,6 @@
 	};
 
 	vbus_typec: vbus-typec-regulator {
-		/* Incorrect wiring 1.8v - 3.3v */
 		pinctrl-names = "default";
 		pinctrl-0 = <&typec_pins>;
 		compatible = "regulator-fixed";

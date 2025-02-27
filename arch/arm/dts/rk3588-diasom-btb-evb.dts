@@ -59,6 +59,8 @@
 		/* X22 */
 		compatible = "hdmi-connector";
 		type = "a";
+// TODO:
+//		hdmi-pwr-supply
 
 		port {
 			hdmi1_con_in: endpoint {
@@ -305,8 +307,9 @@
 };
 
 &hdmi0 {
-	/* HPD disabled, pin used as LCD_PWREN_H */
-	pinctrl-0 = <&hdmim0_tx0_scl &hdmim0_tx0_sda>;
+	/* Disable HPD and I2C pins */
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
 };
 
 &hdmi1 {

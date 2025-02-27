@@ -218,7 +218,7 @@
 };
 
 &hdmi0 {
-	/* CEC is not used here */
+	/* CEC is not used */
 	pinctrl-0 = <&hdmim0_tx0_hpd &hdmim0_tx0_scl &hdmim0_tx0_sda>;
 	status = "okay";
 };

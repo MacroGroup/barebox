@@ -26,6 +26,10 @@
 	};
 
 	aliases {
+		/* Should be gone in 6.14+ */
+		hdptxphy0 = &hdptxphy_hdmi0;
+		/* Should be gone in 6.14+ */
+		hdptxphy1 = &hdptxphy1;
 		mmc0 = &sdhci;
 	};
 

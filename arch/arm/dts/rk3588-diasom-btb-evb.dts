@@ -198,18 +198,6 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_5v0_sys>;
 	};
-
-	vcc_lcd: vcc-lcd-regulator {
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_vcc_pins>;
-		compatible = "regulator-fixed";
-		enable-active-high;
-		gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
-		regulator-name = "vcc_lcd";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_3v3_sys>;
-	};
 };
 
 &brg {
@@ -218,7 +206,6 @@
 	panel-enable-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
 	panel-reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
 	panel-backlight = <&backlight>;
-	panel-power-supply = <&vcc_lcd>;
 	panel-reset-delay-ms = <10>;
 	panel-enable-delay-ms = <10>;
 	panel-prepare-delay-ms = <60>;
@@ -307,9 +294,9 @@
 };
 
 &hdmi0 {
-	/* Disable HPD and I2C pins */
-	/delete-property/ pinctrl-names;
-	/delete-property/ pinctrl-0;
+	/* Disable I2C pins */
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmim0_tx0_hpd>;
 };
 
 &hdmi1 {
@@ -656,11 +643,6 @@
 
 &pinctrl {
 	brg {
-		lcd_vcc_pins: lcd-vcc-pins {
-			rockchip,pins =
-				<1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_PWREN_H */
-		};
-
 		lvds_pins: lvds-pins {
 			rockchip,pins =
 				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD_nRESET */

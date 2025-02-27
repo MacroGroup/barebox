@@ -342,7 +342,7 @@
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;
-		reset-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 		vdd-supply = <&vcc_3v3_sys>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -678,7 +678,7 @@
 	mux {
 		mux_pins: mux-pins {
 			rockchip,pins =
-				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;		/* CAM_I2C_MUX_RST */
+				<1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;		/* CAM_I2C_MUX_RST */
 		};
 	};
 

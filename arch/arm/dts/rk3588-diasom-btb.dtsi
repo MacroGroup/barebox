@@ -102,7 +102,7 @@
 		interrupt-names = "avp", "cec", "earc", "main", "hpd";
 		phys = <&hdptxphy1>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&hdmim2_tx1_cec &hdmim0_tx1_hpd
+		pinctrl-0 = <&hdmim2_tx1_cec &hdmim1_tx1_hpd
 			     &hdmim1_tx1_scl &hdmim1_tx1_sda>;
 		power-domains = <&power RK3588_PD_VO1>;
 		resets = <&cru SRST_HDMITX1_REF>, <&cru SRST_HDMIHDP1>;

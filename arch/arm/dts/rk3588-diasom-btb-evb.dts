@@ -59,8 +59,6 @@
 		/* X22 */
 		compatible = "hdmi-connector";
 		type = "a";
-// TODO:
-//		hdmi-pwr-supply
 
 		port {
 			hdmi1_con_in: endpoint {
@@ -211,7 +209,7 @@
 	panel-prepare-delay-ms = <60>;
 	panel-unprepare-delay-ms = <10>;
 	panel-disable-delay-ms = <60>;
-	status = "okay";
+//	status = "okay";
 
 	rk628-lvds-out {
 		bus-format = "jeida_24";
@@ -274,8 +272,8 @@
 	phy-mode = "rgmii-rxid";
 	rx_delay = <0x00>;
 	tx_delay = <0x44>;
-	nvmem-cells = <&mac0>;
-	nvmem-cell-names = "mac-address";
+//	nvmem-cells = <&mac0>;
+//	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -300,6 +298,9 @@
 };
 
 &hdmi1 {
+//	pinctrl-0 = <&hdmim2_tx1_cec &hdmim1_tx1_hpd
+//		     &hdmim1_tx1_scl &hdmim1_tx1_sda &hdmi1_tx_on>;
+//	enable-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -329,7 +330,7 @@
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;
-		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
 		vdd-supply = <&vcc_3v3_sys>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -606,7 +607,7 @@
 };
 
 &u2phy0_otg {
-	phy-supply = <&vbus_typec>;
+//	phy-supply = <&vbus_typec>;
 //	status = "okay";
 };
 
@@ -647,6 +648,13 @@
 			rockchip,pins =
 				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD_nRESET */
 				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_nSTBYB */
+		};
+	};
+
+	hdmi {
+		hdmi1_tx_on: hdmi1-tx-on-pins {
+			rockchip,pins =
+				<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;	/* HDMI_TX_ON_H */
 		};
 	};
 

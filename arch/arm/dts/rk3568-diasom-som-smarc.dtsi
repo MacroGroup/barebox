@@ -220,8 +220,7 @@
 		/* RTL8211F */
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac0_rst_pins>;
-		compatible = "ethernet-phy-id001c.c916",
-			     "ethernet-phy-ieee802.3-c22";
+		compatible = "ethernet-phy-id001c.c916";
 		reg = <0x2>;
 		reset-assert-us = <20000>;
 		reset-deassert-us = <100000>;
@@ -232,8 +231,7 @@
 		/* RTL8211F */
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac1_rst_pins>;
-		compatible = "ethernet-phy-id001c.c916",
-			     "ethernet-phy-ieee802.3-c22";
+		compatible = "ethernet-phy-id001c.c916";
 		reg = <0x4>;
 		reset-assert-us = <20000>;
 		reset-deassert-us = <100000>;

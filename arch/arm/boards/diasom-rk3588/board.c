@@ -7,6 +7,7 @@
 #include <deep-probe.h>
 #include <environment.h>
 #include <envfs.h>
+#include <globalvar.h>
 #include <init.h>
 #include <machine_id.h>
 #include <mci.h>
@@ -41,12 +42,29 @@ static struct i2c_adapter __init *diasom_rk3588_i2c_get_adapter(const int nr)
 	return i2c_get_adapter(nr);
 }
 
+static int __init diasom_rk3588_get_adc_value(const char *name, int *val)
+{
+	struct aiochannel *aio_ch = aiochannel_by_name(name);
+	int ret;
+
+	if (IS_ERR(aio_ch)) {
+		ret = PTR_ERR(aio_ch);
+		pr_err("Could not find ADC channel \"%s\": %i!\n", name, ret);
+		return ret;
+	}
+
+	ret = aiochannel_get_value(aio_ch, val);
+	if (ret)
+		pr_err("Could not get ADC value: %i!\n", ret);
+
+	return ret;
+}
+
 static int __init diasom_rk3588_check_adc(void)
 {
 	struct device *aio_dev;
 	struct i2c_adapter *adapter;
-	struct aiochannel *aio_ch;
-	int val, ret;
+	int val = 0, ret;
 
 	if (!of_machine_is_compatible("diasom,ds-rk3588-btb"))
 		return 0;
@@ -70,27 +88,24 @@ static int __init diasom_rk3588_check_adc(void)
 		return -ENODEV;
 	}
 
-	aio_ch = aiochannel_by_name("aiodev0.in_value7_mV");
-	if (IS_ERR(aio_ch)) {
-		ret = PTR_ERR(aio_ch);
-		pr_err("Could not find ADC channel: %i!\n", ret);
+	ret = diasom_rk3588_get_adc_value("aiodev0.in_value7_mV", &val);
+	if (ret)
 		return ret;
-	}
 
-	ret = aiochannel_get_value(aio_ch, &val);
-	if (ret) {
-		pr_err("Could not get ADC value: %i!\n", ret);
-		return ret;
-	}
-
-	if (val < 150) {
-		/* Falltrough */
-		goto revision_error;
-	} else if (val < 350) {
+	if (val > 150 && val < 350) {
 		som_revision = 0;
 	} else {
-revision_error:
 		pr_warn("Unhandled BTB revision ADC value: %i!\n", val);
+		return 0;
+	}
+
+	ret = diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val);
+	if (ret)
+		return ret;
+
+	if (val < 50) {
+		pr_info("Recovery key pressed, enforce gadget mode...\n");
+		globalvar_add_simple("board.recovery", "true");
 	}
 
 	return 0;
@@ -173,8 +188,17 @@ static int __init diasom_rk3588_probe(struct device *dev)
 
 	barebox_set_hostname("diasom");
 
-	pr_info("Boot source: %s, instance %i\n",
-		bootsource_to_string(bootsource), instance);
+	if (bootsource != BOOTSOURCE_MMC || !instance) {
+		if (bootsource != BOOTSOURCE_MMC) {
+			pr_info("Boot source: %s, instance %i\n",
+				bootsource_to_string(bootsource),
+				instance);
+			globalvar_add_simple("board.bootsource",
+					     bootsource_to_string(bootsource));
+		} else
+			of_device_enable_path("/chosen/environment-emmc");
+	} else
+		of_device_enable_path("/chosen/environment-sd");
 
 	defaultenv_append_directory(defaultenv_diasom_rk3588);
 

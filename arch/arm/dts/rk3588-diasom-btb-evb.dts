@@ -5,7 +5,6 @@
 
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/soc/rockchip,vop2.h>
-#include <dt-bindings/usb/pd.h>
 
 #include "rk3588-diasom-btb.dtsi"
 
@@ -148,8 +147,6 @@
 		enable-active-high;
 		gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vbus_typec";
-		regulator-always-on;
-		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc_5v0_sys>;
@@ -367,41 +364,47 @@
 					compatible = "usb-c-connector";
 					label = "USB-C";
 					data-role = "dual";
-					op-sink-microwatt = <1000000>;
-					power-role = "dual";
-					sink-pdos =
-						<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
-					source-pdos =
-						<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-					try-power-role = "source";
+					pd-disable;
+					power-role = "source";
+					typec-power-opmode = "default";
 
 					ports {
 						#address-cells = <1>;
 						#size-cells = <0>;
 
 						port@0 {
+							/* HS */
 							reg = <0>;
 
-							usbc0_hs: endpoint {
-								remote-endpoint = <&usb_host0_xhci_drd_sw>;
+							typec0_hs: endpoint {
+								remote-endpoint = <&usb_host0_xhci_hs>;
 							};
 						};
 
 						port@1 {
+							/* SS */
 							reg = <1>;
 
-							usbc0_ss: endpoint {
-								remote-endpoint = <&usbdp_phy0_typec_ss>;
+							typec0_ss: endpoint {
+								remote-endpoint = <&usb_host0_xhci_ss>;
 							};
 						};
 
 						port@2 {
+							/* Orientation Switch */
 							reg = <2>;
 
-							usbc0_sbu: endpoint {
-								remote-endpoint = <&usbdp_phy0_typec_sbu>;
+							typec0_orientation_switch: endpoint {
+								remote-endpoint = <&usbdp_phy0_orientation_switch>;
 							};
 						};
+					};
+				};
+
+				port {
+					/* Role Switch */
+					typec0_role_switch: endpoint {
+						remote-endpoint = <&usb_host0_xhci_role_switch>;
 					};
 				};
 			};
@@ -565,11 +568,35 @@
 &usb_host0_xhci {
 	/* USB3_HOST_0 X28 */
 	usb-role-switch;
-//	status = "okay";
+	status = "okay";
 
 	port {
-		usb_host0_xhci_drd_sw: endpoint {
-			remote-endpoint = <&usbc0_hs>;
+		/* Role Switch */
+		usb_host0_xhci_role_switch: endpoint {
+			remote-endpoint = <&typec0_role_switch>;
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			/* HS */
+			reg = <0>;
+
+			usb_host0_xhci_hs: endpoint {
+				remote-endpoint = <&typec0_hs>;
+			};
+		};
+
+		port@1 {
+			/* SS */
+			reg = <1>;
+
+			usb_host0_xhci_ss: endpoint {
+				remote-endpoint = <&typec0_ss>;
+			};
 		};
 	};
 };
@@ -588,30 +615,21 @@
 &usbdp_phy0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sbu_pins>;
-	mode-switch;
 	orientation-switch;
 	sbu1-dc-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 	sbu2-dc-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		usbdp_phy0_typec_ss: endpoint@0 {
-			reg = <0>;
-			remote-endpoint = <&usbc0_ss>;
-		};
-
-		usbdp_phy0_typec_sbu: endpoint@1 {
-			reg = <1>;
-			remote-endpoint = <&usbc0_sbu>;
+		/* Orientation Switch */
+		usbdp_phy0_orientation_switch: endpoint@ {
+			remote-endpoint = <&typec0_orientation_switch>;
 		};
 	};
 };
 
 &usbdp_phy1 {
-	status = "okay";
+//	status = "okay";
 };
 
 &u2phy0 {
@@ -620,27 +638,27 @@
 
 &u2phy0_otg {
 //	phy-supply = <&vbus_typec>;
-//	status = "okay";
+	status = "okay";
 };
 
 &u2phy1 {
-	status = "okay";
+//	status = "okay";
 };
 
 &u2phy1_otg {
 	/* Power is missing! */
 	// phy-supply = <&vbus_host30_1>;
-	status = "okay";
+//	status = "okay";
 };
 
 &u2phy3 {
-	status = "okay";
+//	status = "okay";
 };
 
 &u2phy3_host {
 	/* Power is missing! */
 	// phy-supply = <&vbus_host20_1>;
-	status = "okay";
+//	status = "okay";
 };
 
 &vcc4v0_sys {

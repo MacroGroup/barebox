@@ -172,6 +172,7 @@
 		orientation-switch;
 
 		port {
+			/* Orientation Switch */
 			typec_sbu: endpoint {
 				remote-endpoint = <&fusb_sbu>;
 			};
@@ -524,7 +525,6 @@
 
 		port {
 			/* Role Switch */
-
 			fusb_role_sw: endpoint {
 				remote-endpoint = <&typec_role_sw>;
 			};
@@ -974,9 +974,8 @@
 #endif
 
 	port {
+		/* Role Switch */
 		typec_role_sw: endpoint {
-			/* Role Switch */
-
 			remote-endpoint = <&fusb_role_sw>;
 		};
 	};

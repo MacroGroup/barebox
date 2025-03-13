@@ -1420,14 +1420,16 @@ static bool dwc3_want_otg_mode(void)
 
 static void dwc3_probe_recovery_mode(struct dwc3 *dwc)
 {
-	if (!of_machine_is_compatible("diasom,ds-rk3568-som"))
+	if (!of_machine_is_compatible("diasom,ds-rk3568-som") &&
+	    !of_machine_is_compatible("diasom,ds-rk3588-btb"))
 		return;
 
 	if (!dwc3_want_otg_mode())
 		return;
 
 	/* Force to peripheral mode only for OTG port */
-	if (!strcmp(dwc->dev->name, "fcc00000.usb@fcc00000.of"))
+	if (!strcmp(dwc->dev->name, "fcc00000.usb@fcc00000.of") ||
+	    !strcmp(dwc->dev->name, "fc000000.usb@fc000000.of"))
 		dwc->dr_mode = USB_DR_MODE_PERIPHERAL;
 }
 

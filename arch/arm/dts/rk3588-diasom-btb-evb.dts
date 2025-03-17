@@ -120,6 +120,8 @@
 		enable-active-high;
 		gpio = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vbus_host30_1";
+		regulator-always-on;
+		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc_5v0_sys>;
@@ -131,9 +133,9 @@
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vbus_host30_2";
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-name = "vbus_host30_2";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc_5v0_sys>;
@@ -569,6 +571,16 @@
 	status = "okay";
 };
 
+&usb_host0_ehci {
+	/* USB3_HOST0 EHCI-mode X25.2 (Upper) */
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	/* USB3_HOST0 OHCI-mode X25.2 (Upper) */
+	status = "okay";
+};
+
 &usb_host0_xhci {
 	/* USB3_HOST0 XHCI-mode X28 */
 	usb-role-switch;
@@ -618,11 +630,11 @@
 &usb_host1_xhci {
 	/* USB3_HOST1 X25.1 (Lower) */
 	dr_mode = "host";
-//	status = "okay";
+	status = "okay";
 };
 
 &usb_host2_xhci {
-	/* USB3_HOST2 X25.2 (Upper) */
+	/* USB3_HOST2 XHCI-mode X25.2 (Upper) */
 	status = "okay";
 };
 
@@ -643,7 +655,7 @@
 };
 
 &usbdp_phy1 {
-//	status = "okay";
+	status = "okay";
 };
 
 &u2phy0 {
@@ -659,8 +671,15 @@
 };
 
 &u2phy1_otg {
-	phy-supply = <&vbus_host30_1>;
-//	status = "okay";
+	status = "okay";
+};
+
+&u2phy2 {
+	status = "okay";
+};
+
+&u2phy2_host {
+	status = "okay";
 };
 
 &u2phy3 {

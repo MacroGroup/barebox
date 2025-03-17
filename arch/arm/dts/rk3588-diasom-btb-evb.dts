@@ -113,7 +113,6 @@
 		vin-supply = <&vcc_5v0_sys>;
 	};
 
-	/* Unconnected in DTS yet */
 	vbus_host30_1: vbus-host30-1-regulator {
 		pinctrl-names = "default";
 		pinctrl-0 = <&host30_1_pins>;
@@ -126,13 +125,14 @@
 		vin-supply = <&vcc_5v0_sys>;
 	};
 
-	/* Unconnected in DTS yet */
 	vbus_host30_2: vbus-host30-2-regulator {
 		pinctrl-names = "default";
 		pinctrl-0 = <&host30_2_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+		regulator-boot-on;
 		regulator-name = "vbus_host30_2";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -256,6 +256,11 @@
 
 &combphy1_ps {
 	/* pcie2x1l0 (PCIE20_1) */
+	status = "okay";
+};
+
+&combphy2_psu {
+	/* usb_host2_xhci (USB3_HOST2) */
 	status = "okay";
 };
 
@@ -565,7 +570,7 @@
 };
 
 &usb_host0_xhci {
-	/* USB3_HOST_0 X28 */
+	/* USB3_HOST0 XHCI-mode X28 */
 	usb-role-switch;
 	status = "okay";
 
@@ -611,9 +616,14 @@
 };
 
 &usb_host1_xhci {
-	/* USB3_HOST_1 X25 */
+	/* USB3_HOST1 X25.1 (Lower) */
 	dr_mode = "host";
 //	status = "okay";
+};
+
+&usb_host2_xhci {
+	/* USB3_HOST2 X25.2 (Upper) */
+	status = "okay";
 };
 
 &usbdp_phy0 {
@@ -626,7 +636,7 @@
 
 	port {
 		/* Orientation Switch */
-		usbdp_phy0_orientation_switch: endpoint@ {
+		usbdp_phy0_orientation_switch: endpoint {
 			remote-endpoint = <&typec0_orientation_switch>;
 		};
 	};
@@ -641,17 +651,15 @@
 };
 
 &u2phy0_otg {
-//	phy-supply = <&vbus_typec>;
 	status = "okay";
 };
 
 &u2phy1 {
-//	status = "okay";
+	status = "okay";
 };
 
 &u2phy1_otg {
-	/* Power is missing! */
-	// phy-supply = <&vbus_host30_1>;
+	phy-supply = <&vbus_host30_1>;
 //	status = "okay";
 };
 

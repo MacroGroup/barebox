@@ -54,18 +54,6 @@
 		default-brightness-level = <255>;
 	};
 
-	hdmi1-con {
-		/* X22 */
-		compatible = "hdmi-connector";
-		type = "a";
-
-		port {
-			hdmi1_con_in: endpoint {
-				remote-endpoint = <&hdmi1_out_con>;
-			};
-		};
-	};
-
 	pcie_refclk: pcie-refclk-clock {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie30_clk_pins>;
@@ -303,6 +291,7 @@
 };
 
 &hdmi1 {
+	/* Disable CEC pin */
 	pinctrl-0 = <&hdmim1_tx1_hpd &hdmim1_tx1_scl
 		     &hdmim1_tx1_sda &hdmi1_tx_on>;
 	enable-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
@@ -693,13 +682,6 @@
 
 &vcc4v0_sys {
 	vin-supply = <&v_sys>;
-};
-
-&vp1 {
-	vp1_out_hdmi1: endpoint@ROCKCHIP_VOP2_EP_HDMI1 {
-		reg = <ROCKCHIP_VOP2_EP_HDMI1>;
-		remote-endpoint = <&hdmi1_in_vp1>;
-	};
 };
 
 &pinctrl {

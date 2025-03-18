@@ -291,7 +291,7 @@
 };
 
 &hdmi1 {
-	/* Disable CEC pin */
+	/* Disable CEC pin, Enable PWR_ON */
 	pinctrl-0 = <&hdmim1_tx1_hpd &hdmim1_tx1_scl
 		     &hdmim1_tx1_sda &hdmi1_tx_on>;
 	enable-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;

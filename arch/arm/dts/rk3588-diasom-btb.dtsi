@@ -61,6 +61,7 @@
 	};
 
 	hdmi1-con {
+		/* Output to connector */
 		compatible = "hdmi-connector";
 		type = "a";
 

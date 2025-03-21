@@ -33,21 +33,6 @@
 		mmc0 = &sdhci;
 	};
 
-	brg_clock: brg-clock {
-		pinctrl-names = "default";
-		pinctrl-0 = <&brg_pins>;
-		compatible = "gpio-gate-clock";
-		clocks = <&brg_ref_clock>;
-		#clock-cells = <0>;
-		enable-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-	};
-
-	brg_ref_clock: brg-ref-clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <24000000>;
-	};
-
 	hdmi0-con {
 		/* RK628 */
 		compatible = "hdmi-connector";
@@ -234,8 +219,9 @@
 };
 
 &hdmi0 {
-	/* CEC is not used */
-	pinctrl-0 = <&hdmim0_tx0_hpd &hdmim0_tx0_scl &hdmim0_tx0_sda>;
+	/* Pins are not used */
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
 	status = "okay";
 };
 
@@ -333,10 +319,11 @@
 	};
 
 	brg: hdmi@51 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&brg_pins>;
 		compatible = "rockchip,rk628";
 		reg = <0x51>;
-		clocks = <&brg_clock>;
-		clock-names = "soc_24M";
+		enable-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
 		rk628-hdmi-in;
 		status = "disabled";
 	};

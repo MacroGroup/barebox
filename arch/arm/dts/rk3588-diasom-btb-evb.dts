@@ -54,19 +54,14 @@
 		default-brightness-level = <224>;
 	};
 
-	pcie_refclk: pcie-refclk-clock {
+	pcie30_refclk: pcie30-refclk-clock {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie30_clk_pins>;
-		compatible = "gpio-gate-clock";
-		clocks = <&pcie_refclk_gen>;
-		#clock-cells = <0>;
-		enable-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
-	};
-
-	pcie_refclk_gen: pcie-refclk-gen-clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
+		compatible = "gated-fixed-clock";
 		clock-frequency = <100000000>;
+		clock-output-names = "pcie30_refclk";
+		enable-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
+		#clock-cells = <0>;
 	};
 
 	thermal-sensor {
@@ -526,14 +521,14 @@
 	clocks = <&cru ACLK_PCIE_4L_MSTR>, <&cru ACLK_PCIE_4L_SLV>,
 		 <&cru ACLK_PCIE_4L_DBI>, <&cru PCLK_PCIE_4L>,
 		 <&cru CLK_PCIE_AUX0>, <&cru CLK_PCIE4L_PIPE>,
-		 <&pcie_refclk>;
+		 <&pcie30_refclk>;
 	clock-names = "aclk_mst", "aclk_slv",
 		      "aclk_dbi", "pclk",
 		      "aux", "pipe",
 		      "ref";
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_pcie30>;
-//	status = "okay";
+	status = "okay";
 };
 
 &pwm13 {

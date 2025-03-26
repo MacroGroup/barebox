@@ -304,20 +304,21 @@
 	status = "okay";
 
 	/* 24aa02e48 */
-	eeprom@50 {
-		compatible = "atmel,24c02";
-		reg = <0x50>;
-		pagesize = <8>;
-		vcc-supply = <&vcc_3v3>;
-		#address-cells = <1>;
-		#size-cells = <1>;
+//	eeprom@50 {
+//		compatible = "atmel,24c02";
+//		reg = <0x50>;
+//		pagesize = <8>;
+//		vcc-supply = <&vcc_3v3>;
+//		#address-cells = <1>;
+//		#size-cells = <1>;
+//
+//		mac0: mac-address@fa {
+//			reg = <0xfa 0x06>;
+//			read-only;
+//		};
+//	};
 
-		mac0: mac-address@fa {
-			reg = <0xfa 0x06>;
-			read-only;
-		};
-	};
-
+	/* rk628d */
 	brg: hdmi@51 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&brg_pins>;
@@ -328,6 +329,7 @@
 		status = "disabled";
 	};
 
+	/* m41t62lc6f */
 	rtc@68 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&clk32k_in>;

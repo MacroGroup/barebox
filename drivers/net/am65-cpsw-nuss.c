@@ -118,8 +118,6 @@ struct am65_cpsw_common {
 
 	struct dma		*dma_tx;
 	struct dma		*dma_rx;
-	u32			rx_next;
-	u32			rx_pend;
 	int			started;
 };
 
@@ -285,8 +283,6 @@ static int am65_cpsw_common_start(struct am65_cpsw_common *common)
 		goto err_off_pwrdm;
 	}
 
-	common->rx_next = 0;
-	common->rx_pend = 0;
 	common->dma_tx = dma_get_by_name(common->dev, "tx0");
 	if (IS_ERR(common->dma_tx)) {
 		ret = PTR_ERR(common->dma_tx);
@@ -465,8 +461,7 @@ static void am65_cpsw_recv(struct eth_device *edev)
 	struct ti_udma_drv_packet_data packet_data;
 	dma_addr_t pkt;
 	int ret;
-	u32 num, port_id;
-	bool valid = true;
+	u32 port_id;
 
 	if (!common->started)
 		return;
@@ -489,27 +484,22 @@ static void am65_cpsw_recv(struct eth_device *edev)
 	port_id = packet_data.src_tag;
 	if (port_id >= AM65_CPSW_CPSWNU_MAX_PORTS) {
 		dev_err(common->dev, "received pkt on invalid port_id %d\n", port_id);
-		valid = false;
+		goto out;
 	}
 
 	port = &common->ports[port_id];
 	if (!port->enabled) {
 		dev_err(common->dev, "received pkt on disabled port_id %d\n", port_id);
-		valid = false;
+		goto out;
 	}
 
-	if (valid)
-		net_receive(&port->edev, (void *)pkt, ret);
-
-	num = common->rx_next % UDMA_RX_DESC_NUM;
-
+	net_receive(&port->edev, (void *)pkt, ret);
+out:
 	dma_sync_single_for_device(common->dev, pkt, ret, DMA_FROM_DEVICE);
 
 	ret = dma_prepare_rcv_buf(common->dma_rx, pkt, PKTSIZE);
 	if (ret)
 		dev_err(common->dev, "RX dma free_pkt failed %d\n", ret);
-
-	common->rx_next++;
 }
 
 static void am65_cpsw_common_stop(struct am65_cpsw_common *common)

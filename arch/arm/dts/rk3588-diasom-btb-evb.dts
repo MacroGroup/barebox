@@ -51,7 +51,7 @@
 		pwms = <&pwm13 0 1000 0>;
 		brightness-levels = <0 255>;
 		num-interpolated-steps = <256>;
-		default-brightness-level = <127>;
+		default-brightness-level = <224>;
 	};
 
 	pcie_refclk: pcie-refclk-clock {
@@ -198,7 +198,7 @@
 	status = "okay";
 
 	rk628-lvds-out {
-		bus-format = "jeida_24";
+		bus-format = "vesa_24";
 		link-type = "dual_link_odd_even_pixels";
 	};
 
@@ -206,7 +206,7 @@
 		/* COG-TA25F325P-L5 */
 
 		src-timing {
-			clock-frequency = <112000000>;
+			clock-frequency = <74250000>;
 			hactive = <1920>;
 			vactive = <720>;
 			hfront-porch = <56>;
@@ -215,14 +215,14 @@
 			vfront-porch = <16>;
 			vsync-len = <3>;
 			vback-porch = <24>;
-			hsync-active = <0>;
-			vsync-active = <0>;
+			hsync-active = <1>;
+			vsync-active = <1>;
 			de-active = <1>;
 			pixelclk-active = <0>;
 		};
 
 		dst-timing {
-			clock-frequency = <47060000>;
+			clock-frequency = <74250000>;
 			hactive = <1920>;
 			vactive = <720>;
 			hfront-porch = <56>;
@@ -237,20 +237,6 @@
 			pixelclk-active = <0>;
 		};
 	};
-/*
-rk628 6-0051: hdmirx driver version: 0.1.0
-rk628 6-0051: rk628_display_work: hdmirx detect status:0x15
-	HDMIRX_NOLOCK HDMIRX_PLUGIN HDMIRX_CHANGED
-rk628 6-0051: clk det over cnt:10, reg_0x6654:0x4fff0000
-rk628 6-0051: |clk_p||clk_n||d0_p||d0_n||d1_p||d1_n||d2_p| level detection anomaly
-rk628 6-0051: clock detected failed, cfg resistance manual!
-rk628 6-0051: clk not stable, reg_0x6630:0x87000d, reg_0x6608:0x110100
-rk628 6-0051: clock error: 0x1f, reg_0x6630:0x87000d, reg_0x6608:0x110100
-rk628 6-0051: hdmi rxphy power on failed
-rk628 6-0051: rk628d_hdmirx_phy_power_on:rxphy_pwron=0
-rk628 6-0051: tmdsclk_cnt:485, modetclk_cnt_hs:0, modetclk_cnt_vs:0,vs:0
-rk628 6-0051: read wxh:0x0, total:0x0, SCDC_REGS1:0x0, cnt:1
-*/
 };
 
 &combphy0_ps {
@@ -696,6 +682,7 @@ rk628 6-0051: read wxh:0x0, total:0x0, SCDC_REGS1:0x0, cnt:1
 	brg {
 		lvds_pins: lvds-pins {
 			rockchip,pins =
+				<1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD_PWREN */
 				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD_nRESET */
 				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_nSTBYB */
 		};

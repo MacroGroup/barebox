@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if of_compatible -k diasom,ds-rk3588-btb ; then
+	global.linux.bootargs.base="$global.linux.bootargs.base video=HDMI-A-1:1920x720M-24@49D drm.edid_firmware=HDMI-A-1:edid-ta25f325p.bin"
+fi
+
+exit 0

@@ -17,6 +17,8 @@
 	aliases {
 		ethernet0 = &gmac0;
 		ethernet1 = &gmac1;
+		ethernet2 = &ethernet2;
+		ethernet3 = &ethernet3;
 		i2c9 = &i2c9;
 		i2c10 = &i2c10;
 		i2c11 = &i2c11;
@@ -500,6 +502,21 @@
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
 //	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x200000 0 0 0 0>;
+		ranges;
+		device_type = "pci";
+		bus-range = <0x20 0x2f>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		ethernet2: ethernet@0,0 {
+			/* RTL8125BI-CG DD12 */
+			compatible = "pci10ec,8125";
+			reg = <0x210000 0 0 0 0>;
+		};
+	};
 };
 
 &pcie2x1l2 {
@@ -509,6 +526,21 @@
 	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
 //	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x400000 0 0 0 0>;
+		ranges;
+		device_type = "pci";
+		bus-range = <0x40 0x4f>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		ethernet3: ethernet@0,0 {
+			/* RTL8125BI-CG DD8 */
+			compatible = "pci10ec,8125";
+			reg = <0x410000 0 0 0 0>;
+		};
+	};
 };
 
 &pcie30phy {

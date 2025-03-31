@@ -508,10 +508,11 @@
 &pcie2x1l0 {
 	/* PCIE20_1 */
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie2x1l0_pins &pcie20x1m1_clkreqn &pcie20x1m1_waken>;
-	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&pcie2x1l0_pins &pcie30x1m1_0_clkreqn>;
+	/* &pcie30x1m1_0_waken disabled (swapped with rst) */
+	reset-gpios = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
-//	status = "okay";
+	status = "okay";
 
 	pcie@0,0 {
 		reg = <0x200000 0 0 0 0>;
@@ -532,10 +533,11 @@
 &pcie2x1l2 {
 	/* PCIE20_0 */
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie2x1l2_pins &pcie30x1m1_0_clkreqn &pcie30x1m1_0_waken>;
-	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&pcie2x1l2_pins &pcie20x1m1_clkreqn>;
+	/* &pcie20x1m1_waken disabled (swapped with rst) */
+	reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
-//	status = "okay";
+	status = "okay";
 
 	pcie@0,0 {
 		reg = <0x400000 0 0 0 0>;
@@ -761,12 +763,12 @@
 	pcie {
 		pcie2x1l0_pins: pcie2x1l0-pins {
 			rockchip,pins =
-				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;	/* pcie20x1_2_perstn_m1 */
+				<4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* PERSTB_RTL1 */
 		};
 
 		pcie2x1l2_pins: pcie2x1l2-pins {
 			rockchip,pins =
-				<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;	/* pcie30x1_0_perstn_m1 */
+				<4 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;	/* PERSTB_RTL0 */
 		};
 
 		pcie30_clk_pins: pcie30-clk-pins {

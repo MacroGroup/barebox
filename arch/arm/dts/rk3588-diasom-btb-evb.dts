@@ -468,12 +468,12 @@
 };
 
 &mdio0 {
-	rgmii_phy0: ethernet-phy@0 {
+	rgmii_phy0: ethernet-phy@5 {
 		/* RTL8211F */
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac0_rst_pins &eth0_pins>;
 		compatible = "ethernet-phy-id001c.c916";
-		reg = <0x0>;
+		reg = <0x5>;
 		clocks = <&cru REFCLKO25M_ETH0_OUT>;
 		reset-assert-us = <20000>;
 		reset-deassert-us = <100000>;
@@ -482,12 +482,12 @@
 };
 
 &mdio1 {
-	rgmii_phy1: ethernet-phy@0 {
+	rgmii_phy1: ethernet-phy@5 {
 		/* RTL8211F */
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac1_rst_pins &eth1_pins>;
 		compatible = "ethernet-phy-id001c.c916";
-		reg = <0x0>;
+		reg = <0x5>;
 		clocks = <&cru REFCLKO25M_ETH1_OUT>;
 		reset-assert-us = <20000>;
 		reset-deassert-us = <100000>;

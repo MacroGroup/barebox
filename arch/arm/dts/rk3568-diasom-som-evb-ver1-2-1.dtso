@@ -30,12 +30,16 @@
 		reg = <0x50>;
 		pagesize = <16>;
 		vcc-supply = <&vcc1v8_sys>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		
-		mac0: mac-address@fa {
-			reg = <0xfa 0x06>;
-			read-only;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac0: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
 		};
 	};
 
@@ -45,12 +49,16 @@
 		reg = <0x51>;
 		pagesize = <16>;
 		vcc-supply = <&vcc1v8_sys>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		
-		mac1: mac-address@fa {
-			reg = <0xfa 0x06>;
-			read-only;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac1: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
 		};
 	};
 };

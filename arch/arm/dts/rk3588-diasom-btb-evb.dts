@@ -526,6 +526,8 @@
 			/* RTL8125BI-CG DD12 */
 			compatible = "pci10ec,8125";
 			reg = <0x210000 0 0 0 0>;
+			nvmem-cells = <&mac2>;
+			nvmem-cell-names = "mac-address";
 		};
 	};
 };
@@ -551,6 +553,8 @@
 			/* RTL8125BI-CG DD8 */
 			compatible = "pci10ec,8125";
 			reg = <0x410000 0 0 0 0>;
+			nvmem-cells = <&mac3>;
+			nvmem-cell-names = "mac-address";
 		};
 	};
 };

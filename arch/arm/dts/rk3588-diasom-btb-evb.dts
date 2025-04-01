@@ -305,6 +305,18 @@
 	};
 };
 
+&hdmi_receiver_cma {
+	status = "okay";
+};
+
+&hdmi_receiver {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_scl &hdmim1_rx_sda
+		     &hdmirx_det &hdmim1_tx0_hpd>;
+	hpd-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
 &i2c3 {
 	clock-frequency = <400000>;
 	status = "okay";
@@ -734,6 +746,11 @@
 	};
 
 	hdmi {
+		hdmirx_det: hdmirx-det-pins {
+			rockchip,pins =
+				<3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;	/* HDMI_RX_DET_L */
+		};
+
 		hdmi1_tx_on: hdmi1-tx-on-pins {
 			rockchip,pins =
 				<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;	/* HDMI_TX_ON_H */

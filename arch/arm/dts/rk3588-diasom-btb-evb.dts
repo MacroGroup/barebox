@@ -479,7 +479,7 @@
 
 &mdio0 {
 	rgmii_phy0: ethernet-phy@5 {
-		/* RTL8211F */
+		/* RTL8211F DD13 */
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac0_rst_pins &eth0_pins>;
 		compatible = "ethernet-phy-id001c.c916";
@@ -493,7 +493,7 @@
 
 &mdio1 {
 	rgmii_phy1: ethernet-phy@5 {
-		/* RTL8211F */
+		/* RTL8211F DD14 */
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac1_rst_pins &eth1_pins>;
 		compatible = "ethernet-phy-id001c.c916";

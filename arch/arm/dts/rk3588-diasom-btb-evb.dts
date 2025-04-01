@@ -310,8 +310,9 @@
 };
 
 &hdmi_receiver {
+	/* CEC is not connected */
 	pinctrl-names = "default";
-	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_scl &hdmim1_rx_sda
+	pinctrl-0 = <&hdmim1_rx_scl &hdmim1_rx_sda
 		     &hdmim1_rx_hpdin &hdmirx_det>;
 	hpd-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_LOW>;
 	status = "okay";

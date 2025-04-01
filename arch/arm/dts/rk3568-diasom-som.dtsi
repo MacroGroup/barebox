@@ -95,12 +95,6 @@
 		status = "disabled";
 	};
 
-	isp_vir1: rkisp-vir1 {
-		compatible = "rockchip,rkisp-vir";
-		rockchip,hw = <&isp>;
-		status = "disabled";
-	};
-
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";

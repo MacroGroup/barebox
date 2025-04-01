@@ -259,6 +259,7 @@
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-rxid";
 	phy-supply = <&vcc_3v3_sys>;
+	rx_delay = <0x00>;
 	tx_delay = <0x44>;
 //	nvmem-cells = <&mac0>;
 //	nvmem-cell-names = "mac-address";
@@ -273,6 +274,7 @@
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-rxid";
 	phy-supply = <&vcc_3v3_sys>;
+	rx_delay = <0x00>;
 	tx_delay = <0x44>;
 	nvmem-cells = <&mac1>;
 	nvmem-cell-names = "mac-address";

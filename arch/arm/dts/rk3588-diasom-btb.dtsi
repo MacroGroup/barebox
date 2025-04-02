@@ -449,6 +449,13 @@
 	status = "okay";
 };
 
+&scmi_clk {
+	assigned-clocks = <&scmi_clk SCMI_CLK_CPUL>,
+			  <&scmi_clk SCMI_CLK_CPUB01>,
+			  <&scmi_clk SCMI_CLK_CPUB23>;
+	assigned-clock-rates = <1416000000>, <1416000000>, <1416000000>;
+};
+
 &sdhci {
 	bus-width = <8>;
 	cap-mmc-hw-reset;

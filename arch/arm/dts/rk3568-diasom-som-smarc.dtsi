@@ -20,19 +20,14 @@
 		i2c9 = &i2c9;
 	};
 
-	pcie_refclk: pcie-refclk-clock {
+	pcie30_refclk: pcie30-refclk-clock {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie30_clk_pins>;
-		compatible = "gpio-gate-clock";
-		clocks = <&pcie_refclk_gen>;
-		#clock-cells = <0>;
-		enable-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
-	};
-
-	pcie_refclk_gen: pcie-refclk-gen-clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
+		compatible = "gated-fixed-clock";
 		clock-frequency = <100000000>;
+		clock-output-names = "pcie30_refclk";
+		enable-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
+		#clock-cells = <0>;
 	};
 
 	pps {
@@ -261,7 +256,7 @@
 	status = "okay";
 };
 
-//pcie_refclk should be handles in pci node
+//pcie30_refclk should be handles in pci node
 
 &pwm4 {
 	/* LCD0_BKLT_PWM */

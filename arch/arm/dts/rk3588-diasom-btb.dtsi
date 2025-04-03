@@ -470,8 +470,6 @@
 };
 
 &spi2 {
-	assigned-clocks = <&cru CLK_SPI2>;
-	assigned-clock-rates = <200000000>;
 	pinctrl-0 = <&spi2m2_cs0 &spi2m2_pins>;
 	num-cs = <1>;
 	status = "okay";

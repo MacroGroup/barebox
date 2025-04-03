@@ -262,8 +262,6 @@
 	};
 };
 
-/delete-node/ &xin32k;
-
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0>;
 };
@@ -419,10 +417,9 @@
 
 	/* m41t62lc6f */
 	rtc@68 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&clk32k_in>;
 		/* Disable interrupt due cross with sdmmc_det on EVB */
-//		pinctrl-0 = <&clk32k_in &rtc_pins>;
+//		pinctrl-names = "default";
+//		pinctrl-0 = &rtc_pins>;
 		compatible = "st,m41t62";
 		reg = <0x68>;
 //		interrupt-parent = <&gpio0>;
@@ -430,11 +427,7 @@
 //		wakeup-source;
 
 		clock {
-			compatible = "fixed-clock";
-			clock-accuracy = <2000>;
-			clock-frequency = <32768>;
-			clock-output-names = "xin32k";
-			#clock-cells = <0>;
+			/* Skip registering SQW, used as xin32k */
 		};
 	};
 };
@@ -817,6 +810,13 @@
 		reg = <ROCKCHIP_VOP2_EP_HDMI1>;
 		remote-endpoint = <&hdmi1_in_vp1>;
 	};
+};
+
+&xin32k {
+	/* Clock comes from M41T62LC6F */
+	pinctrl-names = "default";
+	pinctrl-0 = <&clk32k_in>;
+	clock-accuracy = <2000>;
 };
 
 &pinctrl {

@@ -417,14 +417,8 @@
 
 	/* m41t62lc6f */
 	rtc@68 {
-		/* Disable interrupt due cross with sdmmc_det on EVB */
-//		pinctrl-names = "default";
-//		pinctrl-0 = &rtc_pins>;
 		compatible = "st,m41t62";
 		reg = <0x68>;
-//		interrupt-parent = <&gpio0>;
-//		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
-//		wakeup-source;
 
 		clock {
 			/* Skip registering SQW, used as xin32k */
@@ -831,13 +825,6 @@
 		leds_som_pins: leds-som-pins {
 			rockchip,pins =
 				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;	/* VD2 */
-		};
-	};
-
-	rtc {
-		rtc_pins: rtc-pins {
-			rockchip,pins =
-				<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_INT */
 		};
 	};
 };

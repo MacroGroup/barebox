@@ -311,6 +311,16 @@
 	status = "okay";
 };
 
+&gpu_opp_table {
+	/* Fix wrong frequency 800 MHz => 850 MHz */
+	/delete-node/ opp-850000000;
+
+	opp-850000000 {
+		opp-hz = /bits/ 64 <850000000>;
+		opp-microvolt = <787500 787500 850000>;
+	};
+};
+
 &hdmi0 {
 	/* Pins are not used */
 	/delete-property/ pinctrl-0;

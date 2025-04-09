@@ -440,7 +440,7 @@
 	assigned-clocks = <&scmi_clk SCMI_CLK_CPUL>,
 			  <&scmi_clk SCMI_CLK_CPUB01>,
 			  <&scmi_clk SCMI_CLK_CPUB23>;
-	assigned-clock-rates = <1416000000>, <1416000000>, <1416000000>;
+	assigned-clock-rates = <1608000000>, <1608000000>, <1608000000>;
 };
 
 &sdhci {

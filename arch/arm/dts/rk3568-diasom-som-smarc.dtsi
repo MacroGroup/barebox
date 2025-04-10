@@ -133,8 +133,9 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
+	/* 24aa025e48 */
 	eeprom@50 {
-		compatible = "microchip,24aa025e48", "atmel,24c02";
+		compatible = "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 		vcc-supply = <&vcc3v3_sys>;
@@ -151,8 +152,9 @@
 		};
 	};
 
+	/* 24aa025e48 */
 	eeprom@51 {
-		compatible = "microchip,24aa025e48", "atmel,24c02";
+		compatible = "atmel,24c02";
 		reg = <0x51>;
 		pagesize = <16>;
 		vcc-supply = <&vcc3v3_sys>;
@@ -169,6 +171,7 @@
 		};
 	};
 
+	/* m41t62lc6f */
 	rtc@68 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&rtc_pins>;

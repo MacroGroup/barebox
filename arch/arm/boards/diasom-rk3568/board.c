@@ -251,6 +251,11 @@ static int __init diasom_rk3568_init(void)
 	} else
 		return 0;
 
+	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc"))
+		pr_info("SMARC module version used.\n");
+	else
+		pr_info("RAW module version used.\n");
+
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-evb")) {
 		struct i2c_adapter *adapter =
 			diasom_rk3568_i2c_get_adapter(4);
@@ -287,7 +292,9 @@ static int __init diasom_rk3568_init(void)
 
 		if (diasom_rk3568_load_overlay(evb_ovl))
 			do_probe = true;
-	};
+	} else 	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc-evb")) {
+		//TODO:
+	}
 
 out:
 	if (do_probe) {

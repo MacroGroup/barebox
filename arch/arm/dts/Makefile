@@ -15,17 +15,20 @@ lwl-$(CONFIG_MACH_DFI_FS700_M60) += imx6q-dfi-fs700-m60-6q.dtb.o imx6dl-dfi-fs70
 
 # Production
 lwl-$(CONFIG_MACH_DIASOM_DS_IMX8M) += imx8mm-diasom-som-evb.dtb.o
-lwl-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-evb.dtb.o
+
+obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-ver1.dtbo.o
+obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-ver2.dtbo.o
 obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-evb-ver1-1-0.dtbo.o
 obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-evb-ver1-2-1.dtbo.o
 obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-evb-ver1-3-0.dtbo.o
-obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-ver1.dtbo.o
-obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-ver2.dtbo.o
+
+lwl-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-evb.dtb.o
+lwl-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-smarc-evb.dtb.o
+
 lwl-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-btb-evb.dtb.o
 
 # Reference only now
 #obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-sodimm.dtb.o
-#obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-smarc-evb.dtb.o
 #obj-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-btb-evb-socket.dtb.o
 
 lwl-$(CONFIG_MACH_DUCKBILL) += imx28-duckbill.dtb.o

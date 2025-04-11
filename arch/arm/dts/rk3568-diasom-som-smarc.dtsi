@@ -53,8 +53,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc0_vcc_pins>;
 		compatible = "regulator-fixed";
-		enable-active-high;
-		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
 		regulator-name = "vcc_sdmmc0";
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;

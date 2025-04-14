@@ -60,6 +60,23 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc3v3_sys>;
 	};
+
+	vcc_usb_host0: vcc-usb-host0-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_host0_vcc_pins>;
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_usb_host0";
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+};
+
+&combphy0 {
+	status = "disabled";
 };
 
 &combphy2 {
@@ -292,11 +309,11 @@
 };
 
 &usb_host0_xhci {
+	phys = <&usb2phy0_otg>;
+	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
 	dr_mode = "host";
-};
-
-&usb_host1_xhci {
-	status = "okay";
+	vbus-supply = <&vcc_usb_host0>;
 };
 
 &vpu {
@@ -371,6 +388,13 @@
 		rtc_pins: rtc-pins {
 			rockchip,pins =
 				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_IRQ */
+		};
+	};
+
+	usb {
+		usb_host0_vcc_pins: usb-host0-vcc-pins {
+			rockchip,pins =
+				<0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;	/* USB_OTG_EN_OC# */
 		};
 	};
 };

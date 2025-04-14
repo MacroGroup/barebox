@@ -1004,12 +1004,25 @@
 	};
 };
 
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
 &usb_host1_xhci {
 	status = "okay";
 };
 
 &usb2phy0_host {
 	phy-supply = <&vcc5v0_usb3_host1>;
+	status = "okay";
+};
+
+&usb2phy1_host {
+	status = "okay";
 };
 
 &pinctrl {

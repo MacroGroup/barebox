@@ -79,6 +79,11 @@
 	status = "disabled";
 };
 
+&combphy1 {
+	/* USB3.0 HOST1 */
+	status = "okay";
+};
+
 &combphy2 {
 	/* PCI-E 2.0 */
 	phy-supply = <&vcc3v3_sys>;
@@ -309,11 +314,32 @@
 };
 
 &usb_host0_xhci {
+	/* USB0 */
 	phys = <&usb2phy0_otg>;
 	phy-names = "usb2-phy";
 	maximum-speed = "high-speed";
 	dr_mode = "host";
 	vbus-supply = <&vcc_usb_host0>;
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+&usb_host1_xhci {
+	status = "okay";
+};
+
+&usb2phy0_host {
+	status = "okay";
+};
+
+&usb2phy1_host {
+	status = "okay";
 };
 
 &vpu {

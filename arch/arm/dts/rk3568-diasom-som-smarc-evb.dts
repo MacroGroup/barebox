@@ -33,7 +33,7 @@
 };
 
 &pcie2x1 {
-//	status = "okay";
+	status = "okay";
 };
 
 &pcie3x1 {
@@ -41,7 +41,7 @@
 };
 
 &pcie3x2 {
-	status = "okay";
+//	status = "okay";
 };
 
 &pwm4 {

@@ -33,6 +33,14 @@
 };
 
 &pcie2x1 {
+//	status = "okay";
+};
+
+&pcie3x1 {
+//	status = "okay";
+};
+
+&pcie3x2 {
 	status = "okay";
 };
 

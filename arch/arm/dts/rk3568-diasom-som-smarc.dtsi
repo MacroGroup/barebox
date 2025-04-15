@@ -22,16 +22,6 @@
 		i2c9 = &i2c9;
 	};
 
-	pcie30_refclk: pcie30-refclk-clock {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pcie30_clk_pins>;
-		compatible = "gated-fixed-clock";
-		clock-frequency = <100000000>;
-		clock-output-names = "pcie30_refclk";
-		enable-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
-		#clock-cells = <0>;
-	};
-
 	pps {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pps_pins>;
@@ -49,16 +39,28 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc_pcie30: vcc-pcie30-regulator {
+	vcc3v3_pcie30_clk_oe: vcc3v3-pcie30-clk-oe-regulator {
 		pinctrl-names = "default";
-		pinctrl-0 = <&pcie30_vcc_pins>;
+		pinctrl-0 = <&pcie30_clk_oe_pins>;
 		compatible = "regulator-fixed";
-		gpio = <&gpio2 RK_PD0 GPIO_ACTIVE_LOW>;
-		regulator-name = "vcc_pcie30";
+		gpio = <&gpio1 RK_PB0 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc3v3_pcie30_clk_oe";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		startup-delay-us = <20000>;
 		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc3v3_pcie30_clk_run: vcc3v3-pcie30-clk-run-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie30_clk_run_pins>;
+		compatible = "regulator-fixed";
+		gpio = <&gpio2 RK_PD0 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc3v3_pcie30_clk_run";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
+		vin-supply = <&vcc3v3_pcie30_clk_oe>;
 	};
 
 	vcc_sdmmc0: vcc-sdmmc0-regulator {
@@ -315,12 +317,28 @@
 	vpcie3v3-supply = <&vcc3v3_sys>;
 };
 
-//&pcie30phy {
-//	phy-supply = <&vcc_pcie30>;
-//	status = "okay";
-//};
+&pcie30phy {
+	data-lanes = <1 2>;
+	phy-supply = <&vcc3v3_pcie30_clk_run>;
+	status = "okay";
+};
 
-//pcie30_refclk should be handles in pci node
+&pcie3x1 {
+	/* PCIE_B */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie30x1_pins>;
+	reset-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie30_clk_run>;
+};
+
+&pcie3x2 {
+	/* PCIE_A */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie30x2_pins>;
+	num-lanes = <1>;
+	reset-gpios = <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie30_clk_run>;
+};
 
 &pwm4 {
 	/* LCD0_BKLT_PWM */
@@ -465,16 +483,33 @@
 	pci {
 		pcie2x1_pins: pcie2x1-pins {
 			rockchip,pins =
-				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,	/* PCIE_C_RST# */
-				<1 RK_PB1 4 &pcfg_pull_none>;			/* pcie20_wakenm2 */
+				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;	/* pcie20_perstnm1# */
+				// Wrong routed
+				//<1 RK_PB1 4 &pcfg_pull_none>;			/* pcie20_wakenm2 */
 		};
 
-		pcie30_clk_pins: pcie30-clk-pins {
+		pcie30x1_pins: pcie30x1-pins {
+			rockchip,pins =
+				<2 RK_PD2 4 &pcfg_pull_none>,			/* pcie30x1_clkreqnm1 */
+				<3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;		/* pcie30x1_perstnm1 */
+				// Wrong routed
+				//<2 RK_PD3 4 &pcfg_pull_none>,			/* pcie30x1_wakenm1 */
+		};
+
+		pcie30x2_pins: pcie30x2-pins {
+			rockchip,pins =
+				<2 RK_PD4 4 &pcfg_pull_none>,			/* pcie30x2_clkreqnm1 */
+				<2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;		/* PCIE30X2_PERSTN */
+				// Wrong routed
+				//<2 RK_PD5 4 &pcfg_pull_none>,			/* pcie30x2_wakenm1 */
+		};
+
+		pcie30_clk_oe_pins: pcie30-clk-oe-pins {
 			rockchip,pins =
 				<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_CLK_IC_OE */
 		};
 
-		pcie30_vcc_pins: pcie30-vcc-pins {
+		pcie30_clk_run_pins: pcie30-clk-run-pins {
 			rockchip,pins =
 				<2 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_CLK_IC_PDN */
 		};

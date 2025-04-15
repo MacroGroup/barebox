@@ -14,8 +14,7 @@
 #include <i2c/i2c.h>
 #include <mach/rockchip/bbu.h>
 
-#define KEY_DOWN_MIN_VAL	0
-#define KEY_DOWN_MAX_VAL	40
+static int smarc_revision = -1;
 
 static int diasom_rk3568_probe_i2c(struct i2c_adapter *adapter, const int addr)
 {
@@ -117,9 +116,26 @@ static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 	return 0;
 }
 
+static int __init diasom_rk3588_get_adc_value(const char *name, int *val)
+{
+	struct aiochannel *aio_ch = aiochannel_by_name(name);
+	int ret;
+
+	if (IS_ERR(aio_ch)) {
+		ret = PTR_ERR(aio_ch);
+		pr_err("Could not find ADC channel \"%s\": %i!\n", name, ret);
+		return ret;
+	}
+
+	ret = aiochannel_get_value(aio_ch, val);
+	if (ret)
+		pr_err("Could not get ADC value: %i!\n", ret);
+
+	return ret;
+}
+
 static int __init diasom_rk3568_check_recovery(void)
 {
-	struct aiochannel *aio_ch0;
 	struct device *aio_dev;
 	int ret, val;
 
@@ -132,22 +148,26 @@ static int __init diasom_rk3568_check_recovery(void)
 		return -ENODEV;
 	}
 
-	aio_ch0 = aiochannel_by_name("aiodev0.in_value0_mV");
-	if (IS_ERR(aio_ch0)) {
-		ret = PTR_ERR(aio_ch0);
-		pr_err("Could not find ADC channel: %i!\n", ret);
+	ret = diasom_rk3588_get_adc_value("aiodev0.in_value0_mV", &val);
+	if (ret)
 		return ret;
-	}
 
-	ret = aiochannel_get_value(aio_ch0, &val);
-	if (ret) {
-		pr_err("Could not get ADC value: %i!\n", ret);
-		return ret;
-	}
-
-	if ((val >= KEY_DOWN_MIN_VAL) && (val <= KEY_DOWN_MAX_VAL)) {
+	if (val <= 40) {
 		pr_info("Recovery key pressed, enforce gadget mode...\n");
 		globalvar_add_simple("board.recovery", "true");
+	}
+
+	if (!of_machine_is_compatible("diasom,ds-rk3568-som-smarc"))
+		return 0;
+
+	ret = diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val);
+	if (ret)
+		return ret;
+
+	if (val <= 100) {
+		smarc_revision = 0x111;
+	} else {
+		pr_warn("Unhandled SMARC revision ADC value: %i!\n", val);
 	}
 
 	return 0;
@@ -204,6 +224,26 @@ static int __init diasom_rk3568_machine_id(void)
 }
 of_populate_initcall(diasom_rk3568_machine_id);
 
+static int __init diasom_rk3568_late_init(void)
+{
+	if (!of_machine_is_compatible("diasom,ds-rk3568-som-smarc"))
+		return 0;
+
+	switch (smarc_revision) {
+		case 0x111:
+			break;
+		default:
+			pr_err("Cannot determine SMARC revision.\n");
+			return -ENOTSUPP;
+	}
+
+	pr_info("SMARC revision: %i.%d.%d\n", smarc_revision >> 8,
+		smarc_revision & 0xff >> 4, smarc_revision & 0xf);
+
+	return 0;
+}
+late_initcall(diasom_rk3568_late_init);
+
 static bool __init diasom_rk3568_load_overlay(const void *ovl)
 {
 	if (ovl) {
@@ -252,9 +292,9 @@ static int __init diasom_rk3568_init(void)
 		return 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc"))
-		pr_info("SMARC module version used.\n");
+		pr_info("SMARC module variant used.\n");
 	else
-		pr_info("RAW module version used.\n");
+		pr_info("RAW module variant used.\n");
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-evb")) {
 		struct i2c_adapter *adapter =

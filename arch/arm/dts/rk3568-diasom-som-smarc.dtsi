@@ -199,7 +199,7 @@
 		compatible = "st,m41t62";
 		reg = <0x68>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <RK_PD1 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
 		wakeup-source;
 
 		clock {
@@ -222,7 +222,10 @@
 	assigned-clock-parents = <&cru SCLK_GMAC0_RGMII_SPEED>;
 	assigned-clock-rates = <0>, <125000000>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_tx_bus2 &gmac0_rx_bus2 &gmac0_rgmii_clk &gmac0_rgmii_bus>;
+	pinctrl-0 = <
+		&gmac0_tx_bus2 &gmac0_rx_bus2
+		&gmac0_rgmii_clk &gmac0_rgmii_bus
+	>;
 	clock_in_out = "output";
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-id";
@@ -237,7 +240,11 @@
 	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>;
 	assigned-clock-rates = <0>, <125000000>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim &gmac1m1_tx_bus2 &gmac1m1_rx_bus2 &gmac1m1_rgmii_clk &gmac1m1_rgmii_bus>;
+	pinctrl-0 = <
+		&gmac1m1_tx_bus2 &gmac1m1_rx_bus2
+		&gmac1m1_rgmii_clk &gmac1m1_rgmii_bus
+		&gmac1m1_miim
+	>;
 	clock_in_out = "output";
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-id";
@@ -443,7 +450,7 @@
 	rtc {
 		rtc_pins: rtc-pins {
 			rockchip,pins =
-				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_IRQ */
+				<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_IRQ */
 		};
 	};
 

@@ -116,64 +116,6 @@ static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 	return 0;
 }
 
-static int __init diasom_rk3588_get_adc_value(const char *name, int *val)
-{
-	struct aiochannel *aio_ch = aiochannel_by_name(name);
-	int ret;
-
-	if (IS_ERR(aio_ch)) {
-		ret = PTR_ERR(aio_ch);
-		pr_err("Could not find ADC channel \"%s\": %i!\n", name, ret);
-		return ret;
-	}
-
-	ret = aiochannel_get_value(aio_ch, val);
-	if (ret)
-		pr_err("Could not get ADC value: %i!\n", ret);
-
-	return ret;
-}
-
-static int __init diasom_rk3568_check_adc(void)
-{
-	struct device *aio_dev;
-	int ret, val;
-
-	if (!of_machine_is_compatible("diasom,ds-rk3568-som"))
-		return 0;
-
-	aio_dev = of_device_enable_and_register_by_name("saradc@fe720000");
-	if (!aio_dev) {
-		pr_err("Unable to get ADC device!\n");
-		return -ENODEV;
-	}
-
-	ret = diasom_rk3588_get_adc_value("aiodev0.in_value0_mV", &val);
-	if (ret)
-		return ret;
-
-	if (val <= 40) {
-		pr_info("Recovery key pressed, enforce gadget mode...\n");
-		globalvar_add_simple("board.recovery", "true");
-	}
-
-	if (!of_machine_is_compatible("diasom,ds-rk3568-som-smarc"))
-		return 0;
-
-	ret = diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val);
-	if (ret)
-		return ret;
-
-	if (val <= 100) {
-		smarc_revision = 0x111;
-	} else {
-		pr_warn("Unhandled SMARC revision ADC value: %i!\n", val);
-	}
-
-	return 0;
-}
-device_initcall(diasom_rk3568_check_adc);
-
 #define UNSTUFF_BITS(resp,start,size)					\
 	({								\
 		const int __size = size;				\
@@ -224,25 +166,55 @@ static int __init diasom_rk3568_machine_id(void)
 }
 of_populate_initcall(diasom_rk3568_machine_id);
 
-static int __init diasom_rk3568_late_init(void)
+static int __init diasom_rk3588_get_adc_value(const char *name, int *val)
 {
-	if (!of_machine_is_compatible("diasom,ds-rk3568-som-smarc"))
-		return 0;
+	struct aiochannel *aio_ch = aiochannel_by_name(name);
+	int ret;
 
-	switch (smarc_revision) {
-		case 0x111:
-			break;
-		default:
-			pr_err("Cannot determine SMARC revision.\n");
-			return -ENOTSUPP;
+	if (IS_ERR(aio_ch)) {
+		ret = PTR_ERR(aio_ch);
+		pr_err("Could not find ADC channel \"%s\": %i!\n", name, ret);
+		return ret;
 	}
 
-	pr_info("SMARC revision: %i.%d.%d\n", smarc_revision >> 8,
-		smarc_revision & 0xff >> 4, smarc_revision & 0xf);
+	ret = aiochannel_get_value(aio_ch, val);
+	if (ret)
+		pr_err("Could not get ADC value: %i!\n", ret);
 
-	return 0;
+	return ret;
 }
-late_initcall(diasom_rk3568_late_init);
+
+static void __init diasom_rk3568_check_adc(void)
+{
+	struct device *aio_dev;
+	int val;
+
+	aio_dev = of_device_enable_and_register_by_name("saradc@fe720000");
+	if (!aio_dev) {
+		pr_err("Unable to get ADC device!\n");
+		return;
+	}
+
+	if (diasom_rk3588_get_adc_value("aiodev0.in_value0_mV", &val))
+		return;
+
+	if (val <= 40) {
+		pr_info("Recovery key pressed, enforce gadget mode...\n");
+		globalvar_add_simple("board.recovery", "true");
+	}
+
+	if (!of_machine_is_compatible("diasom,ds-rk3568-som-smarc"))
+		return;
+
+	if (diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val))
+		return;
+
+	if (val <= 100) {
+		smarc_revision = 0x111;
+	} else {
+		pr_warn("Unhandled SMARC revision ADC value: %i!\n", val);
+	}
+}
 
 static bool __init diasom_rk3568_load_overlay(const void *ovl)
 {
@@ -269,6 +241,8 @@ static int __init diasom_rk3568_init(void)
 			diasom_rk3568_i2c_get_adapter(0);
 		void *som_ovl;
 
+		diasom_rk3568_check_adc();
+
 		if (!adapter) {
 			pr_err("Cannot determine SOM version.\n");
 			return -ENOTSUPP;
@@ -291,9 +265,18 @@ static int __init diasom_rk3568_init(void)
 	} else
 		return 0;
 
-	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc"))
-		pr_info("SMARC module variant used.\n");
-	else
+	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc")) {
+		switch (smarc_revision) {
+			case 0x111:
+				break;
+			default:
+				pr_err("Cannot determine SMARC revision.\n");
+				return -ENOTSUPP;
+		}
+
+		pr_info("SMARC revision: %i.%d.%d\n", smarc_revision >> 8,
+			smarc_revision & 0xff >> 4, smarc_revision & 0xf);
+	} else
 		pr_info("RAW module variant used.\n");
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-evb")) {

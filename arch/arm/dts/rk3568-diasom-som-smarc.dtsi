@@ -499,9 +499,8 @@
 		pcie30x2_pins: pcie30x2-pins {
 			rockchip,pins =
 				<2 RK_PD4 4 &pcfg_pull_none>,			/* pcie30x2_clkreqnm1 */
-				<2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;		/* PCIE30X2_PERSTN */
-				// Wrong routed
-				//<2 RK_PD5 4 &pcfg_pull_none>,			/* pcie30x2_wakenm1 */
+				<2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>,		/* PCIE30X2_PERSTN */
+				<2 RK_PD5 4 &pcfg_pull_none>;			/* pcie30x2_wakenm1 */
 		};
 
 		pcie30_clk_oe_pins: pcie30-clk-oe-pins {

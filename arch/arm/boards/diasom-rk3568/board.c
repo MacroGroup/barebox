@@ -134,7 +134,7 @@ static int __init diasom_rk3588_get_adc_value(const char *name, int *val)
 	return ret;
 }
 
-static int __init diasom_rk3568_check_recovery(void)
+static int __init diasom_rk3568_check_adc(void)
 {
 	struct device *aio_dev;
 	int ret, val;
@@ -172,7 +172,7 @@ static int __init diasom_rk3568_check_recovery(void)
 
 	return 0;
 }
-device_initcall(diasom_rk3568_check_recovery);
+device_initcall(diasom_rk3568_check_adc);
 
 #define UNSTUFF_BITS(resp,start,size)					\
 	({								\

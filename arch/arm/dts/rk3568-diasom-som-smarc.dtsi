@@ -97,7 +97,7 @@
 };
 
 &combphy0 {
-	status = "disabled";
+	/* SATA0 */
 };
 
 &combphy1 {
@@ -331,6 +331,10 @@
 };
 
 &rga {
+	status = "okay";
+};
+
+&sata0 {
 	status = "okay";
 };
 

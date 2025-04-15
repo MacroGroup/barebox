@@ -37,6 +37,16 @@
 		gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 	};
 
+	vcc2v5_sys: vcc2v5-sys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "2v5_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
 	vcc_pcie30: vcc-pcie30-regulator {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie30_vcc_pins>;
@@ -116,7 +126,7 @@
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;
-		vdd-supply = <&vcc3v3_sys>;
+		vdd-supply = <&vcc2v5_sys>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -290,26 +300,23 @@
 	/* PCIE_C */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie2x1_pins>;
-	reset-gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_sys>;
-	status = "okay";
 };
 
-&pcie30phy {
-	phy-supply = <&vcc_pcie30>;
-	status = "okay";
-};
+//&pcie30phy {
+//	phy-supply = <&vcc_pcie30>;
+//	status = "okay";
+//};
 
 //pcie30_refclk should be handles in pci node
 
 &pwm4 {
 	/* LCD0_BKLT_PWM */
-	status = "okay";
 };
 
 &pwm5 {
 	/* LCD1_BKLT_PWM */
-	status = "okay";
 };
 
 &rga {
@@ -332,16 +339,34 @@
 	vqmmc-supply = <&vccio_sd>;
 };
 
+&spi2 {
+	/* SMARC SPI0 */
+	num-cs = <2>;
+};
+
+&spi3 {
+	/* SMARC SPI1 */
+	pinctrl-0 = <&spi3m1_cs0 &spi3m1_cs1 &spi3m1_pins>;
+	num-cs = <2>;
+};
+
+&uart2 {
+	/* SMARC SER1 */
+};
+
 &uart4 {
+	/* SMARC SER0 */
 	pinctrl-0 = <&uart4m0_xfer &uart4m0_ctsn &uart4m0_rtsn>;
 };
 
-&uart8 {
-	pinctrl-0 = <&uart8m1_xfer>;
+&uart5 {
+	/* SMARC SER3 */
+	pinctrl-0 = <&uart5m1_xfer>;
 };
 
-&uart9 {
-	pinctrl-0 = <&uart9m1_xfer>;
+&uart8 {
+	/* SMARC SER2 */
+	pinctrl-0 = <&uart8m1_xfer>;
 };
 
 &usb_host0_xhci {
@@ -425,7 +450,7 @@
 	pci {
 		pcie2x1_pins: pcie2x1-pins {
 			rockchip,pins =
-				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,	/* PCIE_C_RST# */
+				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,	/* PCIE_C_RST# */
 				<1 RK_PB1 4 &pcfg_pull_none>;			/* pcie20_wakenm2 */
 		};
 

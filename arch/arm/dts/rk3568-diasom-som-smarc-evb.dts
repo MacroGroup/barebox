@@ -24,18 +24,58 @@
 	};
 };
 
+&pcie2x1 {
+	status = "okay";
+};
+
+&pwm4 {
+	status = "okay";
+};
+
+&pwm5 {
+	status = "okay";
+};
+
 &sdmmc0 {
 	status = "okay";
+};
+
+&spi2 {
+	status = "okay";
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+	};
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
+};
+
+&spi3 {
+	status = "okay";
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+	};
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
 };
 
 &uart4 {
 	status = "okay";
 };
 
-&uart8 {
+&uart5 {
 	status = "okay";
 };
 
-&uart9 {
+&uart8 {
 	status = "okay";
 };

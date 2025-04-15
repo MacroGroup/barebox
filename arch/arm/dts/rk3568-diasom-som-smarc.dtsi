@@ -12,6 +12,8 @@
 		     "rockchip,rk3568";
 
 	aliases {
+		can0 = &can0;
+		can1 = &can2;
 		ethernet0 = &gmac0;
 		ethernet1 = &gmac1;
 		i2c6 = &i2c6;
@@ -83,6 +85,15 @@
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc5v0_sys>;
 	};
+};
+
+&can0 {
+	/* CAN0 */
+};
+
+&can2 {
+	/* CAN1 */
+	pinctrl-0 = <&can2m1_pins>;
 };
 
 &combphy0 {

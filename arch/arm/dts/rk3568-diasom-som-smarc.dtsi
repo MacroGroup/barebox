@@ -137,7 +137,10 @@
 			"GPIO12", "GPIO13", "WDT_TIME_OUT#", "LID#",
 			/* P1_0-7 */
 			"SLEEP#", "CHARGE#", "CHARGER_PRSNT#", "CARRIER_STBY#",
-			"BATLOW#", "", "LCD0_VDD_EN", "";
+			"BATLOW#", "TEST#", "LCD0_VDD_EN", "",
+			/* P2_0-7 */
+			"", "", "", "",
+			"", "", ", "";
 	};
 
 	i2c-mux@70 {
@@ -354,7 +357,7 @@
 		"GPIO5/PWM_OUT", "", "", "",
 		"", "", "", "",
 		/* GPIO3 D0-D7 */
-		"", "", "", "GPIO26",
+		"", "", "", "SMB_ALERT#",
 		"", "eDP0_HPD/DSI0_TE", "", "";
 };
 

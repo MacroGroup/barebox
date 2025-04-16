@@ -32,6 +32,10 @@
 	status = "okay";
 };
 
+&i2s1_8ch {
+	status = "okay";
+};
+
 &pcie2x1 {
 	status = "okay";
 };

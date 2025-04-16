@@ -240,6 +240,16 @@
 	status = "okay";
 };
 
+&i2s1_8ch {
+	/* I2S0 */
+	pinctrl-0 = <
+		&i2s1m1_mclk &i2s1m1_sclktx
+		&i2s1m1_lrcktx &i2s1m1_sdo0
+		&i2s1m1_sdi0
+	>;
+	rockchip,trcm-sync-tx-only;
+};
+
 &gmac0 {
 	/* GBE0 */
 	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>, <&cru SCLK_GMAC0>;

@@ -13,6 +13,7 @@
 		     "diasom,ds-rk3568-som-smarc",
 		     "diasom,ds-rk3568-som",
 		     "rockchip,rk3568";
+
 	aliases {
 		mmc1 = &sdmmc0;
 	};
@@ -43,6 +44,10 @@
 };
 
 &can2 {
+	status = "okay";
+};
+
+&display_subsystem {
 	status = "okay";
 };
 

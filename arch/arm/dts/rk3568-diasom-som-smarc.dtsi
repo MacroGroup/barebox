@@ -319,7 +319,6 @@
 
 &pcie30phy {
 	data-lanes = <1 2>;
-	phy-supply = <&vcc3v3_pcie30_clk_run>;
 	status = "okay";
 };
 

@@ -366,7 +366,7 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_sdmmc0>;
 	vqmmc-supply = <&vccio_sd>;

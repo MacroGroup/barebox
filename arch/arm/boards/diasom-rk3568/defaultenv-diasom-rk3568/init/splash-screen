@@ -2,7 +2,6 @@
 
 # Check for HDMI on /dev/fb0
 [ -e /dev/fb0 ] || exit 0
-[ -e /dev/fb1 ] || exit 0
 
 # Enable framebuffer on HDMI output
 fb0.enable=1

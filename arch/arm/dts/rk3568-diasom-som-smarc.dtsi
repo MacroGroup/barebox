@@ -119,6 +119,7 @@
 	status = "okay";
 
 	exp: gpio@23 {
+		/* DD23 */
 		pinctrl-names = "default";
 		pinctrl-0 = <&exp_pins>;
 		compatible = "nxp,pcal6524";
@@ -132,6 +133,7 @@
 	};
 
 	i2c-mux@70 {
+		/* DD24 */
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;
@@ -462,7 +464,7 @@
 
 &pinctrl {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim>;
+	pinctrl-0 = <&gmac1m1_miim &rst_pins>;
 
 	exp {
 		exp_pins: exp-pins {
@@ -534,6 +536,13 @@
 		pps_pins: pps-pins {
 			rockchip,pins =
 				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_SQW */
+		};
+	};
+
+	rst {
+		rst_pins: rst-pins {
+			rockchip,pins =
+				<3 RK_PD4 RK_FUNC_GPIO &pcfg_output_high>;	/* RESET_OUT */
 		};
 	};
 

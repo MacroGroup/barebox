@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if ! of_compatible -k diasom,ds-rk3568-som-evb ; then
+	echo "Script designed for differrent board!"
+	exit 0
+fi
+
 DTBODIR=/mnt/mmc1.2/boot
 [ -d $DTBODIR ] || DTBODIR=/mnt/mmc0.2/boot
 

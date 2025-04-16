@@ -292,6 +292,11 @@
 	status = "okay";
 };
 
+&hdmi {
+	/* HDMI */
+	pinctrl-0 = <&hdmitx_scl &hdmitx_sda>;
+};
+
 &mdio0 {
 	status = "disabled";
 };

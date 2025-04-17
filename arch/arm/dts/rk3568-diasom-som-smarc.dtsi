@@ -3,6 +3,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/input/gpio-keys.h>
+
 #include "rk3568-diasom-som.dtsi"
 
 / {
@@ -20,6 +22,26 @@
 		i2c7 = &i2c7;
 		i2c8 = &i2c8;
 		i2c9 = &i2c9;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		lid {
+			label = "LID";
+			linux,code = <SW_LID>;
+			linux,input-type = <EV_SW>;
+			gpios = <&exp 7 GPIO_ACTIVE_LOW>;
+		};
+
+		sleep {
+			label = "SLEEP";
+			linux,code = <KEY_SLEEP>;
+			linux,input-type = <EV_KEY>;
+			gpios = <&exp 8 GPIO_ACTIVE_LOW>;
+			wakeup-event-action = <EV_ACT_ANY>;
+			wakeup-source;
+		};
 	};
 
 	pps {

@@ -271,7 +271,8 @@ static int __init diasom_rk3568_init(void)
 				break;
 			default:
 				pr_err("Cannot determine SMARC revision.\n");
-				return -ENOTSUPP;
+				ret = -ENOTSUPP;
+				goto out;
 		}
 
 		pr_info("SMARC revision: %i.%d.%d\n", smarc_revision >> 8,

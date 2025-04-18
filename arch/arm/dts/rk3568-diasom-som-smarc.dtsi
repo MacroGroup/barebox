@@ -3,8 +3,6 @@
 
 /dts-v1/;
 
-#include <dt-bindings/input/gpio-keys.h>
-
 #include "rk3568-diasom-som.dtsi"
 
 / {
@@ -39,8 +37,6 @@
 			linux,code = <KEY_SLEEP>;
 			linux,input-type = <EV_KEY>;
 			gpios = <&exp 8 GPIO_ACTIVE_LOW>;
-			wakeup-event-action = <EV_ACT_ANY>;
-			wakeup-source;
 		};
 	};
 

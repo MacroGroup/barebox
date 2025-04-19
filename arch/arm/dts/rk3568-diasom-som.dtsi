@@ -295,6 +295,13 @@
 				};
 			};
 
+			LDO_REG4 {
+				/* Unused */
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
 			vccio_sd: LDO_REG5 {
 				regulator-name = "vccio_sd";
 				regulator-boot-on;

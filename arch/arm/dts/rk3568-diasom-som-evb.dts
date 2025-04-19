@@ -836,6 +836,7 @@
 };
 
 &pcie30phy {
+	data-lanes = <1 1>;
 	status = "okay";
 };
 

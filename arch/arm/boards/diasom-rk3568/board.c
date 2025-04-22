@@ -14,7 +14,7 @@
 #include <i2c/i2c.h>
 #include <mach/rockchip/bbu.h>
 
-static int smarc_revision = -1;
+static int module_revision = -1;
 
 static int diasom_rk3568_probe_i2c(struct i2c_adapter *adapter, const int addr)
 {
@@ -43,7 +43,7 @@ static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const int nr)
 }
 
 /*
-	Cameras mapping:
+	SOM-EVB Cameras mapping:
 		camera0 = XC7160/I2C4
 		camera1 = IMX335/I2C4
 		camera2 = IMX335/I2C7
@@ -210,7 +210,7 @@ static void __init diasom_rk3568_check_adc(void)
 		return;
 
 	if (val <= 100) {
-		smarc_revision = 0x111;
+		module_revision = 0x111;
 	} else {
 		pr_warn("Unhandled SMARC revision ADC value: %i!\n", val);
 	}
@@ -266,7 +266,7 @@ static int __init diasom_rk3568_init(void)
 		return 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc")) {
-		switch (smarc_revision) {
+		switch (module_revision) {
 			case 0x111:
 				break;
 			default:
@@ -275,8 +275,8 @@ static int __init diasom_rk3568_init(void)
 				goto out;
 		}
 
-		pr_info("SMARC revision: %i.%d.%d\n", smarc_revision >> 8,
-			smarc_revision & 0xff >> 4, smarc_revision & 0xf);
+		pr_info("SMARC revision: %i.%d.%d\n", module_revision >> 8,
+			module_revision & 0xff >> 4, module_revision & 0xf);
 	} else
 		pr_info("RAW module variant used.\n");
 

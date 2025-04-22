@@ -837,6 +837,7 @@
 
 &pcie30phy {
 	data-lanes = <1 1>;
+	phy-supply = <&vcc3v3_pi6c>;
 	status = "okay";
 };
 

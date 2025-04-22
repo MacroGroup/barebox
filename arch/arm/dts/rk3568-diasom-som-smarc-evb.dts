@@ -140,6 +140,7 @@
 
 &pcie30phy {
 	data-lanes = <1 2>;
+	status = "okay";
 };
 
 &pcie3x1 {

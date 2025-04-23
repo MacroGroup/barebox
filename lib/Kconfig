@@ -139,6 +139,7 @@ config RATP
 
 config ALLOW_PRNG_FALLBACK
 	bool "Allow fallback to PRNG if HWRNG not available."
+	select HAS_INSECURE_DEFAULTS
 	help
 	  WARNING: it is not secure!!
 
@@ -212,18 +213,6 @@ config NLS
 config BLOBGEN
 	select BASE64
 	bool "include blob encode/decode support"
-
-config ARCH_HAS_STACK_DUMP
-	bool
-
-config ARCH_HAS_DATA_ABORT_MASK
-	bool
-
-config ARCH_HAS_ZERO_PAGE
-	bool
-
-config HAVE_EFFICIENT_UNALIGNED_ACCESS
-	bool
 
 config GENERIC_ALLOCATOR
 	bool

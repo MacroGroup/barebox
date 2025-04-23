@@ -1434,6 +1434,8 @@ void ecc_point_mult_shamir(const struct ecc_point *result,
 	idx |= (!!vli_test_bit(u2, i)) << 1;
 	point = points[idx];
 
+	BUG_ON(!point);
+
 	vli_set(rx, point->x, ndigits);
 	vli_set(ry, point->y, ndigits);
 	vli_clear(z + 1, ndigits - 1);
@@ -1619,7 +1621,7 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 
 	nbytes = ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
 
-	get_random_bytes(rand_z, nbytes);
+	get_crypto_bytes(rand_z, nbytes);
 
 	pk = ecc_alloc_point(ndigits);
 	if (!pk) {

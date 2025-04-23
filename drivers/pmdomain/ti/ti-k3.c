@@ -9,6 +9,7 @@
 #define pr_fmt(fmt)     "ti-k3-pm-domain: " fmt
 
 #include <io.h>
+#include <stdio.h>
 #include <of_device.h>
 #include <malloc.h>
 #include <init.h>
@@ -320,14 +321,14 @@ static int ti_k3_pm_domain_on(struct generic_pm_domain *domain)
 	struct ti_k3_pm_domain *pd = to_ti_k3_pd(domain);
 
 	return ti_lpsc_transition(pd->lpsc, MDSTAT_STATE_ENABLE);
-}       
-        
+}
+
 static int ti_k3_pm_domain_off(struct generic_pm_domain *domain)
-{       
+{
 	struct ti_k3_pm_domain *pd = to_ti_k3_pd(domain);
 
 	return ti_lpsc_transition(pd->lpsc, MDSTAT_STATE_SWRSTDISABLE);
-}       
+}
 
 static struct ti_psc am625_psc[] = {
 	[0] = { .id = 0, .base = (void *)0x04000000 },
@@ -447,7 +448,7 @@ static int ti_k3_pm_domain_probe(struct device *dev)
 	priv->pd = pd;
 
 	for (i = 0; i < num_domains; i++, pd++) {
-		pd->genpd.name = basprintf("pd:%d", i);
+		pd->genpd.name = xasprintf("pd:%d", i);
 		pd->lpsc = &data->lpsc[i];
 		pd->genpd.power_off = ti_k3_pm_domain_off;
 		pd->genpd.power_on = ti_k3_pm_domain_on;

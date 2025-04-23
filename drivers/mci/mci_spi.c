@@ -137,7 +137,7 @@ static uint mmc_spi_readdata(struct mmc_spi_host *host, void *xbuf,
 				uint32_t bcnt, uint32_t bsize)
 {
 	uint8_t *buf = xbuf;
-	uint8_t r1;
+	uint8_t r1 = R1_SPI_ERROR;
 	uint16_t crc;
 	int i;
 
@@ -294,9 +294,6 @@ static int mmc_spi_request(struct mci_host *mci, struct mci_cmd *cmd, struct mci
 done:
 	mmc_cs_off(host);
 	return ret;
-
-return  0;
-
 }
 
 static void mmc_spi_set_ios(struct mci_host *mci, struct mci_ios *ios)
@@ -440,10 +437,10 @@ static int spi_mci_probe(struct device *dev)
 	host->mci.host_caps = MMC_CAP_SPI;
 
 	if (np) {
-		host->mci.devname = xstrdup(of_alias_get(np));
+		mci_of_parse(&host->mci);
 		host->detect_pin = gpiod_get_optional(dev, NULL, GPIOD_IN);
 		if (IS_ERR(host->detect_pin))
-			dev_warn(dev, "Failed to get 'reset' GPIO (ignored)\n");
+			dev_warn(dev, "Failed to get card detect GPIO (ignored)\n");
 	}
 
 	mci_register(&host->mci);

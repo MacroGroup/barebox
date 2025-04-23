@@ -143,6 +143,7 @@ Contents:
    :maxdepth: 1
 
    bindings/barebox/*
+   bindings/clocks/*
    bindings/firmware/*
    bindings/leds/*
    bindings/misc/*
@@ -173,3 +174,12 @@ In the ``chosen``-node, barebox fixes up
 
 These values can be read from the booted linux system in ``/proc/device-tree/``
 or ``/sys/firmware/devicetree/base``.
+
+To see a dry run of what barebox would fixup, the ``of_diff`` command can be
+used::
+
+  # Diff before and after applying fixups on barebox DT
+  of_diff - +
+
+  # Diff kernel device tree before and after fixups
+  of_diff /mnt/mmc2.0/boot/imx6q-tx6q.dtb +

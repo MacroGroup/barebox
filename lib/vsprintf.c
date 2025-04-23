@@ -229,7 +229,8 @@ static char *wstring(char *buf, const char *end, const wchar_t *s, int field_wid
 		s = L"<NULL>";
 
 	len = wcsnlen(s, precision);
-	leading_spaces(buf, end, len, &field_width, flags);
+
+	buf = leading_spaces(buf, end, len, &field_width, flags);
 
 	for (i = 0; i < len; ++i) {
 		if (buf < end)
@@ -336,7 +337,8 @@ char *uuid_string(char *buf, const char *end, const u8 *addr, int field_width,
 
 	switch (*(++fmt)) {
 	case 'L':
-		uc = true;		/* fall-through */
+		uc = true;
+		fallthrough;
 	case 'l':
 		index = le;
 		break;
@@ -559,6 +561,7 @@ static char *pointer(const char *fmt, char *buf, const char *end, const void *pt
 	case 'J':
 		if (fmt[1] == 'P' && IS_ENABLED(CONFIG_JSMN))
 			return jsonpath_string(buf, end, ptr, field_width, precision, flags, fmt);
+		break;
         case 'M':
 		/* Colon separated: 00:01:02:03:04:05 */
 		return mac_address_string(buf, end, ptr, field_width, precision, flags, fmt);
@@ -772,6 +775,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 
 			case 'x':
 				flags |= SMALL;
+				fallthrough;
 			case 'X':
 				base = 16;
 				break;
@@ -779,6 +783,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			case 'd':
 			case 'i':
 				flags |= SIGN;
+				fallthrough;
 			case 'u':
 				break;
 
@@ -978,20 +983,3 @@ int asprintf(char **strp, const char *fmt, ...)
 	return len;
 }
 EXPORT_SYMBOL(asprintf);
-
-char *basprintf(const char *fmt, ...)
-{
-	va_list ap;
-	char *p;
-	int len;
-
-	va_start(ap, fmt);
-	len = vasprintf(&p, fmt, ap);
-	va_end(ap);
-
-	if (len < 0)
-		return NULL;
-
-	return p;
-}
-EXPORT_SYMBOL(basprintf);

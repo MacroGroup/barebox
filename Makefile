@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 2025
-PATCHLEVEL = 03
+PATCHLEVEL = 04
 SUBLEVEL = 0
 EXTRAVERSION =
 NAME = None
@@ -368,6 +368,11 @@ ifeq ($(ARCH),um)
        SRCARCH := sandbox
 endif
 
+export cross_compiling :=
+ifneq ($(SRCARCH),$(SUBARCH))
+cross_compiling := 1
+endif
+
 KCONFIG_CONFIG	?= .config
 
 PKG_CONFIG ?= pkg-config
@@ -409,6 +414,8 @@ KBUILD_HOSTCFLAGS   := $(KBUILD_USERHOSTCFLAGS) $(HOST_LFS_CFLAGS) $(HOSTCFLAGS)
 KBUILD_HOSTCXXFLAGS := -Wall -O2 $(HOST_LFS_CFLAGS) $(HOSTCXXFLAGS)
 KBUILD_HOSTLDFLAGS  := $(HOST_LFS_LDFLAGS) $(HOSTLDFLAGS)
 KBUILD_HOSTLDLIBS   := $(HOST_LFS_LIBS) $(HOSTLDLIBS)
+
+ENVCC		:= $(CC)
 
 # Make variables (CC, etc...)
 CPP		= $(CC) -E
@@ -452,7 +459,7 @@ XZ		= xz
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ -Wbitwise $(CF)
 CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
-CFLAGS_MODULE	=
+CFLAGS_MODULE	= -fshort-wchar
 AFLAGS_MODULE	=
 
 LDFLAGS_MODULE  = -T common/module.lds
@@ -479,7 +486,8 @@ LINUXINCLUDE    := -Iinclude \
 		   -I$(objtree)/arch/$(SRCARCH)/include \
 		   $(USERINCLUDE)
 
-KBUILD_CPPFLAGS        := -D__KERNEL__ -D__BAREBOX__ $(LINUXINCLUDE) -fno-builtin -ffreestanding
+KBUILD_CPPFLAGS        := -D__KERNEL__ -D__BAREBOX__ $(LINUXINCLUDE) \
+			  -fno-builtin -ffreestanding -Ulinux -Uunix
 
 KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common -fshort-wchar \
@@ -574,6 +582,13 @@ ifneq ($(findstring clang,$(CC_VERSION_TEXT)),)
 include $(srctree)/scripts/Makefile.clang
 endif
 
+# allow scan-build to override the used compiler
+ifneq ($(CCC_ANALYZER_HTML),)
+ifneq ($(ENVCC),)
+CC = $(ENVCC)
+endif
+endif
+
 ifdef config-build
 # ===========================================================================
 # *config targets only - make sure prerequisites are updated, and descend
@@ -588,10 +603,10 @@ include $(srctree)/arch/$(SRCARCH)/Makefile
 export KBUILD_DEFCONFIG CC_VERSION_TEXT
 
 config: outputmakefile scripts_basic FORCE
-	$(Q)$(MAKE) $(build)=scripts/kconfig $@
+	$(Q)$(MAKE) $(build)=scripts/kconfig KCONFIG_DEFCONFIG_LIST= $@
 
 %config: outputmakefile scripts_basic FORCE
-	$(Q)$(MAKE) $(build)=scripts/kconfig $@
+	$(Q)$(MAKE) $(build)=scripts/kconfig KCONFIG_DEFCONFIG_LIST= $@
 
 else #!config-build
 # ===========================================================================

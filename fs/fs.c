@@ -775,13 +775,13 @@ static int fs_probe(struct device *dev)
 
 	fsdev->driver = fsdrv;
 
-	list_add_tail(&fsdev->list, &fs_device_list);
-
 	if (IS_ENABLED(CONFIG_FS_LEGACY) && !fsdev->sb.s_root) {
 		ret = fs_init_legacy(fsdev);
 		if (ret)
 			return ret;
 	}
+
+	list_add_tail(&fsdev->list, &fs_device_list);
 
 	return 0;
 }
@@ -795,7 +795,6 @@ static void dentry_kill(struct dentry *dentry)
 		dput(dentry->d_parent);
 
 	list_del(&dentry->d_child);
-	free(dentry->name);
 	free(dentry);
 }
 
@@ -903,7 +902,8 @@ const char *fs_detect(const char *filename, const char *fsoptions)
 	parseopt_llu_suffix(fsoptions, "offset", &offset);
 
 	if (loop) {
-		ret = file_name_detect_type_offset(filename, offset, &type);
+		ret = file_name_detect_type_offset(filename, offset, &type,
+						   file_detect_fs_type);
 	} else {
 		struct cdev *cdev = cdev_open_by_name(filename, O_RDONLY);
 		if (cdev) {
@@ -1427,15 +1427,11 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 {
 	struct dentry *dentry;
 
-	dentry = xzalloc(sizeof(*dentry));
-	if (!dentry)
-		return NULL;
-
 	if (!name)
 		name = &slash_name;
 
-	dentry->name = malloc(name->len + 1);
-	if (!dentry->name)
+	dentry = xzalloc(struct_size(dentry, name, name->len + 1));
+	if (!dentry)
 		return NULL;
 
 	memcpy(dentry->name, name->name, name->len);
@@ -3006,9 +3002,9 @@ static char *__dpath(struct dentry *dentry, struct dentry *root)
 
 	ppath = __dpath(dentry->d_parent, root);
 	if (ppath)
-		res = basprintf("%s/%s", ppath, dentry->name);
+		res = basprintf("%s/%s", ppath, dentry->d_name.name);
 	else
-		res = basprintf("/%s", dentry->name);
+		res = basprintf("/%s", dentry->d_name.name);
 	free(ppath);
 
 	return res;

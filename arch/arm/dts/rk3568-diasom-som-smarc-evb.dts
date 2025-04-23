@@ -144,7 +144,7 @@
 };
 
 &pcie3x1 {
-//	status = "okay";
+	status = "okay";
 };
 
 &pcie3x2 {

@@ -10,7 +10,6 @@
 #include <globalvar.h>
 #include <init.h>
 #include <machine_id.h>
-#include <mci.h>
 #include <i2c/i2c.h>
 
 static int som_revision = -1;

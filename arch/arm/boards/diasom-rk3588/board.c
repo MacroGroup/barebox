@@ -112,51 +112,22 @@ static int __init diasom_rk3588_check_adc(void)
 }
 device_initcall(diasom_rk3588_check_adc);
 
-#define UNSTUFF_BITS(resp,start,size)					\
-	({								\
-		const int __size = size;				\
-		const u32 __mask = (__size < 32 ? 1 << __size : 0) - 1;	\
-		const int __off = 3 - ((start) / 32);			\
-		const int __shft = (start) & 31;			\
-		u32 __res;						\
-									\
-		__res = resp[__off] >> __shft;				\
-		if (__size + __shft > 32)				\
-			__res |= resp[__off-1] << ((32 - __shft) % 32);	\
-		__res & __mask;						\
-	})
-
-static unsigned __init extract_psn(struct mci *mci)
-{
-	if (!IS_SD(mci)) {
-		if (mci->version > MMC_VERSION_1_4)
-			return UNSTUFF_BITS(mci->cid, 16, 32);
-		else
-			return UNSTUFF_BITS(mci->cid, 16, 24);
-	}
-
-	return UNSTUFF_BITS(mci->csd, 24, 32);
-}
-
 static int __init diasom_rk3588_machine_id(void)
 {
-	struct mci *mci;
-	unsigned serial;
+	const char *serial;
 
 	if (!of_machine_is_compatible("rockchip,rk3588"))
 		return 0;
 
-	mci = mci_get_device_by_name("mmc0");
-	if (!mci) {
+	serial = getenv("mmc0.cid_psn");
+	if (!serial) {
 		pr_err("Unable to get MCI device!\n");
 		return -ENODEV;
 	}
 
-	serial = extract_psn(mci);
+	pr_info("Setup Machine ID from EMMC serial: %s\n", serial);
 
-	pr_info("Setup Machine ID from EMMC serial: %u\n", serial);
-
-	machine_id_set_hashable(&serial, sizeof(serial));
+	machine_id_set_hashable(serial, strlen(serial));
 
 	return 0;
 }

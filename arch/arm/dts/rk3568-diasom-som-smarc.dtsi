@@ -243,7 +243,7 @@
 	};
 
 	/* m41t62lc6f */
-	rtc@68 {
+	rtc: rtc@68 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&rtc_pins>;
 		compatible = "st,m41t62";
@@ -251,14 +251,7 @@
 		interrupt-parent = <&gpio4>;
 		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
 		wakeup-source;
-
-		clock {
-			compatible = "fixed-clock";
-			clock-accuracy = <2000>;
-			clock-frequency = <1>;
-			clock-output-names = "pps";
-			#clock-cells = <0>;
-		};
+		#clock-cells = <0>;
 	};
 };
 

@@ -87,6 +87,15 @@ static int __init diasom_rk3588_check_adc(void)
 		return -ENODEV;
 	}
 
+	ret = diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val);
+	if (ret)
+		return ret;
+
+	if (val < 50) {
+		pr_info("Recovery key pressed, enforce gadget mode...\n");
+		globalvar_add_simple("board.recovery", "true");
+	}
+
 	ret = diasom_rk3588_get_adc_value("aiodev0.in_value7_mV", &val);
 	if (ret)
 		return ret;
@@ -95,16 +104,6 @@ static int __init diasom_rk3588_check_adc(void)
 		som_revision = 0;
 	} else {
 		pr_warn("Unhandled BTB revision ADC value: %i!\n", val);
-		return 0;
-	}
-
-	ret = diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val);
-	if (ret)
-		return ret;
-
-	if (val < 50) {
-		pr_info("Recovery key pressed, enforce gadget mode...\n");
-		globalvar_add_simple("board.recovery", "true");
 	}
 
 	return 0;

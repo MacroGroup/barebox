@@ -40,11 +40,12 @@
 		};
 	};
 
-	pps {
+	pps: pps {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pps_pins>;
 		compatible = "pps-gpio";
 		gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
 	};
 
 	vcc2v5_sys: vcc2v5-sys-regulator {

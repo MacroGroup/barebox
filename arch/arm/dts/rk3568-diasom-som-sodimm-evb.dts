@@ -1,0 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+
+#include "rk3568-diasom-som-sodimm.dtsi"
+
+/ {
+	model = "Diasom DS-RK3568-SODIMM-EVB";
+	compatible = "diasom,ds-rk3568-som-sodimm-evb",
+		     "diasom,ds-rk3568-som-sodimm",
+		     "diasom,ds-rk3568-som",
+		     "rockchip,rk3568";
+};
+
+&display_subsystem {
+	status = "okay";
+};

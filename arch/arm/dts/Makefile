@@ -24,11 +24,11 @@ obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-evb-ver1-3-0.dtbo.o
 
 lwl-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-evb.dtb.o
 lwl-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-smarc-evb.dtb.o
+lwl-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-sodimm-evb.dtb.o
 
 lwl-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-btb-evb.dtb.o
 
 # Reference only now
-#obj-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-sodimm.dtb.o
 #obj-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-btb-evb-socket.dtb.o
 
 lwl-$(CONFIG_MACH_DUCKBILL) += imx28-duckbill.dtb.o

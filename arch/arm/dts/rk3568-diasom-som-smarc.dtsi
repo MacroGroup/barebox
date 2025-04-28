@@ -329,7 +329,7 @@
 	gpio-line-names =
 		/* GPIO1 A0-A7 */
 		"I2C3_SDA", "I2C3_SCL", "GPIO0/CAM0_PWR#", "LCD0_BKLT_EN",
-		"UART4_RX", "UART4_RSTn", "UART4_TX", "UART4_CTSn",
+		"UART4_RX", "UART4_RTSn", "UART4_TX", "UART4_CTSn",
 		/* GPIO1 B0-B7 */
 		"PCIE30_CLK_IC_OE", "PIC20_WAKEn_M2", "GPIO1/CAM1_PWR#", "GPIO3/CAM1_RST#",
 		"eMMC_D0", "eMMC_D1", "eMMC_D2", "eMMC_D3",

@@ -489,32 +489,32 @@
 };
 
 &spi2 {
-	/* SMARC SPI0 */
+	/* SPI0 */
 	num-cs = <2>;
 };
 
 &spi3 {
-	/* SMARC SPI1 */
+	/* SPI1 */
 	pinctrl-0 = <&spi3m1_cs0 &spi3m1_cs1 &spi3m1_pins>;
 	num-cs = <2>;
 };
 
 &uart2 {
-	/* SMARC SER1 */
+	/* SER1 */
 };
 
 &uart4 {
-	/* SMARC SER0 */
+	/* SER0 */
 	pinctrl-0 = <&uart4m0_xfer &uart4m0_ctsn &uart4m0_rtsn>;
 };
 
 &uart5 {
-	/* SMARC SER3 */
+	/* SER3 */
 	pinctrl-0 = <&uart5m1_xfer>;
 };
 
 &uart8 {
-	/* SMARC SER2 */
+	/* SER2 */
 	pinctrl-0 = <&uart8m1_xfer>;
 };
 

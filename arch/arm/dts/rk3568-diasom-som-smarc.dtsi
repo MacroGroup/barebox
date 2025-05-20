@@ -94,13 +94,13 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc_usb_host0: vcc-usb-host0-regulator {
+	vcc_usb_otg0: vcc-usb-host0-regulator {
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_host0_vcc_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
-		regulator-name = "vcc_usb_host0";
+		regulator-name = "vcc_usb_otg0";
 		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -524,7 +524,6 @@
 	phy-names = "usb2-phy";
 	maximum-speed = "high-speed";
 	dr_mode = "host";
-	vbus-supply = <&vcc_usb_host0>;
 };
 
 &usb_host1_ehci {
@@ -541,6 +540,10 @@
 
 &usb2phy0_host {
 	status = "okay";
+};
+
+&usb2phy0_otg {
+	phy-supply = <&vcc_usb_otg0>;
 };
 
 &usb2phy1_host {

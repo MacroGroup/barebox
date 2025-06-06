@@ -95,8 +95,6 @@ void cdev_print(const struct cdev *cdev)
 			printf(" table-partition");
 		if (cdev->flags & DEVFS_PARTITION_FOR_FIXUP)
 			printf(" fixup");
-		if (cdev->flags & DEVFS_IS_MCI_MAIN_PART_DEV)
-			printf(" mci-main-partition");
 		if (cdev->flags & DEVFS_IS_MBR_PARTITIONED)
 			printf(" mbr-partitioned");
 		if (cdev->flags & DEVFS_IS_GPT_PARTITIONED)
@@ -293,7 +291,7 @@ struct cdev *get_cdev_by_mountpath(const char *path)
 	return fsdev->cdev;
 }
 
-char *get_mounted_path(const char *path)
+const char *get_mounted_path(const char *path)
 {
 	struct fs_device *fdev;
 
@@ -337,16 +335,23 @@ static void put_file(struct file *f)
 
 static struct file *fd_to_file(int fd, bool o_path_ok)
 {
-	if (fd < 0 || fd >= MAX_FILES || !files[fd].fsdev) {
-		errno = EBADF;
-		return ERR_PTR(-errno);
-	}
-	if (!o_path_ok && (files[fd].f_flags & O_PATH)) {
-		errno = EINVAL;
-		return ERR_PTR(-errno);
+	int err = -EBADF;
+	unsigned flimits;
+
+	if (fd < 0 || fd >= MAX_FILES || !files[fd].fsdev)
+		goto err;
+
+	flimits = files[fd].f_flags & (O_PATH | O_DIRECTORY);
+	if (!o_path_ok && flimits) {
+		if (flimits & O_DIRECTORY)
+			err = -EBADF;
+		goto err;
 	}
 
 	return &files[fd];
+err:
+	errno = -err;
+	return ERR_PTR(err);
 }
 
 static int create(struct dentry *dir, struct dentry *dentry)
@@ -1054,6 +1059,12 @@ int unreaddir(DIR *dir, const struct dirent *d)
 	return 0;
 }
 EXPORT_SYMBOL(unreaddir);
+
+int countdir(DIR *dir)
+{
+	return list_count_nodes(&dir->entries);
+}
+EXPORT_SYMBOL(countdir);
 
 struct dirent *readdir(DIR *dir)
 {
@@ -2539,11 +2550,9 @@ int openat(int dirfd, const char *pathname, int flags)
 	int error = 0;
 	struct inode *inode = NULL;
 	struct dentry *dentry = NULL;
-	struct nameidata nd;
-	const char *s;
-	struct filename *filename;
+	struct path path;
 
-	if (flags & O_TMPFILE) {
+	if ((flags & O_TMPFILE) == O_TMPFILE) {
 		fsdev = get_fsdevice_by_path(dirfd, pathname);
 		if (!fsdev) {
 			errno = ENOENT;
@@ -2571,57 +2580,22 @@ int openat(int dirfd, const char *pathname, int flags)
 		return file_to_fd(f);
 	}
 
-	filename = getname(pathname);
-	if (IS_ERR(filename))
-		return PTR_ERR(filename);
-
-	set_nameidata(&nd, filename);
-
-	s = path_init(dirfd, &nd, LOOKUP_FOLLOW);
-	if (IS_ERR(s))
-		return PTR_ERR(s);
-
-	while (1) {
-		error = link_path_walk(s, &nd);
-		if (error)
-			break;
-
-		if (!d_is_dir(nd.path.dentry)) {
-			error = -ENOTDIR;
-			break;
-		}
-
-		dentry = __lookup_hash(&nd.last, nd.path.dentry, 0);
-		if (IS_ERR(dentry)) {
-			error = PTR_ERR(dentry);
-			break;
-		}
-
-		if (!d_is_symlink(dentry))
-			break;
-
-		dput(dentry);
-
-		error = lookup_last(&nd);
-		if (error <= 0)
-			break;
-
-		s = trailing_symlink(&nd);
-		if (IS_ERR(s)) {
-			error = PTR_ERR(s);
-			break;
-		}
+	if (flags & O_CREAT) {
+		dentry = filename_create(dirfd, getname(pathname), &path, 0);
+		error = PTR_ERR_OR_ZERO(dentry);
 	}
 
-	terminate_walk(&nd);
-	putname(nd.name);
+	if (!(flags & O_CREAT) || error == -EEXIST) {
+		error = filename_lookup(dirfd, getname(pathname), LOOKUP_FOLLOW, &path);
+		dentry = path.dentry;
+	}
 
 	if (error)
 		goto out1;
 
 	if (d_is_negative(dentry)) {
 		if (flags & O_CREAT) {
-			error = create(nd.path.dentry, dentry);
+			error = create(path.dentry, dentry);
 			if (error)
 				goto out1;
 		} else {
@@ -2629,11 +2603,16 @@ int openat(int dirfd, const char *pathname, int flags)
 			error = -ENOENT;
 			goto out1;
 		}
-	} else if (!(flags & O_PATH)) {
-		if (d_is_dir(dentry) && !dentry_is_tftp(dentry)) {
+	} else if (d_is_dir(dentry)) {
+		if (!(flags & (O_PATH | O_DIRECTORY)) && !dentry_is_tftp(dentry)) {
 			error = -EISDIR;
 			goto out1;
 		}
+
+		flags |= O_DIRECTORY;
+	} else if (flags & O_DIRECTORY) {
+		error = -ENOTDIR;
+		goto out1;
 	}
 
 	inode = d_inode(dentry);
@@ -2680,20 +2659,6 @@ out1:
 	return errno_set(error);
 }
 EXPORT_SYMBOL(openat);
-
-static const char *fd_getpath(int fd)
-{
-	struct file *f;
-
-	if (fd < 0)
-		return ERR_PTR(errno_set(fd));
-
-	f = fd_to_file(fd, true);
-	if (IS_ERR(f))
-		return ERR_CAST(f);
-
-	return f->path;
-}
 
 int unlinkat(int dirfd, const char *pathname, int flags)
 {
@@ -2779,107 +2744,77 @@ static void __release_dir(DIR *d)
 static int __opendir(DIR *d)
 {
 	int ret;
-	struct file file = {};
-	struct path *path = &d->path;
-	struct dentry *dir = path->dentry;
+	struct file *file = fd_to_file(d->fd, true);
 	struct readdir_callback rd = {
 		.ctx = {
 			.actor = fillonedir,
 		},
 	};
 
-	file.f_path.dentry = dir;
-	file.f_inode = d_inode(dir);
-	file.f_op = dir->d_inode->i_fop;
-
 	INIT_LIST_HEAD(&d->entries);
 	rd.dir = d;
 
-	ret = file.f_op->iterate(&file, &rd.ctx);
+	ret = file->f_inode->i_fop->iterate(file, &rd.ctx);
 	if (ret)
 		__release_dir(d);
 
 	return ret;
 }
 
-DIR *opendir(const char *pathname)
-{
-	int ret;
-	struct dentry *dir;
-	struct inode *inode;
-	DIR *d;
-	struct path path = {};
-
-	ret = filename_lookup(AT_FDCWD, getname(pathname),
-			      LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &path);
-	if (ret)
-		goto out;
-
-	dir = path.dentry;
-
-	if (d_is_negative(dir)) {
-		ret = -ENOENT;
-		goto out_put;
-	}
-
-	inode = d_inode(dir);
-
-	if (!S_ISDIR(inode->i_mode)) {
-		ret = -ENOTDIR;
-		goto out_put;
-	}
-
-	d = xzalloc(sizeof(*d));
-	d->path = path;
-	d->fd = -ENOENT;
-
-	ret = __opendir(d);
-	if (ret)
-		goto out_free;
-
-	return d;
-
-out_free:
-	free(d);
-out_put:
-	path_put(&path);
-out:
-	errno_set(ret);
-
-	return NULL;
-}
-EXPORT_SYMBOL(opendir);
-
 DIR *fdopendir(int fd)
 {
-	const char *path;
+	struct stat st;
 	DIR *dir;
+	int ret;
 
-	path = fd_getpath(fd);
-	if (IS_ERR(path))
+	ret = fstat(fd, &st);
+	if (ret)
 		return NULL;
 
-	dir = opendir(path);
-	if (!dir)
-		return NULL;
+	if (!S_ISDIR(st.st_mode)) {
+		ret = -ENOTDIR;
+		goto err;
+	}
+
+	dir = xzalloc(sizeof(*dir));
 
 	/* we intentionally don't increment the reference count,
 	 * as POSIX specifies that fd ownership is transferred
 	 */
 	dir->fd = fd;
+
+	ret = __opendir(dir);
+	if (ret)
+		goto err;
+
 	return dir;
+err:
+	errno_set(ret);
+	return NULL;
 }
 EXPORT_SYMBOL(fdopendir);
+
+DIR *opendir(const char *pathname)
+{
+	int fd;
+
+	fd = open(pathname, O_DIRECTORY);
+	if (fd < 0) {
+		errno_set(fd);
+		return NULL;
+	}
+
+	return fdopendir(fd);
+}
+EXPORT_SYMBOL(opendir);
 
 int closedir(DIR *dir)
 {
 	if (!dir)
 		return errno_set(-EBADF);
 
-	path_put(&dir->path);
 	__release_dir(dir);
-	if (dir->fd >= 0)
-		close(dir->fd);
+	close(dir->fd);
 	free(dir);
 
 	return 0;
@@ -3121,60 +3056,6 @@ int popd(char *oldcwd)
 	ret = chdir(oldcwd);
 	free(oldcwd);
 	return ret;
-}
-
-static bool cdev_partname_equal(const struct cdev *a,
-				const struct cdev *b)
-{
-	return a->partname && b->partname &&
-		!strcmp(a->partname, b->partname);
-}
-
-static char *get_linux_mmcblkdev(const struct cdev *root_cdev)
-{
-	struct cdev *cdevm = root_cdev->master, *cdev;
-	int id, partnum;
-
-	if (!IS_ENABLED(CONFIG_MMCBLKDEV_ROOTARG))
-		return NULL;
-	if (!cdevm || !cdev_is_mci_main_part_dev(cdevm))
-		return NULL;
-
-	id = of_alias_get_id(cdev_of_node(cdevm), "mmc");
-	if (id < 0)
-		return NULL;
-
-	partnum = 1; /* linux partitions are 1 based */
-	list_for_each_entry(cdev, &cdevm->partitions, partition_entry) {
-
-		/*
-		 * Partname is not guaranteed but this partition cdev is listed
-		 * in the partitions list so we need to count it instead of
-		 * skipping it.
-		 */
-		if (cdev_partname_equal(root_cdev, cdev))
-			return basprintf("root=/dev/mmcblk%dp%d", id, partnum);
-		partnum++;
-	}
-
-	return NULL;
-}
-
-char *cdev_get_linux_rootarg(const struct cdev *cdev)
-{
-	char *str;
-
-	if (!cdev)
-		return NULL;
-
-	str = get_linux_mmcblkdev(cdev);
-	if (str)
-		return str;
-
-	if (cdev->partuuid[0] != 0)
-		return basprintf("root=PARTUUID=%s", cdev->partuuid);
-
-	return NULL;
 }
 
 /*
@@ -3498,8 +3379,8 @@ static int do_lookup_dentry(int argc, char *argv[])
 
 	ret = filename_lookup(AT_FDCWD, getname(argv[1]), 0, &path);
 	if (ret) {
-		printf("Cannot lookup path \"%s\": %s\n",
-		       argv[1], strerror(-ret));
+		printf("Cannot lookup path \"%s\": %pe\n",
+		       argv[1], ERR_PTR(ret));
 		return 1;
 	}
 

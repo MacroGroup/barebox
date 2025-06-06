@@ -351,8 +351,8 @@ static void eth_of_fixup_node(struct device_node *root,
 
 	ret = of_set_property(fixup_node, "mac-address", ethaddr, ETH_ALEN, 1);
 	if (ret)
-		pr_err("Setting mac-address property of %s failed with: %s\n",
-		       fixup_node->full_name, strerror(-ret));
+		pr_err("Setting mac-address property of %s failed with: %pe\n",
+		       fixup_node->full_name, ERR_PTR(ret));
 }
 
 static int eth_of_fixup(struct device_node *root, void *unused)
@@ -538,8 +538,6 @@ void eth_unregister(struct eth_device *edev)
 
 	if (IS_ENABLED(CONFIG_OFDEVICE))
 		free_const(edev->nodepath);
-
-	class_remove_device(&eth_class, &edev->dev);
 
 	free(edev->devname);
 

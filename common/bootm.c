@@ -6,6 +6,7 @@
 #include <fs.h>
 #include <malloc.h>
 #include <memory.h>
+#include <block.h>
 #include <libfile.h>
 #include <image-fit.h>
 #include <globalvar.h>
@@ -211,9 +212,6 @@ int bootm_load_os(struct image_data *data, unsigned long load_address)
 		return 0;
 	}
 
-	if (IS_ENABLED(CONFIG_ELF) && data->elf)
-		return elf_load(data->elf);
-
 	if (!data->os_file)
 		return -EINVAL;
 
@@ -247,8 +245,8 @@ static int bootm_open_initrd_uimage(struct image_data *data)
 		if (bootm_get_verify_mode() > BOOTM_VERIFY_NONE) {
 			ret = uimage_verify(data->initrd);
 			if (ret) {
-				pr_err("Checking data crc failed with %s\n",
-					strerror(-ret));
+				pr_err("Checking data crc failed with %pe\n",
+					ERR_PTR(ret));
 				return ret;
 			}
 		}
@@ -295,8 +293,8 @@ bootm_load_initrd(struct image_data *data, unsigned long load_address)
 		ret = fit_open_image(data->os_fit, data->fit_config, "ramdisk",
 				     &initrd, &initrd_size);
 		if (ret) {
-			pr_err("Cannot open ramdisk image in FIT image: %s\n",
-					strerror(-ret));
+			pr_err("Cannot open ramdisk image in FIT image: %pe\n",
+					ERR_PTR(ret));
 			return ERR_PTR(ret);
 		}
 		data->initrd_res = request_sdram_region("initrd",
@@ -320,7 +318,7 @@ initrd_file:
 
 	ret = file_name_detect_type(data->initrd_file, &type);
 	if (ret) {
-		pr_err("could not open initrd \"%s\": %s\n", data->initrd_file, strerror(-ret));
+		pr_err("could not open initrd \"%s\": %pe\n", data->initrd_file, ERR_PTR(ret));
 		return ERR_PTR(ret);
 	}
 
@@ -328,8 +326,7 @@ initrd_file:
 		int num;
 		ret = bootm_open_initrd_uimage(data);
 		if (ret) {
-			pr_err("loading initrd failed with %s\n",
-			       strerror(-ret));
+			pr_err("loading initrd failed with %pe\n", ERR_PTR(ret));
 			return ERR_PTR(ret);
 		}
 
@@ -452,8 +449,8 @@ void *bootm_get_devicetree(struct image_data *data)
 
 		ret = file_name_detect_type(data->oftree_file, &type);
 		if (ret) {
-			pr_err("could not open device tree \"%s\": %s\n", data->oftree_file,
-			       strerror(-ret));
+			pr_err("could not open device tree \"%s\": %pe\n", data->oftree_file,
+			       ERR_PTR(ret));
 			return ERR_PTR(ret);
 		}
 
@@ -562,8 +559,6 @@ int bootm_get_os_size(struct image_data *data)
 	struct stat s;
 	int ret;
 
-	if (data->elf)
-		return elf_get_mem_size(data->elf);
 	if (image_is_uimage(data))
 		return uimage_get_size(data->os, uimage_part_num(data->os_part));
 	if (data->os_fit)
@@ -593,8 +588,8 @@ static int bootm_open_os_uimage(struct image_data *data)
 	if (bootm_get_verify_mode() > BOOTM_VERIFY_NONE) {
 		ret = uimage_verify(data->os);
 		if (ret) {
-			pr_err("Checking data crc failed with %s\n",
-					strerror(-ret));
+			pr_err("Checking data crc failed with %pe\n",
+					ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -676,25 +671,6 @@ static int bootm_open_fit(struct image_data *data)
 	return 0;
 }
 
-static int bootm_open_elf(struct image_data *data)
-{
-	struct elf_image *elf;
-
-	if (!IS_ENABLED(CONFIG_ELF))
-		return -ENOSYS;
-
-	elf = elf_open(data->os_file);
-	if (IS_ERR(elf))
-		return PTR_ERR(elf);
-
-	pr_info("Entry Point:  %08llx\n", elf->entry);
-
-	data->os_address = elf->entry;
-	data->elf = elf;
-
-	return 0;
-}
-
 static void bootm_print_info(struct image_data *data)
 {
 	if (data->os_res)
@@ -738,6 +714,7 @@ int bootm_boot(struct bootm_data *bootm_data)
 	int ret;
 	enum filetype os_type;
 	size_t size;
+	const char *os_type_str;
 
 	if (!bootm_data->os_file) {
 		pr_err("no image given\n");
@@ -761,8 +738,7 @@ int bootm_boot(struct bootm_data *bootm_data)
 
 	ret = read_file_2(data->os_file, &size, &data->os_header, PAGE_SIZE);
 	if (ret < 0 && ret != -EFBIG) {
-		pr_err("could not open %s: %s\n", data->os_file,
-				strerror(-ret));
+		pr_err("could not open %s: %pe\n", data->os_file, ERR_PTR(ret));
 		goto err_out;
 	}
 	if (size < PAGE_SIZE)
@@ -793,15 +769,16 @@ int bootm_boot(struct bootm_data *bootm_data)
 		}
 	}
 
+	os_type_str = file_type_to_short_string(os_type);
+
 	switch (os_type) {
 	case filetype_oftree:
 		ret = bootm_open_fit(data);
+		os_type = file_detect_type(data->fit_kernel, data->fit_kernel_size);
+		os_type_str = "FIT";
 		break;
 	case filetype_uimage:
 		ret = bootm_open_os_uimage(data);
-		break;
-	case filetype_elf:
-		ret = bootm_open_elf(data);
 		break;
 	default:
 		ret = 0;
@@ -809,13 +786,6 @@ int bootm_boot(struct bootm_data *bootm_data)
 	}
 
 	if (ret) {
-		const char *os_type_str;
-
-		if (os_type == filetype_oftree)
-			os_type_str = "FIT";
-		else
-			os_type_str = file_type_to_short_string(os_type);
-
 		pr_err("Loading %s image failed with: %pe\n", os_type_str, ERR_PTR(ret));
 		goto err_out;
 	}
@@ -965,8 +935,6 @@ err_out:
 			uimage_close(data->initrd);
 		uimage_close(data->os);
 	}
-	if (IS_ENABLED(CONFIG_ELF) && data->elf)
-		elf_close(data->elf);
 	if (IS_ENABLED(CONFIG_FITIMAGE) && data->os_fit)
 		fit_close(data->os_fit);
 	if (data->of_root_node)
@@ -1077,6 +1045,8 @@ static struct image_handler zstd_bootm_handler = {
 	.filetype = filetype_zstd_compressed,
 };
 
+int linux_rootwait_secs = 10;
+
 static int bootm_init(void)
 {
 	globalvar_add_simple("bootm.image", NULL);
@@ -1102,6 +1072,9 @@ static int bootm_init(void)
 	globalvar_add_simple_enum("bootm.verify", (unsigned int *)&bootm_verify_mode,
 				  bootm_verify_names, ARRAY_SIZE(bootm_verify_names));
 
+	if (IS_ENABLED(CONFIG_ROOTWAIT_BOOTARG))
+		globalvar_add_simple_int("linux.rootwait",
+					 &linux_rootwait_secs, "%d");
 
 	if (IS_ENABLED(CONFIG_BZLIB))
 		register_image_handler(&bzip2_bootm_handler);

@@ -68,7 +68,7 @@ static inline unsigned mci_caps(struct mci *mci)
  * @param data The data according to the command (can be NULL)
  * @return Driver's answer (0 on success)
  */
-static int mci_send_cmd(struct mci *mci, struct mci_cmd *cmd, struct mci_data *data)
+int mci_send_cmd(struct mci *mci, struct mci_cmd *cmd, struct mci_data *data)
 {
 	struct mci_host *host = mci->host;
 
@@ -95,21 +95,6 @@ static int mci_send_cmd_retry(struct mci *mci, struct mci_cmd *cmd,
 	while (ret && retries--);
 
 	return ret;
-}
-
-/**
- * @param p Command definition to setup
- * @param cmd Valid SD/MMC command (refer MMC_CMD_* / SD_CMD_*)
- * @param arg Argument for the command (optional)
- * @param response Command's response type (refer MMC_RSP_*)
- *
- * Note: When calling, the 'response' must match command's requirements
- */
-static void mci_setup_cmd(struct mci_cmd *p, unsigned cmd, unsigned arg, unsigned response)
-{
-	p->cmdidx = cmd;
-	p->cmdarg = arg;
-	p->resp_type = response;
 }
 
 /**
@@ -362,6 +347,15 @@ err_out:
 	dev_err(&card->dev, "erase cmd %d error %d, status %#x\n",
 		cmd.cmdidx, err, cmd.response[0]);
 	return -EIO;
+}
+
+int mci_set_blockcount(struct mci *mci, unsigned int cmdarg)
+{
+	struct mci_cmd cmd = {};
+
+	mci_setup_cmd(&cmd, MMC_CMD_SET_BLOCK_COUNT, cmdarg, MMC_RSP_R1);
+
+	return mci_send_cmd(mci, &cmd, NULL);
 }
 
 /**
@@ -671,10 +665,10 @@ static void mci_part_add(struct mci *mci, uint64_t size,
 	part->part_cfg = part_cfg;
 	part->idx = idx;
 
-	if (area_type == MMC_BLK_DATA_AREA_MAIN) {
+	if (area_type == MMC_BLK_DATA_AREA_MAIN)
 		cdev_set_of_node(&part->blk.cdev, mci->host->hw_dev->of_node);
-		part->blk.cdev.flags |= DEVFS_IS_MCI_MAIN_PART_DEV;
-	}
+	else if (area_type == MMC_BLK_DATA_AREA_RPMB)
+		mci->rpmb_part = part;
 
 	mci->nr_parts++;
 }
@@ -820,6 +814,20 @@ static int mmc_change_freq(struct mci *mci)
 		mci->ext_csd_part_config = mci->ext_csd[EXT_CSD_PARTITION_CONFIG];
 		mci->bootpart = (mci->ext_csd_part_config >> 3) & 0x7;
 		mci->boot_ack_enable = (mci->ext_csd_part_config >> 6) & 0x1;
+	}
+
+	if (mci->ext_csd[EXT_CSD_REV] >= 5) {
+		if (mci->ext_csd[EXT_CSD_RPMB_SIZE_MULT]) {
+			char *name, *partname;
+
+			partname = basprintf("rpmb");
+			name = basprintf("%s.%s", mci->cdevname, partname);
+
+			mci_part_add(mci, mci->ext_csd[EXT_CSD_RPMB_SIZE_MULT] << 17,
+				EXT_CSD_PART_CONFIG_ACC_RPMB,
+				name, partname, 0, false,
+				MMC_BLK_DATA_AREA_RPMB);
+		}
 	}
 
 	if (IS_ENABLED(CONFIG_MCI_MMC_GPP_PARTITIONS))
@@ -2030,12 +2038,14 @@ static int sd_send_if_cond(struct mci *mci)
 /**
  * Switch between hardware MMC partitions on demand
  */
-static int mci_blk_part_switch(struct mci_part *part)
+int mci_blk_part_switch(struct mci_part *part)
 {
 	struct mci *mci = part->mci;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_MCI_MMC_BOOT_PARTITIONS) && !IS_ENABLED(CONFIG_MCI_MMC_GPP_PARTITIONS))
+	if (!IS_ENABLED(CONFIG_MCI_MMC_BOOT_PARTITIONS) &&
+	    !IS_ENABLED(CONFIG_MCI_MMC_GPP_PARTITIONS) &&
+	    !IS_ENABLED(CONFIG_MCI_MMC_RPMB))
 		return 0; /* no need */
 
 	if (mci->part_curr == part)
@@ -2508,10 +2518,54 @@ static void mci_parse_cid(struct mci *mci)
 	dev_add_param_uint32_fixed(dev, "cid_month", mci->cid.month, "%0u");
 }
 
+static bool cdev_partname_equal(const struct cdev *a,
+				const struct cdev *b)
+{
+	return a->partname && b->partname &&
+		!strcmp(a->partname, b->partname);
+}
+
+static char *mci_get_linux_mmcblkdev(struct block_device *blk,
+				     const struct cdev *partcdev)
+
+{
+	struct mci_part *mci_part = container_of(blk, struct mci_part, blk);
+	struct cdev *cdevm = partcdev->master, *cdev;
+	int id, partnum;
+
+	if (mci_part->area_type != MMC_BLK_DATA_AREA_MAIN)
+		return NULL;
+
+	if (!cdevm)
+		return NULL;
+
+	id = of_alias_get_id(cdev_of_node(cdevm), "mmc");
+	if (id < 0)
+		return NULL;
+
+	partnum = 1; /* linux partitions are 1 based */
+	list_for_each_entry(cdev, &cdevm->partitions, partition_entry) {
+
+		/*
+		 * Partname is not guaranteed but this partition cdev is listed
+		 * in the partitions list so we need to count it instead of
+		 * skipping it.
+		 */
+		if (cdev_partname_equal(partcdev, cdev))
+			return basprintf("root=/dev/mmcblk%dp%d", id, partnum);
+		if (cdev->flags & DEVFS_PARTITION_FROM_TABLE)
+			partnum++;
+	}
+
+	return NULL;
+}
+
 static struct block_device_ops mci_ops = {
 	.read = mci_sd_read,
 	.write = IS_ENABLED(CONFIG_MCI_WRITE) ? mci_sd_write : NULL,
 	.erase = IS_ENABLED(CONFIG_MCI_ERASE) ? mci_sd_erase : NULL,
+	.get_rootarg = IS_ENABLED(CONFIG_MMCBLKDEV_ROOTARG) ?
+		mci_get_linux_mmcblkdev : NULL,
 };
 
 static int mci_set_boot(struct param_d *param, void *priv)
@@ -2600,6 +2654,10 @@ static int mci_register_partition(struct mci_part *part)
 	part->blk.dev = &mci->dev;
 	part->blk.ops = &mci_ops;
 	part->blk.type = IS_SD(mci) ? BLK_TYPE_SD : BLK_TYPE_MMC;
+	part->blk.rootwait = true;
+
+	if (part->area_type == MMC_BLK_DATA_AREA_RPMB)
+		return 0;
 
 	rc = blockdevice_register(&part->blk);
 	if (rc != 0) {
@@ -2685,8 +2743,8 @@ static int mci_card_probe(struct mci *mci)
 
 	ret = regulator_enable(host->supply);
 	if (ret) {
-		dev_err(&mci->dev, "failed to enable regulator: %s\n",
-			strerror(-ret));
+		dev_err(&mci->dev, "failed to enable regulator: %pe\n",
+			ERR_PTR(ret));
 		return ret;
 	}
 
@@ -2933,7 +2991,6 @@ void mci_of_parse_node(struct mci_host *host,
 {
 	u32 bus_width;
 	u32 dsr_val;
-	const char *alias;
 
 	if (!IS_ENABLED(CONFIG_OFDEVICE))
 		return;
@@ -2941,9 +2998,14 @@ void mci_of_parse_node(struct mci_host *host,
 	if (!host->hw_dev || !np)
 		return;
 
-	alias = of_alias_get(np);
-	if (alias)
-		host->devname = xstrdup(alias);
+	host->of_id = of_alias_get_id(np, "mmc");
+	if (host->of_id < 0)
+		host->of_id = of_alias_get_id(np->parent, "mmc");
+
+	if (host->of_id >= 0) {
+		host->devname = xasprintf("mmc%u", host->of_id);
+		host->of_id_valid = true;
+	}
 
 	/* "bus-width" is translated to MMC_CAP_*_BIT_DATA flags */
 	if (of_property_read_u32(np, "bus-width", &bus_width) < 0) {
@@ -3029,6 +3091,27 @@ struct mci *mci_get_device_by_name(const char *name)
 			continue;
 		if (!strcmp(mci->cdevname, name))
 			return mci;
+	}
+
+	return NULL;
+}
+
+struct mci *mci_get_rpmb_dev(unsigned int id)
+{
+	struct mci *mci;
+
+	list_for_each_entry(mci, &mci_list, list) {
+		if (mci->host->of_id != id)
+			continue;
+
+		mci_detect_card(mci->host);
+
+		if (!mci->rpmb_part) {
+			dev_err(&mci->dev, "requested MMC does not have a RPMB partition\n");
+			return NULL;
+		}
+
+		return mci;
 	}
 
 	return NULL;

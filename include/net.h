@@ -423,8 +423,7 @@ int generate_ether_addr(u8 *addr, int ethid);
  */
 static inline void random_ether_addr(u8 *addr)
 {
-	srand(get_time_ns());
-	get_random_bytes(addr, ETH_ALEN);
+	get_noncrypto_bytes(addr, ETH_ALEN);
 	addr[0] &= 0xfe;	/* clear multicast bit */
 	addr[0] |= 0x02;	/* set local assignment bit (IEEE802) */
 }
@@ -597,7 +596,8 @@ void ifdown_edev(struct eth_device *edev);
 int ifdown(const char *name);
 void ifdown_all(void);
 
-#define for_each_netdev(netdev) list_for_each_entry(netdev, &eth_class.devices, dev.class_list)
+#define for_each_netdev(netdev) \
+	class_for_each_container_of_device(&eth_class, netdev, dev)
 
 extern struct class eth_class;
 

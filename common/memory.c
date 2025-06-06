@@ -34,11 +34,6 @@ unsigned long mem_malloc_end(void)
 	return malloc_end;
 }
 
-#ifdef CONFIG_MALLOC_TLSF
-#include <tlsf.h>
-tlsf_t tlsf_mem_pool;
-#endif
-
 int mem_malloc_initialized;
 
 int mem_malloc_is_initialized(void)
@@ -52,7 +47,7 @@ void mem_malloc_init(void *start, void *end)
 	malloc_end = (unsigned long)end;
 	malloc_brk = malloc_start;
 #ifdef CONFIG_MALLOC_TLSF
-	tlsf_mem_pool = tlsf_create_with_pool(start, end - start + 1);
+	malloc_add_pool(start, end - start + 1);
 #endif
 	mem_malloc_initialized = 1;
 }
@@ -387,7 +382,7 @@ static int of_memory_fixup(struct device_node *root, void *unused)
 
 		err = of_set_property(memnode, "reg", tmp, len, 1);
 		if (err) {
-			pr_err("could not set reg %s.\n", strerror(-err));
+			pr_err("could not set reg %pe.\n", ERR_PTR(err));
 			goto err_free;
 		}
 

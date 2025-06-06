@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 obj-$(CONFIG_STDDEV)		+= stddev.o
+obj-$(CONFIG_CMD_BASE64)	+= base64.o
 obj-$(CONFIG_CMD_DIGEST)	+= digest.o
 obj-$(CONFIG_COMPILE_HASH)	+= hashsum.o
+obj-$(CONFIG_CMD_AVB_PVALUE)	+= avb_pvalue.o
 obj-$(CONFIG_CMD_BOOTM)		+= bootm.o
 obj-$(CONFIG_CMD_UIMAGE)	+= uimage.o
 obj-$(CONFIG_CMD_LOADB)		+= loadb.o
@@ -26,6 +28,7 @@ obj-$(CONFIG_CMD_POWEROFF)	+= poweroff.o
 obj-$(CONFIG_CMD_GO)		+= go.o
 obj-$(CONFIG_CMD_PARTITION)	+= partition.o
 obj-$(CONFIG_CMD_LS)		+= ls.o
+obj-$(CONFIG_CMD_TREE)		+= tree.o
 obj-$(CONFIG_CMD_STAT)		+= stat.o
 obj-$(CONFIG_CMD_CD)		+= cd.o
 obj-$(CONFIG_CMD_PWD)		+= pwd.o
@@ -40,6 +43,7 @@ obj-$(CONFIG_CMD_FINDMNT)	+= findmnt.o
 obj-$(CONFIG_CMD_CRC)		+= crc.o
 obj-$(CONFIG_CMD_CLEAR)		+= clear.o
 obj-$(CONFIG_CMD_TEST)		+= test.o
+obj-$(CONFIG_CMD_TRUNCATE)	+= truncate.o
 obj-$(CONFIG_CMD_SYNC)		+= sync.o
 obj-$(CONFIG_CMD_FLASH)		+= flash.o
 obj-$(CONFIG_CMD_MEMINFO)	+= meminfo.o
@@ -57,6 +61,7 @@ obj-$(CONFIG_CMD_MEMTEST)	+= memtest.o
 obj-$(CONFIG_CMD_MEMTESTER)	+= memtester/
 obj-$(CONFIG_CMD_TRUE)		+= true.o
 obj-$(CONFIG_CMD_FALSE)		+= false.o
+obj-$(CONFIG_CMD_VARINFO)	+= varinfo.o
 obj-$(CONFIG_CMD_VERSION)	+= version.o
 obj-$(CONFIG_CMD_HELP)		+= help.o
 obj-$(CONFIG_CMD_LSMOD)		+= lsmod.o

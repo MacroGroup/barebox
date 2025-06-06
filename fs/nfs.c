@@ -34,6 +34,7 @@
 #include <byteorder.h>
 #include <globalvar.h>
 #include <parseopt.h>
+#include <bootargs.h>
 #include <magicvar.h>
 
 #define SUNRPC_PORT     111
@@ -1423,6 +1424,9 @@ static void nfs_set_rootarg(struct nfs_priv *npriv, struct fs_device *fsdev)
 		str = tmp;
 	}
 
+	if (IS_ENABLED(CONFIG_ROOTWAIT_BOOTARG))
+		str = linux_bootargs_append_rootwait(str);
+
 	fsdev_set_linux_rootarg(fsdev, str);
 
 	free(str);
@@ -1456,7 +1460,7 @@ static int nfs_probe(struct device *dev)
 
 	ret = resolv(tmp, &npriv->server);
 	if (ret) {
-		printf("cannot resolve \"%s\": %s\n", tmp, strerror(-ret));
+		printf("cannot resolve \"%s\": %pe\n", tmp, ERR_PTR(ret));
 		goto err1;
 	}
 

@@ -74,6 +74,9 @@ config LOGBUF
 config STDDEV
 	bool
 
+config CDEV_ALIAS
+	bool
+
 config MENUTREE
 	bool
 	select GLOB
@@ -312,6 +315,7 @@ config EXPERIMENTAL
 
 choice
 	prompt "malloc implementation"
+	default MALLOC_TLSF
 
 config MALLOC_DLMALLOC
 	bool "dlmalloc"
@@ -668,14 +672,6 @@ config PE
 config ELF
 	bool "ELF Support" if COMPILE_TEST
 
-config BOOTM_ELF
-	bool
-	depends on BOOTM
-	select ELF
-	prompt "elf loading support"
-	help
-	  Add support to load elf file with bootm.
-
 config BOOTM_FITIMAGE
 	bool
 	prompt "FIT image support"
@@ -779,6 +775,17 @@ config FLEXIBLE_BOOTARGS
 	  This allows for more flexible scripting since with it it's possible
 	  to replace parts of the bootargs string without reconstructing it
 	  completely.
+
+config ROOTWAIT_BOOTARG
+	def_bool y
+	prompt "fixup 'rootwait' into kernel command-line when needed"
+	depends on FLEXIBLE_BOOTARGS
+	help
+	  Adds a rootwait= argument into the kernel command-line argument
+	  for boot media that requires it, like USB, SD/MMC or NFS.
+	  The duration chosen is controlled by the linux.rootwait
+	  parameter and defaults to 10 seconds. Setting the variable
+	  to 0 will wait indefinitely.
 
 config MMCBLKDEV_ROOTARG
 	bool
@@ -1192,6 +1199,34 @@ config BOOTCHOOSER
 	select OFTREE
 	select PARAMETER
 
+config BOOT_DEFAULTS
+	bool "default boot targets"
+	select BOOT
+	select CDEV_ALIAS
+	default BLSPEC && OFDEVICE
+	help
+	  Say y here to enable a number of default boot targets that
+	  determine at runtime what to do. An example is the bootsource
+	  target, which will expand to the device that barebox has
+	  booted from if that could be determined.
+
+config BAREBOX_DT_2ND
+	bool "Consume DT bindings relevant only when barebox is booted by barebox"
+	depends on OFDEVICE
+	default BOARD_GENERIC_DT
+	help
+	  Barebox fixes up a number of device tree properties into the kernel
+	  device tree that it does not itself consume.
+	  Say y here for barebox to not only provide, but also consume
+	  these device tree bindings.
+
+	  This is currently:
+
+	    /chosen/bootsource: Maintain the bootsource, even if SoC
+	    bootsource info is lost.
+
+	  If unsure, say n.
+
 config RESET_SOURCE
 	bool "detect Reset cause"
 	depends on GLOBALVAR
@@ -1270,8 +1305,8 @@ config OPTEE_SIZE
 	depends on HAVE_OPTEE
 	help
 	  Size to reserve in main memory for OP-TEE.
-	  Can be smaller than the actual size used by OP-TEE, this is used to prevent
-	  barebox from allocating memory in this area.
+	  Can be larger than the actual size used by OP-TEE, this is used to prevent
+	  barebox from using or speculating into this area.
 
 config OPTEE_SHM_SIZE
 	hex
@@ -1279,8 +1314,13 @@ config OPTEE_SHM_SIZE
 	prompt "OP-TEE Shared Memory Size"
 	depends on HAVE_OPTEE
 	help
-	  Size to reserve in main memory for OP-TEE shared memory communication.
-	  Can be used for fixing up the OP-TEE OF node.
+	  Size to reserve in main memory for static OP-TEE shared memory
+	  communication. Can be used for fixing up the OP-TEE OF node.
+
+	  A shared memory size of 0 means that only dynamic shared memory
+	  will be supported for communication with OP-TEE. This is the only
+	  mode supported by barebox anyway, but support needs to be enabled
+	  in OP-TEE at compile-time.
 
 config BOOTM_OPTEE
 	bool
@@ -1307,7 +1347,11 @@ config PBL_OPTEE
 	select HAVE_OPTEE
 	help
 	  Allows starting OP-TEE during lowlevel initialization of the PBL.
-	  Requires explicit support in the board's lowlevel file.
+	  Requires explicit support in the board's lowlevel file (for ARM32)
+	  or the generic SoC support (for ARM64).
+
+	  The trampoline for jumping back from OP-TEE to barebox does currently
+	  not handle THUMB2, so barebox must be built either for A32 or A64.
 
 config FILETYPE_STRINGS
 	bool "Print file types as strings"

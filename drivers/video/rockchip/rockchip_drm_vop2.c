@@ -1594,7 +1594,7 @@ static int vop2_register_plane(struct vop2_video_port *vp, struct vop2_win *win)
 	if (win->type == DRM_PLANE_TYPE_PRIMARY) {
 		ret = vpl_ioctl(&vp->vpl, vp->id, VPL_GET_VIDEOMODES, &info->modes);
 		if (ret) {
-			dev_err(vop2->dev, "failed to get modes: %s\n", strerror(-ret));
+			dev_err(vop2->dev, "failed to get modes: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 
@@ -1958,7 +1958,7 @@ int vop2_bind(struct device *dev)
 	vop2->data = vop2_data;
 
 	res = dev_get_resource_by_name(dev, IORESOURCE_MEM, "vop");
-	if (!res)
+	if (IS_ERR(res))
 		return dev_err_probe(vop2->dev, -EINVAL, "failed to get vop2 register byname\n");
 
 	vop2->regs = IOMEM(res->start);

@@ -37,10 +37,6 @@
 	};
 
 	aliases {
-		/* Should be gone in 6.14+ */
-		hdptxphy0 = &hdptxphy_hdmi0;
-		/* Should be gone in 6.14+ */
-		hdptxphy1 = &hdptxphy1;
 		mmc0 = &sdhci;
 	};
 
@@ -104,103 +100,6 @@
 		};
 	};
 
-	/* 6.14+ */
-	hdptxphy1_grf: syscon@fd5e4000 {
-		compatible = "rockchip,rk3588-hdptxphy-grf", "syscon";
-		reg = <0x0 0xfd5e4000 0x0 0x100>;
-	};
-
-	/* 6.14+ */
-	hdptxphy1: phy@fed70000 {
-		compatible = "rockchip,rk3588-hdptx-phy";
-		reg = <0x0 0xfed70000 0x0 0x2000>;
-		clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>, <&cru PCLK_HDPTX1>;
-		clock-names = "ref", "apb";
-		#phy-cells = <0>;
-		resets = <&cru SRST_HDPTX1>, <&cru SRST_P_HDPTX1>,
-			 <&cru SRST_HDPTX1_INIT>, <&cru SRST_HDPTX1_CMN>,
-			 <&cru SRST_HDPTX1_LANE>, <&cru SRST_HDPTX1_ROPLL>,
-			 <&cru SRST_HDPTX1_LCPLL>;
-		reset-names = "phy", "apb", "init", "cmn", "lane", "ropll",
-			      "lcpll";
-		rockchip,grf = <&hdptxphy1_grf>;
-		status = "disabled";
-	};
-
-	/* 6.14+ */
-	hdmi1: hdmi@fdea0000 {
-		compatible = "rockchip,rk3588-dw-hdmi-qp";
-		reg = <0x0 0xfdea0000 0x0 0x20000>;
-		clocks = <&cru PCLK_HDMITX1>,
-			 <&cru CLK_HDMITX1_EARC>,
-			 <&cru CLK_HDMITX1_REF>,
-			 <&cru MCLK_I2S6_8CH_TX>,
-			 <&cru CLK_HDMIHDP1>,
-			 <&cru HCLK_VO1>;
-		clock-names = "pclk", "earc", "ref", "aud", "hdp", "hclk_vo1";
-		interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH 0>,
-			     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH 0>,
-			     <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH 0>,
-			     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH 0>,
-			     <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH 0>;
-		interrupt-names = "avp", "cec", "earc", "main", "hpd";
-		phys = <&hdptxphy1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hdmim2_tx1_cec &hdmim1_tx1_hpd
-			     &hdmim1_tx1_scl &hdmim1_tx1_sda>;
-		power-domains = <&power RK3588_PD_VO1>;
-		resets = <&cru SRST_HDMITX1_REF>, <&cru SRST_HDMIHDP1>;
-		reset-names = "ref", "hdp";
-		rockchip,grf = <&sys_grf>;
-		rockchip,vo-grf = <&vo1_grf>;
-		status = "disabled";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			hdmi1_in: port@0 {
-				reg = <0>;
-			};
-
-			hdmi1_out: port@1 {
-				reg = <1>;
-			};
-		};
-	};
-
-	/* Temporary add until 6.15+ */
-	hdmi_receiver: hdmi_receiver@fdee0000 {
-		compatible = "rockchip,rk3588-hdmirx-ctrler", "snps,dw-hdmi-rx";
-		reg = <0x0 0xfdee0000 0x0 0x6000>;
-		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH 0>,
-			     <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH 0>,
-			     <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH 0>;
-		interrupt-names = "cec", "hdmi", "dma";
-		clocks = <&cru ACLK_HDMIRX>,
-			 <&cru CLK_HDMIRX_AUD>,
-			 <&cru CLK_CR_PARA>,
-			 <&cru PCLK_HDMIRX>,
-			 <&cru CLK_HDMIRX_REF>,
-			 <&cru PCLK_S_HDMIRX>,
-			 <&cru HCLK_VO1>;
-		clock-names = "aclk",
-			      "audio",
-			      "cr_para",
-			      "pclk",
-			      "ref",
-			      "hclk_s_hdmirx",
-			      "hclk_vo1";
-		memory-region = <&hdmi_receiver_cma>;
-		power-domains = <&power RK3588_PD_VO1>;
-		resets = <&cru SRST_A_HDMIRX>, <&cru SRST_P_HDMIRX>,
-			 <&cru SRST_HDMIRX_REF>, <&cru SRST_A_HDMIRX_BIU>;
-		reset-names = "axi", "apb", "ref", "biu";
-		rockchip,grf = <&sys_grf>;
-		rockchip,vo1-grf = <&vo1_grf>;
-		status = "disabled";
-	};
-
 	leds: leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -214,31 +113,6 @@
 			linux,default-trigger = LED_FUNCTION_HEARTBEAT;
 			default-state = "off";
 			panic-indicator;
-		};
-	};
-
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		/* Temporary add until 6.15+ */
-		/*
-		 * The 4k HDMI capture controller works only with 32bit
-		 * phys addresses and doesn't support IOMMU. HDMI RX CMA
-		 * must be reserved below 4GB.
-		 * The size of 160MB was determined as follows:
-		 * (3840 * 2160 pixels) * (4 bytes/pixel) * (2 frames/buffer) / 10^6 = 66MB
-		 * To ensure sufficient support for practical use-cases,
-		 * we doubled the 66MB value.
-		 */
-		hdmi_receiver_cma: hdmi-receiver-cma {
-			compatible = "shared-dma-pool";
-			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
-			size = <0x0 (160 * 0x100000)>; /* 160MiB */
-			alignment = <0x0 0x40000>; /* 64K */
-			no-map;
-			status = "disabled";
 		};
 	};
 
@@ -329,7 +203,7 @@
 	};
 };
 
-&hdptxphy_hdmi0 {
+&hdptxphy0 {
 	status = "okay";
 };
 

@@ -184,6 +184,14 @@
 	};
 };
 
+&hdptxphy0 {
+	status = "okay";
+};
+
+&hdptxphy1 {
+	status = "okay";
+};
+
 &hdmi0 {
 	/* Pins are not used */
 	/delete-property/ pinctrl-0;
@@ -203,8 +211,24 @@
 	};
 };
 
-&hdptxphy0 {
+&hdmi1 {
+	/* Disable CEC pin, Enable PWR_ON */
+	pinctrl-0 = <&hdmim1_tx1_hpd &hdmim1_tx1_scl
+	&hdmim1_tx1_sda &hdmi1_tx_on>;
+	enable-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+};
+
+&hdmi1_in {
+	hdmi1_in_vp1: endpoint {
+		remote-endpoint = <&vp1_out_hdmi1>;
+	};
+};
+
+&hdmi1_out {
+	hdmi1_out_con: endpoint {
+		remote-endpoint = <&hdmi1_con_in>;
+	};
 };
 
 &i2c0 {

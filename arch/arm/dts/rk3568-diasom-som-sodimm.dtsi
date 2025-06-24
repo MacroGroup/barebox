@@ -18,6 +18,15 @@
 		i2c7 = &i2c7;
 		i2c8 = &i2c8;
 		i2c9 = &i2c9;
+		mmc1 = &sdmmc0;
+	};
+
+	chosen {
+		environment-sd {
+			compatible = "barebox,environment";
+			device-path = &sdmmc0, "partname:env";
+			status = "disabled";
+		};
 	};
 
 	vcc2v5_sys: vcc2v5-sys-regulator {
@@ -103,6 +112,17 @@
 			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			rtc: rtc@68 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&rtc_pins>;
+				compatible = "st,m41t62";
+				reg = <0x68>;
+				interrupt-parent = <&gpio0>;
+				interrupts = <RK_PB6 IRQ_TYPE_LEVEL_LOW>;
+				wakeup-source;
+				#clock-cells = <0>;
+			};
 		};
 	};
 };
@@ -187,6 +207,20 @@
 	status = "okay";
 };
 
+&sdmmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd &sdmmc0_det>;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	sd-uhs-sdr104;
+	vmmc-supply = <&vcc3v3_sys>;
+	vqmmc-supply = <&vccio_sd>;
+	status = "okay";
+};
+
 &uart3 {
 	/* SODIMM UART1 */
 	pinctrl-0 = <&uart3m0_xfer &uart3m0_ctsn &uart3m0_rtsn>;
@@ -226,6 +260,13 @@
 		gmac1_rst_pins: gmac1-rst-pins {
 			rockchip,pins =
 				<4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC1_RST */
+		};
+	};
+
+	rtc {
+		rtc_pins: rtc-pins {
+			rockchip,pins =
+				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_IRQ */
 		};
 	};
 };

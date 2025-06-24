@@ -173,16 +173,21 @@ static void __init diasom_rk3568_check_adc(void)
 		globalvar_add_simple("board.recovery", "true");
 	}
 
-	if (!of_machine_is_compatible("diasom,ds-rk3568-som-smarc"))
-		return;
-
 	if (diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val))
 		return;
 
-	if (val <= 100) {
-		module_revision = 0x111;
-	} else {
-		pr_warn("Unhandled SMARC revision ADC value: %i!\n", val);
+	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc")) {
+		if (val <= 100) {
+			module_revision = 0x111;
+		} else {
+			pr_warn("Unhandled SMARC revision ADC value: %i!\n", val);
+		}
+	} else if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm")) {
+		if (val <= 100) {
+			module_revision = 0x111;
+		} else {
+			pr_warn("Unhandled SODIMM revision ADC value: %i!\n", val);
+		}
 	}
 }
 
@@ -247,6 +252,18 @@ static int __init diasom_rk3568_init(void)
 
 		pr_info("SMARC revision: %i.%d.%d\n", module_revision >> 8,
 			module_revision & 0xff >> 4, module_revision & 0xf);
+	} else if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm")) {
+		switch (module_revision) {
+			case 0x111:
+				break;
+			default:
+				pr_err("Cannot determine SODIMM revision.\n");
+				ret = -ENOTSUPP;
+				goto out;
+		}
+
+		pr_info("SODIMM revision: %i.%d.%d\n", module_revision >> 8,
+			module_revision & 0xff >> 4, module_revision & 0xf);
 	} else
 		pr_info("RAW module variant used.\n");
 
@@ -287,6 +304,8 @@ static int __init diasom_rk3568_init(void)
 		if (diasom_rk3568_load_overlay(evb_ovl))
 			do_probe = true;
 	} else 	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc-evb")) {
+		//TODO:
+	} else 	if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm-evb")) {
 		//TODO:
 	}
 

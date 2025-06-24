@@ -249,7 +249,7 @@
 
 &pinctrl {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim>;
+	pinctrl-0 = <&gmac1m1_miim &sleep_mod_pins>;
 
 	net {
 		gmac0_rst_pins: gmac0-rst-pins {
@@ -267,6 +267,13 @@
 		rtc_pins: rtc-pins {
 			rockchip,pins =
 				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_IRQ */
+		};
+	};
+
+	sleep {
+		sleep_mod_pins: sleep-mod-pins {
+			rockchip,pins =
+				<2 RK_PB1 RK_FUNC_GPIO &pcfg_output_high>;	/* SLEEP_MOD */
 		};
 	};
 };

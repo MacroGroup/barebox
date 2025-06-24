@@ -141,23 +141,13 @@
 };
 
 &uart3 {
-	pinctrl-0 = <&uart3m1_xfer>;
-	status = "okay";
+	/* SODIMM UART1 */
+	pinctrl-0 = <&uart3m0_xfer &uart3m0_ctsn &uart3m0_rtsn>;
 };
 
-//&uart5 {
-//	pinctrl-0 = <&uart5m0_xfer &uart5m0_ctsn &uart5m0_rtsn>;
-//	status = "okay";
-//};
-
-//&uart6 {
-//	pinctrl-0 = <&uart6m1_xfer>;
-//	status = "okay";
-//};
-
-&uart7 {
-	pinctrl-0 = <&uart7m1_xfer &uart7m0_ctsn &uart7m0_rtsn>;
-	status = "okay";
+&uart4 {
+	/* SODIMM UART0 */
+	pinctrl-0 = <&uart4m0_xfer &uart4m0_ctsn &uart4m0_rtsn>;
 };
 
 &vpu {

@@ -15,6 +15,10 @@
 		     "rockchip,rk3588";
 	chassis-type = "embedded";
 
+	aliases {
+		mmc0 = &sdhci;
+	};
+
 	/* Fixup for eth0/1, just for information */
 	/* Actually we need to set CPLL clock to 1.5 GHz */
 //	assigned-clocks =
@@ -34,10 +38,6 @@
 			device-path = &sdhci, "partname:env";
 			status = "disabled";
 		};
-	};
-
-	aliases {
-		mmc0 = &sdhci;
 	};
 
 	isp0: rkisp@fdcb0000 {

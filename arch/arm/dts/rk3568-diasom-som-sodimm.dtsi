@@ -20,6 +20,44 @@
 &i2c4 {
 	clock-frequency = <400000>;
 	status = "okay";
+
+	/* 24aa025e48 */
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc3v3_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac0: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+
+	/* 24aa025e48 */
+	eeprom@51 {
+		compatible = "atmel,24c02";
+		reg = <0x51>;
+		pagesize = <16>;
+		vcc-supply = <&vcc3v3_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac1: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
 };
 
 &gmac0 {
@@ -35,6 +73,8 @@
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;
+	nvmem-cells = <&mac0>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -51,6 +91,8 @@
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;
+	nvmem-cells = <&mac1>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 

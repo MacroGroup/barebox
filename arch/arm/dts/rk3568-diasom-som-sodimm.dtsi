@@ -40,6 +40,11 @@
 	};
 };
 
+&combphy2 {
+	/* PCI-E 2.0 */
+	phy-supply = <&vcc3v3_pcie20>;
+};
+
 &i2c4 {
 	clock-frequency = <100000>;
 	status = "okay";
@@ -195,13 +200,12 @@
 	};
 };
 
-//&pcie2x1 {
-//	pinctrl-names = "default";
-//	pinctrl-0 = <&pcie20m2_pins>;
-//	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
-//	vpcie3v3-supply = <&vcc3v3_sys>;
-//	status = "okay";
-//};
+&pcie2x1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie20_pins>;
+	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_sys>;
+};
 
 &rga {
 	status = "okay";
@@ -260,6 +264,15 @@
 		gmac1_rst_pins: gmac1-rst-pins {
 			rockchip,pins =
 				<4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC1_RST */
+		};
+	};
+
+	pcie20 {
+		pcie20_pins: pcie20-pins {
+			rockchip,pins =
+				<1 RK_PB0 4 &pcfg_pull_none>,			/* PCIE20_CLKREQn_M2 */
+				<1 RK_PB1 4 &pcfg_pull_none>,			/* PCIE20_WAKEn_M2 */
+				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE20_PERST */
 		};
 	};
 

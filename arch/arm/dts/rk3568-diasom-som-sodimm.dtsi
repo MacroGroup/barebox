@@ -42,7 +42,7 @@
 
 &combphy2 {
 	/* PCI-E 2.0 */
-	phy-supply = <&vcc3v3_pcie20>;
+	phy-supply = <&vcc3v3_sys>;
 };
 
 &i2c4 {

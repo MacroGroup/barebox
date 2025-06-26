@@ -1421,7 +1421,8 @@ static bool dwc3_want_otg_mode(void)
 static void dwc3_probe_recovery_mode(struct dwc3 *dwc)
 {
 	if (!of_machine_is_compatible("diasom,ds-rk3568-som") &&
-	    !of_machine_is_compatible("diasom,ds-rk3588-btb"))
+	    !of_machine_is_compatible("diasom,ds-rk3588-btb") &&
+	    !of_machine_is_compatible("diasom,ds-rk3588-smarc"))
 		return;
 
 	if (!dwc3_want_otg_mode())

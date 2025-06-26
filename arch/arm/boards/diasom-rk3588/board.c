@@ -176,6 +176,7 @@ static int __init diasom_rk3588_probe(struct device *dev)
 
 static const struct of_device_id __init diasom_rk3588_of_match[] = {
 	{ .compatible = "diasom,ds-rk3588-btb" },
+	{ .compatible = "diasom,ds-rk3588-smarc" },
 	{ },
 };
 BAREBOX_DEEP_PROBE_ENABLE(diasom_rk3588_of_match);

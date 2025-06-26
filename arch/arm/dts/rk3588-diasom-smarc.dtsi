@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+
+#include <arm64/rockchip/rk3588j.dtsi>
+
+#include "rk3588.dtsi"
+
+/ {
+	model = "Diasom DS-RK3588-SMARC";
+	compatible = "diasom,ds-rk3588-smarc",
+		     "rockchip,rk3588";
+	chassis-type = "embedded";
+};

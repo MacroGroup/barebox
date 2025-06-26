@@ -1,0 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+
+#include "rk3588-diasom-smarc.dtsi"
+
+/ {
+	model = "Diasom DS-RK3588-SMARC-EVB";
+	compatible = "diasom,ds-rk3588-smarc-evb",
+		     "diasom,ds-rk3588-smarc",
+		     "rockchip,rk3588";
+};

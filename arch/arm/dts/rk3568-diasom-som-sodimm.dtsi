@@ -38,6 +38,18 @@
 		regulator-max-microvolt = <2500000>;
 		vin-supply = <&vcc3v3_sys>;
 	};
+
+	vcc3v3_pcie30_clk_oe: vcc3v3-pcie30-clk-oe-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie30_clk_oe_pins>;
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 RK_PC5 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc3v3_pcie30_clk_oe";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
 };
 
 &combphy2 {
@@ -267,12 +279,17 @@
 		};
 	};
 
-	pcie20 {
+	pcie {
 		pcie20_pins: pcie20-pins {
 			rockchip,pins =
 				<1 RK_PB0 4 &pcfg_pull_none>,			/* PCIE20_CLKREQn_M2 */
 				<1 RK_PB1 4 &pcfg_pull_none>,			/* PCIE20_WAKEn_M2 */
 				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE20_PERST */
+		};
+
+		pcie30_clk_oe_pins: pcie30-clk-oe-pins {
+			rockchip,pins =
+				<4 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_CLK_IC_OE */
 		};
 	};
 

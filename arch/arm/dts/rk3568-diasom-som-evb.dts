@@ -397,28 +397,6 @@
 	};
 };
 
-&isp {
-	status = "okay";
-};
-
-&isp_mmu {
-	status = "okay";
-};
-
-&isp_vir0 {
-	status = "okay";
-
-	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		isp_in: endpoint@0 {
-			reg = <0>;
-			remote-endpoint = <&csi_out>;
-		};
-	};
-};
-
 &gmac0 {
 	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>, <&cru SCLK_GMAC0>;
 	assigned-clock-parents = <&cru SCLK_GMAC0_RGMII_SPEED>;
@@ -805,6 +783,28 @@
 	>;
 	rockchip,trcm-sync-tx-only;
 	status = "okay";
+};
+
+&isp {
+	status = "okay";
+};
+
+&isp_mmu {
+	status = "okay";
+};
+
+&isp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&csi_out>;
+		};
+	};
 };
 
 &mdio0 {

@@ -219,6 +219,17 @@
 	vpcie3v3-supply = <&vcc3v3_sys>;
 };
 
+&pcie30phy {
+	phy-supply = <&vcc3v3_pcie30_clk_oe>;
+};
+
+&pcie3x2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie30_pins>;
+	reset-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie30_clk_oe>;
+};
+
 &rga {
 	status = "okay";
 };
@@ -285,6 +296,13 @@
 				<1 RK_PB0 4 &pcfg_pull_none>,			/* PCIE20_CLKREQn_M2 */
 				<1 RK_PB1 4 &pcfg_pull_none>,			/* PCIE20_WAKEn_M2 */
 				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE20_PERST */
+		};
+
+		pcie30_pins: pcie30-pins {
+			rockchip,pins =
+				<4 RK_PC2 4 &pcfg_pull_none>,			/* PCIE30X2_CLKREQn_M2 */
+				<4 RK_PC3 4 &pcfg_pull_none>,			/* PCIE30X2_WAKEn_M2 */
+				<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30X2_PERST */
 		};
 
 		pcie30_clk_oe_pins: pcie30-clk-oe-pins {

@@ -72,6 +72,14 @@
 	status = "okay";
 };
 
+&pcie30phy {
+	status = "okay";
+};
+
+&pcie3x2 {
+	status = "okay";
+};
+
 &uart3 {
 	status = "okay";
 };

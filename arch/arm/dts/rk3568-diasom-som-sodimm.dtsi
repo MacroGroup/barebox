@@ -147,6 +147,26 @@
 	};
 };
 
+&i2s1_8ch {
+	/* SODIMM I2S0 */
+	pinctrl-0 = <
+		&i2s1_pins
+		&i2s1m1_sdo0		/* I2S1_SDO0 */
+		&i2s1m1_sdi0		/* I2S1_SDI0 */
+	>;
+	rockchip,trcm-sync-tx-only;
+};
+
+&i2s2_2ch {
+	/* SODIMM I2S1 */
+	pinctrl-0 = <
+		&i2s2_pins
+		&i2s2m0_sdo		/* I2S2_SDO0 */
+		&i2s2m0_sdi		/* I2S2_SDI0 */
+	>;
+	rockchip,trcm-sync-tx-only;
+};
+
 &gmac0 {
 	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>, <&cru SCLK_GMAC0>;
 	assigned-clock-parents = <&cru SCLK_GMAC0_RGMII_SPEED>;
@@ -280,6 +300,20 @@
 &pinctrl {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac1m1_miim &sleep_mod_pins>;
+
+	i2s {
+		i2s1_pins: i2s1-pins {
+			rockchip,pins =
+				<3 RK_PC7 4 &pcfg_pull_none_smt>,		/* I2S1_TX_SCLK */
+				<3 RK_PD0 4 &pcfg_pull_none_smt>;		/* I2S1_TX_LRCK */
+		};
+
+		i2s2_pins: i2s2-pins {
+			rockchip,pins =
+				<2 RK_PC2 1 &pcfg_pull_none_smt>,		/* I2S1_TX_SCLK */
+				<2 RK_PC3 1 &pcfg_pull_none_smt>;		/* I2S1_TX_LRCK */
+		};
+	};
 
 	net {
 		gmac0_rst_pins: gmac0-rst-pins {

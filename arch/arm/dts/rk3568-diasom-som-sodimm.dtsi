@@ -138,7 +138,10 @@
 				interrupt-parent = <&gpio0>;
 				interrupts = <RK_PB6 IRQ_TYPE_LEVEL_LOW>;
 				wakeup-source;
-				#clock-cells = <0>;
+
+				clock {
+					/* Skip registering SQW, used as CLK32K_OUT */
+				};
 			};
 		};
 	};

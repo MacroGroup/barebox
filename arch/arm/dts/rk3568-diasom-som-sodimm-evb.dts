@@ -88,6 +88,34 @@
 	status = "okay";
 };
 
+&spi1 {
+	status = "okay";
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+	};
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
+};
+
+&spi2 {
+	status = "okay";
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+	};
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
+};
+
 &uart3 {
 	status = "okay";
 };

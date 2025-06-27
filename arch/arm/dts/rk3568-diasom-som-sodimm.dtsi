@@ -271,6 +271,20 @@
 	status = "okay";
 };
 
+&spi1 {
+	/* SODIMM SPI0 */
+	pinctrl-0 = <&spi1m1_pins_hs &spi1_pins>;
+	num-cs = <2>;
+	cs-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>,
+		   <&gpio3 RK_PD3 GPIO_ACTIVE_LOW>;
+};
+
+&spi2 {
+	/* SODIMM SPI1 */
+	pinctrl-0 = <&spi2m1_pins_hs &spi2m1_cs0_hs &spi2m1_cs1_hs>;
+	num-cs = <2>;
+};
+
 &uart3 {
 	/* SODIMM UART1 */
 	pinctrl-0 = <&uart3m0_xfer &uart3m0_ctsn &uart3m0_rtsn>;
@@ -310,8 +324,8 @@
 
 		i2s2_pins: i2s2-pins {
 			rockchip,pins =
-				<2 RK_PC2 1 &pcfg_pull_none_smt>,		/* I2S1_TX_SCLK */
-				<2 RK_PC3 1 &pcfg_pull_none_smt>;		/* I2S1_TX_LRCK */
+				<2 RK_PC2 1 &pcfg_pull_none_smt>,		/* I2S2_TX_SCLK */
+				<2 RK_PC3 1 &pcfg_pull_none_smt>;		/* I2S2_TX_LRCK */
 		};
 	};
 
@@ -359,6 +373,14 @@
 		sleep_mod_pins: sleep-mod-pins {
 			rockchip,pins =
 				<2 RK_PB1 RK_FUNC_GPIO &pcfg_output_high>;	/* SLEEP_MOD */
+		};
+	};
+
+	spibus {
+		spi1_pins: spi1-pins {
+			rockchip,pins =
+				<3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>,		/* SPI1_CS0 */
+				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;		/* SPI1_CS1 */
 		};
 	};
 };

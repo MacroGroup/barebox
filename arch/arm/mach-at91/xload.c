@@ -218,7 +218,7 @@ void __noreturn sama5d3_atmci_start_image(u32 r4, unsigned int clock,
 	if (ret > ARRAY_SIZE(sama5d3_mci_instances) - 1)
 		panic("Couldn't determine boot MCI instance\n");
 
-	instance = &sama5d3_mci_instances[r4];
+	instance = &sama5d3_mci_instances[ret];
 
 	sama5d3_pmc_enable_periph_clock(SAMA5D3_ID_PIOD);
 	for (pin = instance->pins; *pin >= 0; pin++) {
@@ -228,7 +228,8 @@ void __noreturn sama5d3_atmci_start_image(u32 r4, unsigned int clock,
 
 	sama5d3_pmc_enable_periph_clock(instance->id);
 
-	ret = at91_mci_bio_init(&bio, instance->base, clock, slot);
+	ret = at91_mci_bio_init(&bio, instance->base, clock, slot,
+				PBL_MCI_UNKNOWN_CAPACITY);
 	if (ret)
 		goto out_panic;
 

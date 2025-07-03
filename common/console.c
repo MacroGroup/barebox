@@ -264,7 +264,7 @@ struct console_device *of_console_by_stdout_path(void)
 		return NULL;
 
 	for_each_console(console) {
-		if (dev_of_node(console->dev) == stdout_np)
+		if (console->dev && dev_of_node(console->dev) == stdout_np)
 			return console;
 	}
 
@@ -338,7 +338,7 @@ int console_register(struct console_device *newcdev)
 
 	if (newcdev->devname) {
 		dev->id = newcdev->devid;
-		dev_set_name(dev, newcdev->devname);
+		dev_set_name(dev, "%s", newcdev->devname);
 	} else {
 		dev->id = DEVICE_ID_DYNAMIC;
 		dev_set_name(dev, "cs");

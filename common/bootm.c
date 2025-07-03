@@ -187,7 +187,8 @@ int bootm_load_os(struct image_data *data, unsigned long load_address)
 		unsigned long kernel_size = data->fit_kernel_size;
 
 		data->os_res = request_sdram_region("kernel",
-				load_address, kernel_size);
+				load_address, kernel_size,
+				MEMTYPE_LOADER_CODE, MEMATTRS_RWX);
 		if (!data->os_res) {
 			pr_err("unable to request SDRAM region for kernel at"
 					" 0x%08llx-0x%08llx\n",
@@ -298,8 +299,8 @@ bootm_load_initrd(struct image_data *data, unsigned long load_address)
 			return ERR_PTR(ret);
 		}
 		data->initrd_res = request_sdram_region("initrd",
-				load_address,
-				initrd_size);
+				load_address, initrd_size,
+				MEMTYPE_LOADER_DATA, MEMATTRS_RW);
 		if (!data->initrd_res) {
 			pr_err("unable to request SDRAM region for initrd at"
 					" 0x%08llx-0x%08llx\n",
@@ -418,7 +419,8 @@ static bool fitconfig_has_fdt(struct image_data *data)
  * devicetree. It returns a pointer to the allocated devicetree which must be
  * freed after use.
  *
- * Return: pointer to the fixed devicetree or a ERR_PTR() on failure.
+ * Return: pointer to the fixed devicetree, NULL if image_data has an empty DT
+ *         or a ERR_PTR() on failure.
  */
 void *bootm_get_devicetree(struct image_data *data)
 {
@@ -463,6 +465,8 @@ void *bootm_get_devicetree(struct image_data *data)
 			ret = read_file_2(data->oftree_file, &size, (void *)&oftree,
 					  FILESIZE_MAX);
 			break;
+		case filetype_empty:
+			return NULL;
 		default:
 			return ERR_PTR(-EINVAL);
 		}
@@ -481,14 +485,11 @@ void *bootm_get_devicetree(struct image_data *data)
 		}
 
 	} else {
-		struct device_node *root = of_get_root_node();
-
-		if (!root)
+		data->of_root_node = of_dup_root_node_for_boot();
+		if (!data->of_root_node)
 			return NULL;
 
-		data->of_root_node = of_dup(root);
-
-		if (bootm_verbose(data) > 1 && data->of_root_node)
+		if (bootm_verbose(data) > 1)
 			printf("using internal devicetree\n");
 	}
 
@@ -533,7 +534,7 @@ int bootm_load_devicetree(struct image_data *data, void *fdt,
 	fdt_size = be32_to_cpu(((struct fdt_header *)fdt)->totalsize);
 
 	data->oftree_res = request_sdram_region("oftree", load_address,
-			fdt_size);
+			fdt_size, MEMTYPE_LOADER_DATA, MEMATTRS_RW);
 	if (!data->oftree_res) {
 		pr_err("unable to request SDRAM region for device tree at"
 				" 0x%08llx-0x%08llx\n",
@@ -862,6 +863,7 @@ int bootm_boot(struct bootm_data *bootm_data)
 
 	if (bootm_data->provide_hostname) {
 		const char *hostname = getenv_nonempty("global.hostname");
+		const char *suffix = NULL;
 		char *hostname_bootarg;
 
 		if (!hostname) {
@@ -876,7 +878,13 @@ int bootm_boot(struct bootm_data *bootm_data)
 			goto err_out;
 		}
 
-		hostname_bootarg = basprintf("systemd.hostname=%s", hostname);
+		if (IS_ENABLED(CONFIG_SERIAL_NUMBER_FIXUP_SYSTEMD_HOSTNAME))
+			suffix = barebox_get_serial_number();
+
+		hostname_bootarg = basprintf("systemd.hostname=%s%s%s",
+					     hostname, suffix ? "-" : "",
+					     suffix ?: "");
+
 		globalvar_add_simple("linux.bootargs.hostname", hostname_bootarg);
 		free(hostname_bootarg);
 	}

@@ -18,6 +18,7 @@
 #include <image-sparse.h>
 #include <elf.h>
 #include <linux/zstd.h>
+#include <fuzz.h>
 
 #include <mach/imx/imx-header.h>
 
@@ -28,6 +29,7 @@ struct filetype_str {
 
 static const struct filetype_str filetype_str[] = {
 	[filetype_unknown] = { "unknown", "unknown" },
+	[filetype_empty] = { "empty", "empty" },
 	[filetype_arm_zimage] = { "ARM Linux zImage", "arm-zimage" },
 	[filetype_lzo_compressed] = { "LZO compressed", "lzo" },
 	[filetype_lz4_compressed] = { "LZ4 compressed", "lz4" },
@@ -494,6 +496,17 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 	return filetype_unknown;
 }
 
+static int fuzz_filetype(const u8 *data, size_t size)
+{
+	if (!PTR_IS_ALIGNED(data, sizeof(u64)))
+	    return -EINVAL;
+
+	file_detect_type(data, size);
+
+	return 0;
+}
+fuzz_test("filetype", fuzz_filetype);
+
 int file_name_detect_type_offset(const char *filename, loff_t pos, enum filetype *type,
 				 enum filetype (*detect)(const void *buf, size_t bufsize))
 {
@@ -510,7 +523,7 @@ int file_name_detect_type_offset(const char *filename, loff_t pos, enum filetype
 	if (ret < 0)
 		goto err_out;
 
-	*type = detect(buf, ret);
+	*type = ret ? detect(buf, ret) : filetype_empty;
 
 	ret = 0;
 err_out:

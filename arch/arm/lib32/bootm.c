@@ -160,7 +160,8 @@ static int optee_verify_header_request_region(struct image_data *data, struct op
 		return ret;
 	}
 
-	data->tee_res = request_sdram_region("TEE", hdr->init_load_addr_lo, hdr->init_size);
+	data->tee_res = request_sdram_region("TEE", hdr->init_load_addr_lo, hdr->init_size,
+					     MEMTYPE_RESERVED, MEMATTRS_RW_DEVICE);
 	if (!data->tee_res) {
 		pr_err("Cannot request SDRAM region 0x%08x-0x%08x: %pe\n",
 		       hdr->init_load_addr_lo, hdr->init_load_addr_lo + hdr->init_size - 1,
@@ -428,7 +429,7 @@ static int do_bootz_linux_fdt(int fd, struct image_data *data, void **outfdt)
 			pr_err("unable to unflatten devicetree\n");
 			goto err_free;
 		}
-		*outfdt = of_get_fixed_tree(root);
+		*outfdt = of_get_fixed_tree_for_boot(root);
 		if (!*outfdt) {
 			pr_err("Unable to get fixed tree\n");
 			ret = -EINVAL;
@@ -460,6 +461,9 @@ static int do_bootz_linux(struct image_data *data)
 	unsigned long load_address = data->os_address;
 	unsigned long mem_free;
 	void *fdt = NULL;
+
+	if (data->os_fit)
+		return do_bootm_linux(data);
 
 	fd = open(data->os_file, O_RDONLY);
 	if (fd < 0) {
@@ -502,7 +506,8 @@ static int do_bootz_linux(struct image_data *data)
 	if (ret)
 		return ret;
 
-	data->os_res = request_sdram_region("zimage", load_address, image_size);
+	data->os_res = request_sdram_region("zimage", load_address, image_size,
+					    MEMTYPE_LOADER_CODE, MEMATTRS_RWX);
 	if (!data->os_res) {
 		pr_err("bootm/zImage: failed to request memory at 0x%lx to 0x%lx (%zu).\n",
 		       load_address, load_address + image_size, image_size);
@@ -626,13 +631,15 @@ static int do_bootm_aimage(struct image_data *data)
 	}
 
 	cmp = &header->kernel;
-	data->os_res = request_sdram_region("akernel", cmp->load_addr, cmp->size);
+	data->os_res = request_sdram_region("akernel", cmp->load_addr, cmp->size,
+					    MEMTYPE_LOADER_CODE, MEMATTRS_RWX);
 	if (!data->os_res) {
 		pr_err("Cannot request region 0x%08x - 0x%08x, using default load address\n",
 				cmp->load_addr, cmp->size);
 
 		data->os_address = mem_start + PAGE_ALIGN(cmp->size * 4);
-		data->os_res = request_sdram_region("akernel", data->os_address, cmp->size);
+		data->os_res = request_sdram_region("akernel", data->os_address, cmp->size,
+						    MEMTYPE_LOADER_CODE, MEMATTRS_RWX);
 		if (!data->os_res) {
 			pr_err("Cannot request region 0x%08x - 0x%08x\n",
 					cmp->load_addr, cmp->size);
@@ -653,7 +660,8 @@ static int do_bootm_aimage(struct image_data *data)
 	 */
 	cmp = &header->ramdisk;
 	if (cmp->size) {
-		data->initrd_res = request_sdram_region("ainitrd", cmp->load_addr, cmp->size);
+		data->initrd_res = request_sdram_region("ainitrd", cmp->load_addr, cmp->size,
+							MEMTYPE_LOADER_DATA, MEMATTRS_RW);
 		if (!data->initrd_res) {
 			ret = -ENOMEM;
 			goto err_out;
@@ -676,7 +684,8 @@ static int do_bootm_aimage(struct image_data *data)
 	if (cmp->size) {
 		void (*second)(void);
 
-		snd_stage_res = request_sdram_region("asecond", cmp->load_addr, cmp->size);
+		snd_stage_res = request_sdram_region("asecond", cmp->load_addr, cmp->size,
+						     MEMTYPE_LOADER_CODE, MEMATTRS_RWX);
 		if (!snd_stage_res) {
 			ret = -ENOMEM;
 			goto err_out;

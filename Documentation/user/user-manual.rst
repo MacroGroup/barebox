@@ -29,7 +29,6 @@ Contents:
    bootchooser
    remote-control
    security
-   system-setup
    reset-reason
    system-reset
    state
@@ -40,6 +39,9 @@ Contents:
    watchdog
    reboot-mode
    virtio
+   barebox-tlv
+
+   appendix-development-host-setup
 
 * :ref:`search`
 * :ref:`genindex`

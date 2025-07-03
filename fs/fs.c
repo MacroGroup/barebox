@@ -835,7 +835,11 @@ static void fs_remove(struct device *dev)
 	int ret;
 
 	if (fsdev->dev.driver) {
-		dev->driver->remove(dev);
+		if (barebox_system_state == BAREBOX_EXITING
+		    && !dev->driver->remove)
+			return;
+		if (dev->driver->remove)
+			dev->driver->remove(dev);
 		list_del(&fsdev->list);
 	}
 
@@ -1381,6 +1385,15 @@ struct inode *iget(struct inode *inode)
 
 	return inode;
 }
+
+/*
+ * get additional reference to inode; caller must already hold one.
+ */
+void ihold(struct inode *inode)
+{
+	WARN_ON(++inode->i_count < 2);
+}
+EXPORT_SYMBOL(ihold);
 
 /* dcache.c */
 
@@ -3120,7 +3133,7 @@ int mount(const char *device, const char *fsname, const char *pathname,
 
 	fsdev = xzalloc(sizeof(struct fs_device));
 	fsdev->backingstore = xstrdup(device);
-	dev_set_name(&fsdev->dev, fsname);
+	dev_set_name(&fsdev->dev, "%s", fsname);
 	fsdev->dev.id = get_free_deviceid(fsdev->dev.name);
 	fsdev->dev.bus = &fs_bus;
 	fsdev->options = xstrdup(fsoptions);

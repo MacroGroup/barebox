@@ -18,6 +18,11 @@ config CLANG_VERSION
 	default $(cc-version) if CC_IS_CLANG
 	default 0
 
+config CLANG_RUNTIME_DIR
+	string
+	depends on CC_IS_CLANG
+	default "$(clang-runtime-dir)"
+
 config GREGORIAN_CALENDER
 	bool
 
@@ -300,6 +305,11 @@ config MALLOC_SIZE
 	default 0x400000
 	prompt "malloc area size"
 
+config SCRATCH_SIZE
+	hex
+	default 0x8000
+	prompt "Scratch size"
+
 config MALLOC_ALIGNMENT
 	hex
 	default 8
@@ -316,9 +326,6 @@ config EXPERIMENTAL
 choice
 	prompt "malloc implementation"
 	default MALLOC_TLSF
-
-config MALLOC_DLMALLOC
-	bool "dlmalloc"
 
 config MALLOC_TLSF
 	bool "tlsf"
@@ -632,8 +639,8 @@ config BOOTM_INITRD
 	  -L ADDR    specify initrd load address
 
 config BOOTM_OFTREE
-	bool
-	depends on BOOTM
+	def_bool y
+	depends on BOOTM && HAVE_ARCH_BOOTM_OFTREE
 	select OFTREE
 	prompt "device tree (oftree) support"
 	help
@@ -641,6 +648,24 @@ config BOOTM_OFTREE
 	  this command line option:
 
 	  -o DTS  specify device tree
+
+config BOOTM_OFTREE_FALLBACK
+	def_bool y
+	# We intentionally don't depend on BOOTM_OFTREE, because many boards
+	# don't enable it and instead rely on OFTREE being selected...
+	depends on BOOTM && HAVE_ARCH_BOOTM_OFTREE && OFTREE
+	prompt "pass along barebox' own DT as fallback"
+	help
+	  Say y here to substitute in the barebox device tree, when no kernel
+	  device tree was supplied. If unsure, say n.
+
+	  It's recommended to boot a kernel with the device tree that was
+	  shipped with it as DT binding breakage is not an infrequent
+	  occurrence.
+
+	  This especially applies to A/B boot setups, where each kernel
+	  should have its own DT, so fallback restores the system cleanly
+	  to the old state.
 
 config BOOTM_UIMAGE
 	def_bool y
@@ -942,7 +967,7 @@ config CONSOLE_DISABLE_INPUT
 	  registered as consoles.
 
 config PBL_CONSOLE
-	depends on PBL_IMAGE
+	depends on PBL_IMAGE && !SANDBOX
 	depends on !CONSOLE_NONE
 	bool "Enable console support in PBL"
 	help
@@ -1151,6 +1176,30 @@ config BTHREAD
 	  scheduled within delay loops and the console idle to asynchronously
 	  execute actions, like checking for link up or feeding a watchdog.
 
+config TLV
+	bool "barebox TLV support"
+	depends on OFDEVICE
+	help
+	  barebox TLV is a scheme for storing factory data on non-volatile
+	  storage. Unlike state, it's meant to be read-only.
+
+config TLV_DRV
+	bool "barebox TLV generic driver"
+	depends on TLV
+	default y
+	help
+	  barebox,tlv devices in the device tree will be matched against
+	  a compatible decoder via the 4-byte magic header.
+
+config TLV_BAREBOX
+	bool "barebox TLV common format"
+	depends on TLV
+	depends on PARAMETER
+	select PRINTF_HEXSTR
+	default y
+	help
+	  Decoder support for the common barebox TLV format.
+
 config STATE
 	bool "generic state infrastructure"
 	select CRC32
@@ -1253,6 +1302,16 @@ config MACHINE_ID
 
 	  Note: if no hashable information is available no machine id will be passed
 	  to the kernel.
+
+config SERIAL_NUMBER_FIXUP_SYSTEMD_HOSTNAME
+	bool "append board serial number to systemd.hostname= fixup"
+	depends on FLEXIBLE_BOOTARGS
+	help
+	  When a systemd.hostname= kernel command line argument is
+	  fixed up, append a `-${global.serial_number}' suffix.
+
+	  This option without effect if global.bootm.provide_hostname
+	  is unset.
 
 config SYSTEMD_OF_WATCHDOG
 	bool "inform devicetree-enabled kernel of used watchdog"
@@ -1359,6 +1418,8 @@ config PBL_OPTEE
 	  The trampoline for jumping back from OP-TEE to barebox does currently
 	  not handle THUMB2, so barebox must be built either for A32 or A64.
 
+endmenu
+
 config FILETYPE_STRINGS
 	bool "Print file types as strings"
 	default y
@@ -1366,8 +1427,6 @@ config FILETYPE_STRINGS
 	help
 	  Say yes here to include strings for filetypes in barebox. If disabled file
 	  types will be printed as numbers only.
-
-endmenu
 
 if FASTBOOT_BASE
 
@@ -1398,7 +1457,6 @@ endif
 endmenu
 
 source "common/Kconfig.debug"
-source "common/boards/Kconfig"
 
 config DDR_SPD
 	bool

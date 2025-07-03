@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <partitions.h>
 #include <range.h>
+#include <fuzz.h>
 
 static LIST_HEAD(partition_parser_list);
 
@@ -69,6 +70,21 @@ static int register_one_partition(struct block_device *blk, struct partition *pa
 	return 0;
 out:
 	free(partition_name);
+	return ret;
+}
+
+static int remove_one_partition(struct block_device *blk, int no)
+{
+	char *partition_name;
+	int ret;
+
+	partition_name = basprintf("%s.%d", blk->cdev.name, no);
+	if (!partition_name)
+		return -ENOMEM;
+
+	ret = devfs_del_partition(partition_name);
+	free(partition_name);
+
 	return ret;
 }
 
@@ -161,6 +177,48 @@ int partition_table_write(struct partition_desc *pdesc)
 		return -ENOSYS;
 
 	return pdesc->parser->write(pdesc);
+}
+
+bool partition_is_free(struct partition_desc *pdesc, uint64_t start, uint64_t size)
+{
+	struct partition *p;
+
+	if (start < PARTITION_ALIGN_SECTORS)
+		return false;
+
+	if (start + size >= pdesc->blk->num_blocks)
+		return false;
+
+	list_for_each_entry(p, &pdesc->partitions, list) {
+		if (region_overlap_size(p->first_sec, p->size, start, size))
+			return false;
+	}
+
+	return true;
+}
+
+int partition_find_free_space(struct partition_desc *pdesc, uint64_t sectors, uint64_t *start)
+{
+	struct partition *p;
+	uint64_t min_sec = PARTITION_ALIGN_SECTORS;
+
+	min_sec = ALIGN(min_sec, PARTITION_ALIGN_SECTORS);
+
+	if (partition_is_free(pdesc, min_sec, sectors)) {
+		*start = min_sec;
+		return 0;
+	}
+
+	list_for_each_entry(p, &pdesc->partitions, list) {
+		uint64_t s = ALIGN(p->first_sec + p->size, PARTITION_ALIGN_SECTORS);
+
+		if (partition_is_free(pdesc, s, sectors)) {
+			*start = s;
+			return 0;
+		}
+	}
+
+	return -ENOSPC;
 }
 
 int partition_create(struct partition_desc *pdesc, const char *name,
@@ -286,6 +344,46 @@ int partition_parser_register(struct partition_parser *p)
 
 	return 0;
 }
+
+/**
+ * Try to collect partition information on the given block device
+ * @param blk Block device to examine
+ * @return 0 most of the time, negative value else
+ *
+ * It is not a failure if no partition information is found
+ */
+static int fuzz_partition_table_parser(struct block_device *ramdisk)
+{
+	struct partition_desc *pdesc;
+	struct partition *part;
+	int rc = 0;
+	struct partition_parser *parser;
+	u8 buf[2 * SECTOR_SIZE] __aligned(8);
+
+	rc = block_read(ramdisk, buf, 0, 2);
+	if (rc != 0)
+		return 0;
+
+	parser = partition_parser_get_by_filetype(buf);
+	if (!parser)
+		return 0;
+
+	pdesc = parser->parse(buf, ramdisk);
+	if (!pdesc)
+		return 0;
+
+	pdesc->parser = parser;
+
+	list_for_each_entry(part, &pdesc->partitions, list) {
+		register_one_partition(ramdisk, part);
+		remove_one_partition(ramdisk, part->num);
+	}
+
+	partition_table_free(pdesc);
+
+	return 0;
+}
+fuzz_test_ramdisk("partitions", fuzz_partition_table_parser);
 
 /**
  * cdev_unallocated_space - return unallocated space

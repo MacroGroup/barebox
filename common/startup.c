@@ -44,12 +44,14 @@
 #include <bselftest.h>
 #include <pbl/handoff-data.h>
 #include <libfile.h>
+#include <fuzz.h>
 
 extern initcall_t __barebox_initcalls_start[], __barebox_early_initcalls_end[],
 		  __barebox_initcalls_end[];
 
 extern exitcall_t __barebox_exitcalls_start[], __barebox_exitcalls_end[];
 
+enum system_states barebox_system_state;
 
 #if defined CONFIG_FS_RAMFS && defined CONFIG_FS_DEVFS
 static int mount_root(void)
@@ -57,6 +59,7 @@ static int mount_root(void)
 	mount("none", "ramfs", "/", NULL);
 	mkdir("/dev", 0);
 	mkdir("/tmp", 0);
+	mkdir("/mnt", 0);
 	mount("none", "devfs", "/dev", NULL);
 
 	if (IS_ENABLED(CONFIG_FS_EFIVARFS) && efi_is_payload()) {
@@ -67,6 +70,14 @@ static int mount_root(void)
 	if (IS_ENABLED(CONFIG_FS_PSTORE)) {
 		mkdir("/pstore", 0);
 		mount("none", "pstore", "/pstore", NULL);
+	}
+
+	if (IS_ENABLED(CONFIG_9P_FS))
+		mkdir("/mnt/9p", 0);
+
+	if (IS_ENABLED(CONFIG_FS_SMHFS)) {
+		mkdir("/mnt/smhfs", 0);
+		automount_add("/mnt/smhfs", "mount -t smhfs /dev/null /mnt/smhfs");
 	}
 
 	return 0;
@@ -394,7 +405,9 @@ void __noreturn start_barebox(void)
 					ERR_PTR(result));
 	}
 
+	barebox_system_state = BAREBOX_RUNNING;
 	pr_debug("initcalls done\n");
+
 
 	if (IS_ENABLED(CONFIG_SELFTEST_AUTORUN))
 		selftests_run();
@@ -424,6 +437,8 @@ void __noreturn hang (void)
 void shutdown_barebox(void)
 {
 	exitcall_t *exitcall;
+
+	barebox_system_state = BAREBOX_EXITING;
 
 	for (exitcall = __barebox_exitcalls_start;
 			exitcall < __barebox_exitcalls_end; exitcall++) {

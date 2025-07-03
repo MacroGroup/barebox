@@ -153,8 +153,8 @@ static inline const char *dev_name(const struct device *dev)
 	return dev_id(dev) ?: dev->name;
 }
 
-int dev_set_name(struct device *dev, const char *fmt, ...);
-int dev_add_alias(struct device *dev, const char *fmt, ...);
+int dev_set_name(struct device *dev, const char *fmt, ...) __printf(2, 3);
+int dev_add_alias(struct device *dev, const char *fmt, ...) __printf(2, 3);
 
 /*
  * get resource 'num' for a device
@@ -226,6 +226,17 @@ struct device *add_child_device(struct device *parent,
 				const char* devname, int id, const char *resname,
 				resource_size_t start, resource_size_t size, unsigned int flags,
 				void *pdata);
+
+#ifdef CONFIG_OFTREE
+struct device *of_add_child_device(struct device *parent,
+		const char* devname, int id, struct device_node *np);
+#else
+static inline struct device *of_add_child_device(struct device *parent,
+		const char* devname, int id, struct device_node *np)
+{
+	return NULL;
+}
+#endif
 
 /*
  * register a generic device
@@ -581,6 +592,7 @@ extern struct list_head cdev_list;
 #define DEVFS_PARTITION_FIXED		(1U << 0)
 #define DEVFS_PARTITION_READONLY	(1U << 1)
 #define DEVFS_IS_CHARACTER_DEV		(1U << 3)
+#define DEVFS_IS_BLOCK_DEV		(1U << 4)
 #define DEVFS_PARTITION_FROM_OF		(1U << 5)
 #define DEVFS_PARTITION_FROM_TABLE	(1U << 6)
 #define DEVFS_IS_MBR_PARTITIONED	(1U << 7)

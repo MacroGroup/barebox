@@ -7,6 +7,8 @@
 #include "stm32mp151.dtsi"
 
 / {
+	barebox,deep-probe;
+
 	chosen {
 		environment {
 			compatible = "barebox,environment";
@@ -96,6 +98,7 @@
 		#size-cells = <1>;
 
 		baseboard_factory_data: factory-data@0 {
+			compatible = "lxa,tlv-baseboard-v1";
 			reg = <0 0x400>;
 			label = "tlv";
 		};

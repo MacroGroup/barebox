@@ -701,6 +701,8 @@
 };
 
 &uart2 {
+	/delete-property/ dmas;
+	/delete-property/ dma-names;
 	pinctrl-0 = <&uart2m0_xfer>;
 	status = "okay";
 };

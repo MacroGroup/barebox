@@ -436,6 +436,7 @@
 };
 
 &uart2 {
+	/delete-property/ dmas;
 	status = "okay";
 };
 

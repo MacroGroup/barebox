@@ -149,7 +149,6 @@
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <RK_PD1 IRQ_TYPE_LEVEL_LOW>;
-
 		gpio-line-names =
 			/* P0_0-7 */
 			"GPIO8", "GPIO9", "GPIO10", "GPIO11",

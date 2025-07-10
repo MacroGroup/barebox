@@ -154,7 +154,7 @@
 			"GPIO8", "GPIO9", "GPIO10", "GPIO11",
 			"GPIO12", "GPIO13", "WDT_TIME_OUT#", "LID#",
 			/* P1_0-7 */
-			"SLEEP#", "CHARGE#", "CHARGER_PRSNT#", "CARRIER_STBY#",
+			"SLEEP#", "CHARGING#", "CHARGER_PRSNT#", "CARRIER_STBY#",
 			"BATLOW#", "TEST#", "LCD0_VDD_EN", "",
 			/* P2_0-7 */
 			"", "", "", "",

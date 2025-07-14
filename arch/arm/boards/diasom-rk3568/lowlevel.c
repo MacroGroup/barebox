@@ -17,8 +17,7 @@ static __noreturn inline void start_rk3568_diasom(void *fdt)
 	 * before its consumers. Remove this setup once this issue is
 	 * resolved.
 	 */
-	/* + VCCIO2 voltage control from GRF */
-	writel(RK_SETBITS(0x51), 0xfdc20140);
+	writel(RK_SETBITS(0x50), 0xfdc20140);
 
 	putc_ll('>');
 

@@ -20,6 +20,7 @@
 		i2c7 = &i2c7;
 		i2c8 = &i2c8;
 		i2c9 = &i2c9;
+		rtc0 = &rtc;
 	};
 
 	gpio-keys {

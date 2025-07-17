@@ -17,6 +17,7 @@
 
 	aliases {
 		mmc0 = &sdhci;
+		rtc0 = &rtc;
 	};
 
 	/* Fixup for eth0/1, just for information */
@@ -332,7 +333,7 @@
 	};
 
 	/* m41t62lc6f */
-	rtc@68 {
+	rtc: rtc@68 {
 		compatible = "st,m41t62";
 		reg = <0x68>;
 

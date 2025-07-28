@@ -65,8 +65,9 @@ static int __init diasom_rk3588_check_adc(void)
 	struct i2c_adapter *adapter;
 	int val = 0, ret;
 
-	if (!of_machine_is_compatible("diasom,ds-rk3588-btb"))
-		return 0;
+	if (!of_machine_is_compatible("diasom,ds-rk3588-btb") &&
+	    !of_machine_is_compatible("diasom,ds-rk3588-smarc"))
+			return 0;
 
 	adapter = diasom_rk3588_i2c_get_adapter(2);
 	if (!adapter) {
@@ -103,7 +104,7 @@ static int __init diasom_rk3588_check_adc(void)
 	if (val > 150 && val < 350) {
 		som_revision = 0;
 	} else {
-		pr_warn("Unhandled BTB revision ADC value: %i!\n", val);
+		pr_warn("Unhandled revision ADC value: %i!\n", val);
 	}
 
 	return 0;
@@ -133,18 +134,27 @@ of_populate_initcall(diasom_rk3588_machine_id);
 
 static int __init diasom_rk3588_late_init(void)
 {
-	if (!of_machine_is_compatible("diasom,ds-rk3588-btb"))
-		return 0;
+	if (of_machine_is_compatible("diasom,ds-rk3588-btb")) {
+		switch (som_revision) {
+		case 0:
+			break;
+		default:
+			pr_err("Cannot determine BTB revision.\n");
+			return -ENOTSUPP;
+		}
 
-	switch (som_revision) {
-	case 0:
-		break;
-	default:
-		pr_err("Cannot determine BTB version.\n");
-		return -ENOTSUPP;
+		pr_info("BTB revision: %i\n", som_revision);
+	} else if (of_machine_is_compatible("diasom,ds-rk3588-smarc")) {
+		switch (som_revision) {
+			case 0:
+				break;
+			default:
+				pr_err("Cannot determine SMARC revision.\n");
+				return -ENOTSUPP;
+		}
+
+		pr_info("SMARC revision: %i\n", som_revision);
 	}
-
-	pr_info("BTB version: %i\n", som_revision);
 
 	return 0;
 }

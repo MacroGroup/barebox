@@ -10,4 +10,67 @@
 	compatible = "diasom,ds-rk3588-smarc-evb",
 		     "diasom,ds-rk3588-smarc",
 		     "rockchip,rk3588";
+
+	aliases {
+		mmc1 = &sdmmc;
+	};
+
+	chosen {
+		environment-sd {
+			compatible = "barebox,environment";
+			device-path = &sdmmc, "partname:env";
+			status = "disabled";
+		};
+	};
+};
+
+&i2c5 {
+	/* I2C_GP */
+};
+
+&i2c7 {
+	/* I2C_PM */
+	status = "okay";
+};
+
+&sdmmc {
+	status = "okay";
+};
+
+&sfc {
+	/* SPI1 */
+};
+
+&spi3 {
+	/* SPI0 */
+	status = "okay";
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+	};
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
+};
+
+&uart1 {
+	/* SER3 */
+	status = "okay";
+};
+
+&uart2 {
+	/* SER1 */
+};
+
+&uart6 {
+	/* SER0 */
+	status = "okay";
+};
+
+&uart9 {
+	/* SER2 */
+	status = "okay";
 };

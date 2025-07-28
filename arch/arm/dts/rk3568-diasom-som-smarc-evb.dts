@@ -220,7 +220,7 @@
 };
 
 &pinctrl {
-	pinctrl-0 = <&gmac1m1_miim &rst_pins &gpio_pins>;
+	pinctrl-0 = <&gmac1m1_miim &rstout_pins &gpio_pins>;
 
 	gpio {
 		gpio_pins: gpio-pins {

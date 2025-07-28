@@ -568,7 +568,7 @@
 
 &pinctrl {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim &rst_pins>;
+	pinctrl-0 = <&gmac1m1_miim &rstout_pins>;
 
 	exp {
 		exp_pins: exp-pins {
@@ -579,7 +579,7 @@
 
 	mmc {
 
-		sdmmc0_vcc_pins: sdmmc0-vcc--pins {
+		sdmmc0_vcc_pins: sdmmc0-vcc-pins {
 			rockchip,pins =
 				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;	/* SDMMC0_PWR_EN */
 		};
@@ -642,7 +642,7 @@
 	};
 
 	rst {
-		rst_pins: rst-pins {
+		rstout_pins: rst-pins {
 			rockchip,pins =
 				<3 RK_PD4 RK_FUNC_GPIO &pcfg_output_high>;	/* RESET_OUT */
 		};

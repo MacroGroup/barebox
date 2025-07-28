@@ -50,7 +50,7 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
-	vcc_1v8_sys: vcc-1v8_sys-regulator {
+	vcc_1v8_sys: vcc-1v8-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8_sys";
 		regulator-always-on;
@@ -60,7 +60,7 @@
 		vin-supply = <&vcc_3v3_sys>;
 	};
 
-	vcc_3v3_sys: vcc-3v3_sys-regulator {
+	vcc_3v3_sys: vcc-3v3-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3_sys";
 		regulator-always-on;

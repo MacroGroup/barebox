@@ -15,6 +15,7 @@
 		     "rockchip,rk3568";
 
 	aliases {
+		camera0 = &imx415;
 		mmc1 = &sdmmc0;
 	};
 
@@ -24,6 +25,12 @@
 			device-path = &sdmmc0, "partname:env";
 			status = "disabled";
 		};
+	};
+
+	clk37m125: clk37m125 {
+		compatible = "fixed-clock";
+		clock-frequency = <37125000>;
+		#clock-cells = <0>;
 	};
 
 	hdmi-connector {
@@ -36,6 +43,18 @@
 				remote-endpoint = <&hdmi_connector_out>;
 			};
 		};
+	};
+
+	vcc_cam1: vcc-cam1-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi1_pwr>;
+		compatible = "regulator-fixed";
+		/* Used by RAW probe for cameras connected via I2C */
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_cam1";
+		startup-delay-us = <250000>;
 	};
 };
 
@@ -71,8 +90,29 @@
 	status = "okay";
 };
 
-&i2c6 {
-	// CAMERAS HERE
+&i2c7 {
+	imx415: camera@1a {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi1_rst>;
+		compatible = "sony,imx415";
+		reg = <0x1a>;
+		clocks = <&clk37m125>;
+		clock-names = "inck";
+		power-domains = <&power RK3568_PD_VI>;
+		reset-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
+		avdd-supply = <&vcc_cam1>;
+		dvdd-supply = <&vcc_cam1>;
+		ovdd-supply = <&vcc_cam1>;
+		status = "disabled";
+
+		port {
+			imx415_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx415_in>;
+				link-frequencies = /bits/ 64 <891000000>;
+			};
+		};
+	};
 };
 
 &i2s0_8ch {
@@ -85,7 +125,7 @@
 };
 
 &isp {
-//	status = "okay";
+	status = "okay";
 };
 
 &isp_mmu {
@@ -117,6 +157,12 @@
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			imx415_in: endpoint@0 {
+				reg = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx415_out>;
+			};
 		};
 
 		port@1 {
@@ -222,13 +268,23 @@
 &pinctrl {
 	pinctrl-0 = <&gmac1m1_miim &rstout_pins &gpio_pins>;
 
+	csi {
+		csi1_pwr: csi1-pwr-pins {
+			rockchip,pins =
+				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;		/* GPIO1/CAM1_PWR# */
+		};
+
+		csi1_rst: csi1-rst-pins {
+			rockchip,pins =
+				<1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;		/* GPIO3/CAM1_RST# */
+		};
+	};
+
 	gpio {
 		gpio_pins: gpio-pins {
 			rockchip,pins =
 				<1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO0 */
-				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO1 */
 				<3 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO2 */
-				<1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO3 */
 				<2 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO4 */
 				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO5 */
 				<3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO6 */

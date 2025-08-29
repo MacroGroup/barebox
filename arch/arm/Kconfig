@@ -376,6 +376,16 @@ config ARM_EXCEPTIONS
 	bool "enable arm exception handling support"
 	default y
 
+config ARM_EXCEPTIONS_PBL
+	select ARCH_HAS_DATA_ABORT_MASK_PBL
+	depends on CPU_V7 || CPU_V8
+	bool "enable arm exception handling support in PBL"
+	help
+	  Say yes here to enable exception handling in PBL. Note that the exception
+	  table has to be initialized by calling arm_pbl_init_exceptions(). This is
+	  done in barebox_pbl_start(). If you need exception handling earlier then
+	  you have to call arm_pbl_init_exceptions() earlier from your board code.
+
 config ARM_UNWIND
 	bool "enable stack unwinding support"
 	depends on AEABI
@@ -386,6 +396,18 @@ config ARM_UNWIND
 	  compiler. The resulting kernel image is slightly bigger but
 	  the performance is not affected. Currently, this feature
 	  only works with EABI compilers. If unsure say Y.
+
+config ARM_MMU_PERMISSIONS
+	bool "Map with extended RO/X permissions"
+	default y
+	help
+	  Enable this option to map readonly sections as readonly, executable
+	  sections as readonly/executable and the remainder of the SDRAM as
+	  read/write/non-executable.
+	  Traditionally barebox maps the whole SDRAM as read/write/execute.
+	  You get this behaviour by disabling this option which is meant as
+	  a debugging facility. It can go away once the extended permission
+	  settings are proved to work reliable.
 
 config ARM_SEMIHOSTING
 	bool "enable ARM semihosting support"

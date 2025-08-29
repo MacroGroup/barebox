@@ -40,7 +40,11 @@ static inline u32 unstuff_bits(const u32 *resp, int start, int size)
 	return __res & __mask;
 }
 
-LIST_HEAD(mci_list);
+static DEFINE_DEV_CLASS(mmc_class, "mmc");
+
+#define for_each_mci(mci) \
+	class_for_each_container_of_device(&mmc_class, mci, dev)
+
 
 /**
  * @file
@@ -3033,7 +3037,7 @@ static int mci_hw_detect(struct device *dev)
 {
 	struct mci *mci;
 
-	list_for_each_entry(mci, &mci_list, list) {
+	for_each_mci(mci) {
 		if (dev == mci->host->hw_dev)
 			return mci_detect_card(mci->host);
 	}
@@ -3101,7 +3105,9 @@ int mci_register(struct mci_host *host)
 		devinfo_add(&mci->dev, mci_info);
 
 	/* if enabled, probe the attached card immediately */
-	if (IS_ENABLED(CONFIG_MCI_STARTUP))
+	if (IS_ENABLED(CONFIG_MCI_STARTUP) ||
+	   (IS_ENABLED(CONFIG_MCI_STARTUP_NONREMOVABLE) &&
+	    (host->host_caps & MMC_CAP_NONREMOVABLE)))
 		mci_card_probe(mci);
 
 	if (!(host->caps2 & MMC_CAP2_NO_SD) && dev_of_node(host->hw_dev)) {
@@ -3111,7 +3117,7 @@ int mci_register(struct mci_host *host)
 		of_register_fixup(of_broken_cd_fixup, host);
 	}
 
-	list_add_tail(&mci->list, &mci_list);
+	class_add_device(&mmc_class, &mci->dev);
 
 	return 0;
 
@@ -3195,6 +3201,8 @@ void mci_of_parse_node(struct mci_host *host,
 		host->caps2 |= MMC_CAP2_NO_SD;
 	if (of_property_read_bool(np, "no-mmc"))
 		host->caps2 |= MMC_CAP2_NO_MMC;
+	if (of_property_read_bool(np, "non-removable"))
+                host->host_caps |= MMC_CAP_NONREMOVABLE;
 	if (IS_ENABLED(CONFIG_MCI_TUNING)) {
 		u32 drv_type;
 
@@ -3245,7 +3253,7 @@ struct mci *mci_get_device_by_name(const char *name)
 {
 	struct mci *mci;
 
-	list_for_each_entry(mci, &mci_list, list) {
+	for_each_mci(mci) {
 		if (!mci->cdevname)
 			continue;
 		if (!strcmp(mci->cdevname, name))
@@ -3259,7 +3267,7 @@ struct mci *mci_get_rpmb_dev(unsigned int id)
 {
 	struct mci *mci;
 
-	list_for_each_entry(mci, &mci_list, list) {
+	for_each_mci(mci) {
 		if (mci->host->of_id != id)
 			continue;
 

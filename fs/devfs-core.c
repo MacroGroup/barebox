@@ -226,6 +226,10 @@ int cdev_find_free_index(const char *basename)
 
 static struct cdev *cdev_get_master(struct cdev *cdev)
 {
+	/* mtd devices handle partitions themselves */
+	if (cdev->mtd)
+		return cdev;
+
 	while (cdev && cdev_is_partition(cdev))
 		cdev = cdev->master;
 
@@ -271,13 +275,28 @@ struct cdev *cdev_open_by_name(const char *name, unsigned long flags)
 	struct cdev *cdev;
 	int ret;
 
-	cdev = cdev_by_name(devpath_to_name(name));
+	cdev = cdev_by_name(name);
 	if (!cdev)
 		return NULL;
 
 	ret = cdev_open(cdev, flags);
 	if (ret)
 		return NULL;
+
+	return cdev;
+}
+
+struct cdev *cdev_open_by_path_name(const char *name, unsigned long flags)
+{
+	char *canon = canonicalize_path(AT_FDCWD, name);
+	struct cdev *cdev;
+
+	if (!canon)
+		return cdev_open_by_name(name, flags);
+
+	cdev = cdev_open_by_name(devpath_to_name(canon), flags);
+
+	free(canon);
 
 	return cdev;
 }
@@ -584,7 +603,7 @@ static struct cdev *__devfs_add_partition(struct cdev *cdev,
 	loff_t _end = end ? *end : 0;
 	static struct cdev *new;
 	struct cdev *overlap;
-	unsigned inherited_flags = 0;
+	unsigned inherited_flags;
 
 	if (cdev_by_name(partinfo->name))
 		return ERR_PTR(-EEXIST);
@@ -628,7 +647,7 @@ static struct cdev *__devfs_add_partition(struct cdev *cdev,
 	}
 
 	/* Filter flags that we want to pass along to children */
-	inherited_flags |= cdev->flags & DEVFS_WRITE_AUTOERASE;
+	inherited_flags = get_inheritable_devfs_flags(cdev);
 
 	if (IS_ENABLED(CONFIG_MTD) && cdev->mtd) {
 		struct mtd_info *mtd;

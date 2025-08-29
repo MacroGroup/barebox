@@ -59,6 +59,7 @@ void console_flush(void);
 int vprintf(const char *fmt, va_list args);
 
 int ctrlc(void);
+int ctrlc_non_interruptible(void);
 void ctrlc_handled(void);
 #else
 static inline int tstc(void)
@@ -91,13 +92,18 @@ static inline int ctrlc (void)
 	return 0;
 }
 
+static inline int ctrlc_non_interruptible(void)
+{
+	return 0;
+}
+
 static inline void ctrlc_handled(void)
 {
 }
 
 #endif
 
-char *size_human_readable(unsigned long long size);
+const char *size_human_readable(unsigned long long size);
 int readline(const char *prompt, char *buf, int len);
 
 #if (IN_PROPER && !defined(CONFIG_CONSOLE_NONE)) || \

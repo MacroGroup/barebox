@@ -23,7 +23,6 @@
 #include "mmu_32.h"
 
 #define PTRS_PER_PTE		(PGDIR_SIZE / PAGE_SIZE)
-#define ARCH_MAP_WRITECOMBINE	((unsigned)-1)
 
 static inline uint32_t *get_ttb(void)
 {
@@ -48,11 +47,18 @@ static inline void tlb_invalidate(void)
 	);
 }
 
+#define PTE_FLAGS_CACHED_V7_RWX (PTE_EXT_TEX(1) | PTE_BUFFERABLE | PTE_CACHEABLE | \
+				 PTE_EXT_AP_URW_SRW)
 #define PTE_FLAGS_CACHED_V7 (PTE_EXT_TEX(1) | PTE_BUFFERABLE | PTE_CACHEABLE | \
-			     PTE_EXT_AP_URW_SRW)
+			     PTE_EXT_AP_URW_SRW | PTE_EXT_XN)
+#define PTE_FLAGS_CACHED_RO_V7 (PTE_EXT_TEX(1) | PTE_BUFFERABLE | PTE_CACHEABLE | \
+			     PTE_EXT_APX | PTE_EXT_AP0 | PTE_EXT_AP1 | PTE_EXT_XN)
+#define PTE_FLAGS_CODE_V7 (PTE_EXT_TEX(1) | PTE_BUFFERABLE | PTE_CACHEABLE | \
+			     PTE_EXT_APX | PTE_EXT_AP0 | PTE_EXT_AP1)
 #define PTE_FLAGS_WC_V7 (PTE_EXT_TEX(1) | PTE_EXT_AP_URW_SRW | PTE_EXT_XN)
 #define PTE_FLAGS_UNCACHED_V7 (PTE_EXT_AP_URW_SRW | PTE_EXT_XN)
 #define PTE_FLAGS_CACHED_V4 (PTE_SMALL_AP_UNO_SRW | PTE_BUFFERABLE | PTE_CACHEABLE)
+#define PTE_FLAGS_CACHED_RO_V4 (PTE_SMALL_AP_UNO_SRO | PTE_CACHEABLE)
 #define PTE_FLAGS_UNCACHED_V4 PTE_SMALL_AP_UNO_SRW
 #define PGD_FLAGS_WC_V7 (PMD_SECT_TEX(1) | PMD_SECT_DEF_UNCACHED | \
 			 PMD_SECT_BUFFERABLE | PMD_SECT_XN)
@@ -209,7 +215,9 @@ static u32 pte_flags_to_pmd(u32 pte)
 		/* AP[2] */
 		pmd |= ((pte >> 9) & 0x1) << 15;
 	} else {
-		pmd |= PMD_SECT_AP_WRITE | PMD_SECT_AP_READ;
+		pmd |= PMD_SECT_AP_READ;
+		if (pte & PTE_SMALL_AP_MASK)
+			pmd |= PMD_SECT_AP_WRITE;
 	}
 
 	return pmd;
@@ -219,10 +227,16 @@ static uint32_t get_pte_flags(int map_type)
 {
 	if (cpu_architecture() >= CPU_ARCH_ARMv7) {
 		switch (map_type) {
+		case ARCH_MAP_CACHED_RWX:
+			return PTE_FLAGS_CACHED_V7_RWX;
+		case ARCH_MAP_CACHED_RO:
+			return PTE_FLAGS_CACHED_RO_V7;
 		case MAP_CACHED:
 			return PTE_FLAGS_CACHED_V7;
 		case MAP_UNCACHED:
 			return PTE_FLAGS_UNCACHED_V7;
+		case MAP_CODE:
+			return PTE_FLAGS_CODE_V7;
 		case ARCH_MAP_WRITECOMBINE:
 			return PTE_FLAGS_WC_V7;
 		case MAP_FAULT:
@@ -231,6 +245,10 @@ static uint32_t get_pte_flags(int map_type)
 		}
 	} else {
 		switch (map_type) {
+		case ARCH_MAP_CACHED_RO:
+		case MAP_CODE:
+			return PTE_FLAGS_CACHED_RO_V4;
+		case ARCH_MAP_CACHED_RWX:
 		case MAP_CACHED:
 			return PTE_FLAGS_CACHED_V4;
 		case MAP_UNCACHED:
@@ -248,7 +266,8 @@ static uint32_t get_pmd_flags(int map_type)
 	return pte_flags_to_pmd(get_pte_flags(map_type));
 }
 
-static void __arch_remap_range(void *_virt_addr, phys_addr_t phys_addr, size_t size, unsigned map_type)
+static void __arch_remap_range(void *_virt_addr, phys_addr_t phys_addr, size_t size,
+			       unsigned map_type, bool force_pages)
 {
 	u32 virt_addr = (u32)_virt_addr;
 	u32 pte_flags, pmd_flags;
@@ -260,7 +279,11 @@ static void __arch_remap_range(void *_virt_addr, phys_addr_t phys_addr, size_t s
 	pte_flags = get_pte_flags(map_type);
 	pmd_flags = pte_flags_to_pmd(pte_flags);
 
+	pr_debug("%s: 0x%08x 0x%08x type %d\n", __func__, virt_addr, size, map_type);
+
 	size = PAGE_ALIGN(size);
+	if (!size)
+		return;
 
 	while (size) {
 		const bool pgdir_size_aligned = IS_ALIGNED(virt_addr, PGDIR_SIZE);
@@ -269,7 +292,7 @@ static void __arch_remap_range(void *_virt_addr, phys_addr_t phys_addr, size_t s
 
 		if (size >= PGDIR_SIZE && pgdir_size_aligned &&
 		    IS_ALIGNED(phys_addr, PGDIR_SIZE) &&
-		    !pgd_type_table(*pgd)) {
+		    !pgd_type_table(*pgd) && !force_pages) {
 			u32 val;
 			/*
 			 * TODO: Add code to discard a page table and
@@ -340,14 +363,17 @@ static void __arch_remap_range(void *_virt_addr, phys_addr_t phys_addr, size_t s
 
 	tlb_invalidate();
 }
-static void early_remap_range(u32 addr, size_t size, unsigned map_type)
+
+static void early_remap_range(u32 addr, size_t size, unsigned map_type, bool force_pages)
 {
-	__arch_remap_range((void *)addr, addr, size, map_type);
+	__arch_remap_range((void *)addr, addr, size, map_type, force_pages);
 }
 
 int arch_remap_range(void *virt_addr, phys_addr_t phys_addr, size_t size, unsigned map_type)
 {
-	__arch_remap_range(virt_addr, phys_addr, size, map_type);
+	map_type = arm_mmu_maybe_skip_permissions(map_type);
+
+	__arch_remap_range(virt_addr, phys_addr, size, map_type, false);
 
 	if (map_type == MAP_UNCACHED)
 		dma_inv_range(virt_addr, size);
@@ -515,7 +541,7 @@ static void create_guard_page(void)
 /*
  * Map vectors and zero page
  */
-static void vectors_init(void)
+void setup_trap_pages(void)
 {
 	create_guard_page();
 
@@ -552,7 +578,6 @@ static void vectors_init(void)
  */
 void __mmu_init(bool mmu_on)
 {
-	struct memory_bank *bank;
 	uint32_t *ttb = get_ttb();
 
 	// TODO: remap writable only while remapping?
@@ -571,29 +596,6 @@ void __mmu_init(bool mmu_on)
 					ttb);
 
 	pr_debug("ttb: 0x%p\n", ttb);
-
-	/*
-	 * Early mmu init will have mapped everything but the initial memory area
-	 * (excluding final OPTEE_SIZE bytes) uncached. We have now discovered
-	 * all memory banks, so let's map all pages, excluding reserved memory areas,
-	 * cacheable and executable.
-	 */
-	for_each_memory_bank(bank) {
-		struct resource *rsv;
-		resource_size_t pos;
-
-		pos = bank->start;
-
-		/* Skip reserved regions */
-		for_each_reserved_region(bank, rsv) {
-			remap_range((void *)pos, rsv->start - pos, MAP_CACHED);
-			pos = rsv->end + 1;
-		}
-
-		remap_range((void *)pos, bank->start + bank->size - pos, MAP_CACHED);
-	}
-
-	vectors_init();
 }
 
 /*
@@ -614,9 +616,10 @@ void *dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *dma_ha
 	return dma_alloc_map(dev, size, dma_handle, ARCH_MAP_WRITECOMBINE);
 }
 
-void mmu_early_enable(unsigned long membase, unsigned long memsize)
+void mmu_early_enable(unsigned long membase, unsigned long memsize, unsigned long barebox_start)
 {
 	uint32_t *ttb = (uint32_t *)arm_mem_ttb(membase + memsize);
+	unsigned long barebox_size, optee_start;
 
 	pr_debug("enabling MMU, ttb @ 0x%p\n", ttb);
 
@@ -625,11 +628,7 @@ void mmu_early_enable(unsigned long membase, unsigned long memsize)
 
 	set_ttbr(ttb);
 
-	/* For the XN bit to take effect, we can't be using DOMAIN_MANAGER. */
-	if (cpu_architecture() >= CPU_ARCH_ARMv7)
-		set_domain(DOMAIN_CLIENT);
-	else
-		set_domain(DOMAIN_MANAGER);
+	set_domain(DOMAIN_CLIENT);
 
 	/*
 	 * This marks the whole address space as uncachable as well as
@@ -638,9 +637,27 @@ void mmu_early_enable(unsigned long membase, unsigned long memsize)
 	create_flat_mapping();
 
 	/* maps main memory as cachable */
-	early_remap_range(membase, memsize - OPTEE_SIZE, MAP_CACHED);
-	early_remap_range(membase + memsize - OPTEE_SIZE, OPTEE_SIZE, MAP_UNCACHED);
-	early_remap_range(PAGE_ALIGN_DOWN((uintptr_t)_stext), PAGE_ALIGN(_etext - _stext), MAP_CACHED);
+	optee_start = membase + memsize - OPTEE_SIZE;
+	barebox_size = optee_start - barebox_start;
+
+	/*
+	 * map the bulk of the memory as sections to avoid allocating too many page tables
+	 * at this early stage
+	 */
+	early_remap_range(membase, barebox_start - membase, ARCH_MAP_CACHED_RWX, false);
+	/*
+	 * Map the remainder of the memory explicitly with two level page tables. This is
+	 * the place where barebox proper ends at. In barebox proper we'll remap the code
+	 * segments readonly/executable and the ro segments readonly/execute never. For this
+	 * we need the memory being mapped pagewise. We can't do the split up from section
+	 * wise mapping to pagewise mapping later because that would require us to do
+	 * a break-before-make sequence which we can't do when barebox proper is running
+	 * at the location being remapped.
+	 */
+	early_remap_range(barebox_start, barebox_size, ARCH_MAP_CACHED_RWX, true);
+	early_remap_range(optee_start, OPTEE_SIZE, MAP_UNCACHED, false);
+	early_remap_range(PAGE_ALIGN_DOWN((uintptr_t)_stext), PAGE_ALIGN(_etext - _stext),
+			  ARCH_MAP_CACHED_RWX, false);
 
 	__mmu_cache_on();
 }

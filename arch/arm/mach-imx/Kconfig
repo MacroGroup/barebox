@@ -46,6 +46,12 @@ config ARCH_IMX_SCRATCHMEM
 	def_bool y
 	depends on ARCH_IMX8M || ARCH_IMX9
 
+config ARCH_IMX_TZASC
+	bool
+	depends on ARCH_IMX6 || ARCH_IMX8M
+	default y if PBL_OPTEE
+	select ARM_EXCEPTIONS_PBL
+
 #
 # PMIC configuration found on i.MX51 Babbadge board
 #
@@ -386,7 +392,6 @@ config MACH_EMBEST_RIOTBOARD
 config MACH_TORADEX_COLIBRI_IMX6
 	bool "Toradex Colibri iMX6"
 	select ARCH_IMX6
-	select ARM_USE_COMPRESSED_DTB
 
 config MACH_SABRELITE
 	bool "Freescale i.MX6 Sabre Lite"
@@ -860,9 +865,9 @@ config HAB_CERTS_ENV
 	depends on HAB
 	bool "Specify certificates in environment"
 	help
-	  If this option is enabled the pathes to the HAB certificates are
+	  If this option is enabled the paths to the HAB certificates are
 	  taken from environment variables which allows for better integration
-	  with build systems. With this option disabled the pathes can be
+	  with build systems. With this option disabled the paths can be
 	  specified below.
 
 	  The environment variables have the same name as the corresponding

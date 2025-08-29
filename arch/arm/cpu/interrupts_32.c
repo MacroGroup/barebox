@@ -12,6 +12,7 @@
 #include <asm/ptrace.h>
 #include <asm/barebox-arm.h>
 #include <asm/unwind.h>
+#include <asm/system_info.h>
 #include <init.h>
 
 /* Avoid missing prototype warning, called from assembly */
@@ -61,7 +62,7 @@ void show_regs (struct pt_regs *regs)
 		fast_interrupts_enabled (regs) ? "on" : "off",
 		processor_modes[processor_mode (regs)],
 		thumb_mode (regs) ? " (T)" : "");
-#ifdef CONFIG_ARM_UNWIND
+#if defined CONFIG_ARM_UNWIND && IN_PROPER
 	unwind_backtrace(regs);
 #endif
 }
@@ -110,16 +111,10 @@ void do_prefetch_abort (struct pt_regs *pt_regs)
 
 static const char *data_abort_reason(ulong far)
 {
-	ulong guard_page;
-
 	if (far < PAGE_SIZE)
 		return "NULL pointer dereference";
-
-	if (IS_ENABLED(CONFIG_STACK_GUARD_PAGE)) {
-		guard_page = arm_mem_guard_page_get();
-		if (guard_page <= far && far < guard_page + PAGE_SIZE)
-			return "stack overflow";
-	}
+	if (inside_stack_guard_page(far))
+		return "stack overflow";
 
 	return "paging request";
 }
@@ -181,3 +176,14 @@ int data_abort_unmask(void)
 
 	return arm_data_abort_occurred != 0;
 }
+
+#if IS_ENABLED(CONFIG_ARM_EXCEPTIONS_PBL)
+void arm_pbl_init_exceptions(void)
+{
+	if (cpu_architecture() < CPU_ARCH_ARMv7)
+		return;
+
+	set_vbar((unsigned long)__exceptions_start);
+	arm_fixup_vectors();
+}
+#endif

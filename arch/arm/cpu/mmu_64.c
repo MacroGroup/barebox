@@ -24,8 +24,6 @@
 
 #include "mmu_64.h"
 
-#define ARCH_MAP_WRITECOMBINE  ((unsigned)-1)
-
 static uint64_t *get_ttb(void)
 {
 	return (uint64_t *)get_ttbr(current_el());
@@ -130,7 +128,7 @@ static void split_block(uint64_t *pte, int level)
 }
 
 static void create_sections(uint64_t virt, uint64_t phys, uint64_t size,
-			    uint64_t attr)
+			    uint64_t attr, bool force_pages)
 {
 	uint64_t *ttb = get_ttb();
 	uint64_t block_size;
@@ -147,18 +145,24 @@ static void create_sections(uint64_t virt, uint64_t phys, uint64_t size,
 	attr &= ~PTE_TYPE_MASK;
 
 	size = PAGE_ALIGN(size);
+	if (!size)
+		return;
 
 	while (size) {
 		table = ttb;
 		for (level = 0; level < 4; level++) {
+			bool block_aligned;
 			block_shift = level2shift(level);
 			idx = (addr & level2mask(level)) >> block_shift;
 			block_size = (1ULL << block_shift);
 
 			pte = table + idx;
 
-			if (size >= block_size && IS_ALIGNED(addr, block_size) &&
-			    IS_ALIGNED(phys, block_size)) {
+			block_aligned = size >= block_size &&
+				        IS_ALIGNED(addr, block_size) &&
+				        IS_ALIGNED(phys, block_size);
+
+			if ((force_pages && level == 3) || (!force_pages && block_aligned)) {
 				type = (level == 3) ?
 					PTE_TYPE_PAGE : PTE_TYPE_BLOCK;
 
@@ -287,31 +291,41 @@ static unsigned long get_pte_attrs(unsigned flags)
 {
 	switch (flags) {
 	case MAP_CACHED:
-		return CACHED_MEM;
+		return attrs_xn() | CACHED_MEM;
 	case MAP_UNCACHED:
 		return attrs_xn() | UNCACHED_MEM;
 	case MAP_FAULT:
 		return 0x0;
 	case ARCH_MAP_WRITECOMBINE:
 		return attrs_xn() | MEM_ALLOC_WRITECOMBINE;
+	case MAP_CODE:
+		return CACHED_MEM | PTE_BLOCK_RO;
+	case ARCH_MAP_CACHED_RO:
+		return attrs_xn() | CACHED_MEM | PTE_BLOCK_RO;
+	case ARCH_MAP_CACHED_RWX:
+		return CACHED_MEM;
 	default:
 		return ~0UL;
 	}
 }
 
-static void early_remap_range(uint64_t addr, size_t size, unsigned flags)
+static void early_remap_range(uint64_t addr, size_t size, unsigned flags, bool force_pages)
 {
 	unsigned long attrs = get_pte_attrs(flags);
 
 	if (WARN_ON(attrs == ~0UL))
 		return;
 
-	create_sections(addr, addr, size, attrs);
+	create_sections(addr, addr, size, attrs, force_pages);
 }
 
 int arch_remap_range(void *virt_addr, phys_addr_t phys_addr, size_t size, unsigned flags)
 {
-	unsigned long attrs = get_pte_attrs(flags);
+	unsigned long attrs;
+
+	flags = arm_mmu_maybe_skip_permissions(flags);
+
+	attrs = get_pte_attrs(flags);
 
 	if (attrs == ~0UL)
 		return -EINVAL;
@@ -319,7 +333,7 @@ int arch_remap_range(void *virt_addr, phys_addr_t phys_addr, size_t size, unsign
 	if (flags != MAP_CACHED)
 		flush_cacheable_pages(virt_addr, size);
 
-	create_sections((uint64_t)virt_addr, phys_addr, (uint64_t)size, attrs);
+	create_sections((uint64_t)virt_addr, phys_addr, (uint64_t)size, attrs, false);
 
 	return 0;
 }
@@ -345,13 +359,20 @@ static void create_guard_page(void)
 	pr_debug("Created guard page\n");
 }
 
+void setup_trap_pages(void)
+{
+	/* Vectors are already registered by aarch64_init_vectors */
+	/* Make zero page faulting to catch NULL pointer derefs */
+	zero_page_faulting();
+	create_guard_page();
+}
+
 /*
  * Prepare MMU for usage enable it.
  */
 void __mmu_init(bool mmu_on)
 {
 	uint64_t *ttb = get_ttb();
-	struct memory_bank *bank;
 
 	// TODO: remap writable only while remapping?
 	// TODO: What memtype for ttb when barebox is EFI loader?
@@ -365,25 +386,6 @@ void __mmu_init(bool mmu_on)
 		 *   the ttb will get corrupted.
 		 */
 		pr_crit("Can't request SDRAM region for ttb at %p\n", ttb);
-
-	for_each_memory_bank(bank) {
-		struct resource *rsv;
-		resource_size_t pos;
-
-		pos = bank->start;
-
-		/* Skip reserved regions */
-		for_each_reserved_region(bank, rsv) {
-			remap_range((void *)pos, rsv->start - pos, MAP_CACHED);
-			pos = rsv->end + 1;
-		}
-
-		remap_range((void *)pos, bank->start + bank->size - pos, MAP_CACHED);
-	}
-
-	/* Make zero page faulting to catch NULL pointer derefs */
-	zero_page_faulting();
-	create_guard_page();
 }
 
 void mmu_disable(void)
@@ -428,17 +430,18 @@ static void init_range(size_t total_level0_tables)
 	uint64_t addr = 0;
 
 	while (total_level0_tables--) {
-		early_remap_range(addr, L0_XLAT_SIZE, MAP_UNCACHED);
+		early_remap_range(addr, L0_XLAT_SIZE, MAP_UNCACHED, false);
 		split_block(ttb, 0);
 		addr += L0_XLAT_SIZE;
 		ttb++;
 	}
 }
 
-void mmu_early_enable(unsigned long membase, unsigned long memsize)
+void mmu_early_enable(unsigned long membase, unsigned long memsize, unsigned long barebox_start)
 {
 	int el;
 	u64 optee_membase;
+	unsigned long barebox_size;
 	unsigned long ttb = arm_mem_ttb(membase + memsize);
 
 	if (get_cr() & CR_M)
@@ -459,14 +462,26 @@ void mmu_early_enable(unsigned long membase, unsigned long memsize)
 	 */
 	init_range(2);
 
-	early_remap_range(membase, memsize, MAP_CACHED);
+	early_remap_range(membase, memsize, ARCH_MAP_CACHED_RWX, false);
 
-	if (optee_get_membase(&optee_membase))
+	if (optee_get_membase(&optee_membase)) {
                 optee_membase = membase + memsize - OPTEE_SIZE;
 
-	early_remap_range(optee_membase, OPTEE_SIZE, MAP_FAULT);
+		barebox_size = optee_membase - barebox_start;
 
-	early_remap_range(PAGE_ALIGN_DOWN((uintptr_t)_stext), PAGE_ALIGN(_etext - _stext), MAP_CACHED);
+		early_remap_range(optee_membase - barebox_size, barebox_size,
+			     ARCH_MAP_CACHED_RWX, true);
+	} else {
+		barebox_size = membase + memsize - barebox_start;
+
+		early_remap_range(membase + memsize - barebox_size, barebox_size,
+			     ARCH_MAP_CACHED_RWX, true);
+	}
+
+	early_remap_range(optee_membase, OPTEE_SIZE, MAP_FAULT, false);
+
+	early_remap_range(PAGE_ALIGN_DOWN((uintptr_t)_stext), PAGE_ALIGN(_etext - _stext),
+			  ARCH_MAP_CACHED_RWX, false);
 
 	mmu_enable();
 }

@@ -26,7 +26,7 @@
 #include <linux/stringify.h>
 #include <pbl/handoff-data.h>
 
-#define ARM_EARLY_PAGETABLE_SIZE	SZ_64K
+#define ARM_EARLY_PAGETABLE_SIZE	SZ_256K
 
 #define handoff_add_arm_machine(machine)				\
 	do {								\
@@ -48,6 +48,14 @@ unsigned long arm_mem_endmem_get(void);
 void arm_fixup_vectors(void);
 #else
 static inline void arm_fixup_vectors(void)
+{
+}
+#endif
+
+#if IS_ENABLED(CONFIG_ARM_EXCEPTIONS_PBL)
+void arm_pbl_init_exceptions(void);
+#else
+static inline void arm_pbl_init_exceptions(void)
 {
 }
 #endif
@@ -157,6 +165,18 @@ static inline const void *arm_mem_scratch_get(void)
 static inline unsigned long arm_mem_guard_page_get(void)
 {
 	return arm_mem_guard_page(arm_mem_endmem_get());
+}
+
+static inline bool inside_stack_guard_page(ulong addr)
+{
+	if (IS_ENABLED(CONFIG_STACK_GUARD_PAGE) && IN_PROPER) {
+		ulong guard_page = arm_mem_guard_page_get();
+
+		if (guard_page <= addr && addr < guard_page + PAGE_SIZE)
+			return true;
+	}
+
+	return false;
 }
 
 /*

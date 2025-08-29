@@ -15,7 +15,8 @@
 		     "rockchip,rk3568";
 
 	aliases {
-		camera0 = &imx415;
+		camera0 = &imx335;
+		camera1 = &imx415;
 		mmc1 = &sdmmc0;
 	};
 
@@ -91,7 +92,26 @@
 };
 
 &i2c7 {
-	imx415: camera@1a {
+	imx335: camera-0@1a {
+		compatible = "sony,imx335";
+		reg = <0x1a>;
+		clocks = <&xin24m>;
+		power-domains = <&power RK3568_PD_VI>;
+		avdd-supply = <&vcc_cam1>;
+		dvdd-supply = <&vcc_cam1>;
+		ovdd-supply = <&vcc_cam1>;
+		status = "disabled";
+
+		port {
+			imx335_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx335_in>;
+				link-frequencies = /bits/ 64 <594000000>;
+			};
+		};
+	};
+
+	imx415: camera-1@1a {
 		pinctrl-names = "default";
 		pinctrl-0 = <&csi1_rst>;
 		compatible = "sony,imx415";
@@ -158,8 +178,14 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			imx415_in: endpoint@0 {
+			imx335_in: endpoint@0 {
 				reg = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx335_out>;
+			};
+
+			imx415_in: endpoint@1 {
+				reg = <1>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&imx415_out>;
 			};

@@ -93,10 +93,13 @@
 
 &i2c7 {
 	imx335: camera-0@1a {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi1_rst>;
 		compatible = "sony,imx335";
 		reg = <0x1a>;
 		clocks = <&xin24m>;
 		power-domains = <&power RK3568_PD_VI>;
+		reset-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
 		avdd-supply = <&vcc_cam1>;
 		dvdd-supply = <&vcc_cam1>;
 		ovdd-supply = <&vcc_cam1>;

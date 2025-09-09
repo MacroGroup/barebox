@@ -943,7 +943,7 @@
 };
 
 &vp2 {
-	status = "disbled";
+	status = "disabled";
 
 	vp2_out_lvds: endpoint@ROCKCHIP_VOP2_EP_LVDS0 {
 		reg = <ROCKCHIP_VOP2_EP_LVDS0>;

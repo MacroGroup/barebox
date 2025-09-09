@@ -52,6 +52,7 @@
 		compatible = "regulator-fixed";
 		/* Used by RAW probe for cameras connected via I2C */
 		regulator-boot-on;
+		/* Temporary until fixed in adapter */
 		enable-active-high;
 		gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_cam1";

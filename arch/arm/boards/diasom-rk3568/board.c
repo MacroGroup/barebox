@@ -133,7 +133,10 @@ static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 
 static int diasom_rk3568_can_fixup(struct device_node *root, void *unused)
 {
-	// TODO: Patch CAN nodes
+	struct device_node *node;
+
+	for_each_compatible_node_from(node, root, NULL, "rockchip,rk3568v2-canfd")
+		of_property_write_string(node, "compatible", "rockchip,rk3568v3-canfd");
 
 	return 0;
 }

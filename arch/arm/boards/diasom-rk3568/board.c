@@ -234,30 +234,33 @@ static bool __init diasom_rk3568_load_overlay(const void *ovl)
 
 static int __init diasom_rk3568_init(void)
 {
-	struct device_node *otp;
 	bool do_probe = false;
-	char ver = 0;
 	int ret = 0;
 
-	otp = of_find_node_by_name_address(NULL, "nvmem@fe38c000");
-	if (otp) {
-		if (!of_device_ensure_probed(otp)) {
-			struct device_node *cpuver;
-			cpuver = of_find_node_by_name_address(NULL, "cpu-info");
-			if (cpuver) {
-				char *val = nvmem_cell_get_and_read(cpuver, "cpu-version", sizeof(char));
-				ver = *val;
-				free(val);
+	if (of_machine_is_compatible("rockchip,rk3568")) {
+		struct device_node *otp = of_find_node_by_name_address(NULL, "nvmem@fe38c000");
+		char ver = 0;
+
+		if (otp) {
+			if (!of_device_ensure_probed(otp)) {
+				struct device_node *cpuver;
+				cpuver = of_find_node_by_name_address(NULL, "cpu-info");
+				if (cpuver) {
+					char *val = nvmem_cell_get_and_read(cpuver, "cpu-version", sizeof(char));
+					ver = *val;
+					free(val);
+				}
 			}
 		}
-	}
 
-	if (ver) {
-		pr_info("CPU version 0x%02x detected.\n", ver);
-		if (ver > 2)
-			of_register_fixup(diasom_rk3568_can_fixup, NULL);
+		if (ver) {
+			pr_info("CPU version 0x%02x detected.\n", ver);
+			if (ver > 2)
+				of_register_fixup(diasom_rk3568_can_fixup, NULL);
+		} else
+			pr_warn("CPU version Unknown!\n");
 	} else
-		pr_warn("CPU version Unknown!\n");
+		return 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som")) {
 		struct i2c_adapter *adapter =

@@ -30,6 +30,11 @@
 		};
 	};
 
+	cpu-info {
+		nvmem-cells = <&otp_cpu_version>;
+		nvmem-cell-names = "cpu-version";
+	};
+
 	adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;

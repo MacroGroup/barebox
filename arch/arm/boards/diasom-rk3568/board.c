@@ -11,6 +11,7 @@
 #include <init.h>
 #include <machine_id.h>
 #include <i2c/i2c.h>
+#include <linux/nvmem-consumer.h>
 #include <mach/rockchip/bbu.h>
 
 static int module_revision = -1;
@@ -120,12 +121,19 @@ static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(7);
 	if (!adapter)
 		return -ENODEV;
-
+	
 	if (!diasom_rk3568_probe_i2c(adapter, 0x30)) {
 		pr_info("FPD-Link deserializer detected.\n");
 		of_register_set_status_fixup("camera3", true);
 	} else
 		diasom_rk3568_sony_camera_detect(adapter, "camera2", "camera5");
+	
+	return 0;
+}
+
+static int diasom_rk3568_can_fixup(struct device_node *root, void *unused)
+{
+	// TODO: Patch CAN nodes
 
 	return 0;
 }
@@ -225,14 +233,28 @@ static int __init diasom_rk3568_init(void)
 {
 	struct device_node *otp;
 	bool do_probe = false;
+	char ver = 0;
 	int ret = 0;
 
 	otp = of_find_node_by_name_address(NULL, "nvmem@fe38c000");
 	if (otp) {
 		if (!of_device_ensure_probed(otp)) {
-			// TODO: Get otp_cpu_version and patch CAN nodes
+			struct device_node *cpuver;
+			cpuver = of_find_node_by_name_address(NULL, "cpu-info");
+			if (cpuver) {
+				char *val = nvmem_cell_get_and_read(cpuver, "cpu-version", sizeof(char));
+				ver = *val;
+				free(val);
+			}
 		}
 	}
+
+	if (ver) {
+		pr_info("CPU version 0x%02x detected.\n", ver);
+		if (ver > 2)
+			of_register_fixup(diasom_rk3568_can_fixup, NULL);
+	} else
+		pr_warn("CPU version Unknown!\n");
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som")) {
 		struct i2c_adapter *adapter =

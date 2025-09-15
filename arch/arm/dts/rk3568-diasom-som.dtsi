@@ -392,6 +392,13 @@
 	};
 };
 
+&otp {
+	otp_cpu_version: cpu-version@8 {
+		reg = <0x08 0x01>;
+		bits = <0x03 0x03>;
+	};
+};
+
 &pmu_io_domains {
 	pmuio1-supply = <&vcc3v3_pmu>;
 	pmuio2-supply = <&vcc3v3_pmu>;

@@ -223,8 +223,16 @@ static bool __init diasom_rk3568_load_overlay(const void *ovl)
 
 static int __init diasom_rk3568_init(void)
 {
+	struct device_node *otp;
 	bool do_probe = false;
 	int ret = 0;
+
+	otp = of_find_node_by_name_address(NULL, "nvmem@fe38c000");
+	if (otp) {
+		if (!of_device_ensure_probed(otp)) {
+			// TODO: Get otp_cpu_version and patch CAN nodes
+		}
+	}
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som")) {
 		struct i2c_adapter *adapter =

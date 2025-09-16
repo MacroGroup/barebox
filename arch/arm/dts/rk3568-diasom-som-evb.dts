@@ -904,53 +904,6 @@
 	};
 };
 
-&vpu {
-	status = "okay";
-};
-
-&vdpu_mmu {
-	status = "okay";
-};
-
-&vepu {
-	status = "okay";
-};
-
-&vepu_mmu {
-	status = "okay";
-};
-
-&vop {
-	status = "okay";
-};
-
-&vop_mmu {
-	status = "okay";
-};
-
-&vp0 {
-	vp0_out_hdmi: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
-		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
-		remote-endpoint = <&hdmi_in_vp0>;
-	};
-};
-
-&vp1 {
-	vp1_out_dsi0: endpoint@ROCKCHIP_VOP2_EP_MIPI0 {
-		reg = <ROCKCHIP_VOP2_EP_MIPI0>;
-		remote-endpoint = <&dsi0_in_vp1>;
-	};
-};
-
-&vp2 {
-	status = "disabled";
-
-	vp2_out_lvds: endpoint@ROCKCHIP_VOP2_EP_LVDS0 {
-		reg = <ROCKCHIP_VOP2_EP_LVDS0>;
-		remote-endpoint = <&lvds_in_vp2>;
-	};
-};
-
 &uart3 {
 	pinctrl-0 = <&uart3m1_xfer &uart3m0_ctsn &uart3m0_rtsn>;
 	status = "okay";
@@ -1028,6 +981,53 @@
 
 &usb2phy1_host {
 	status = "okay";
+};
+
+&vpu {
+	status = "okay";
+};
+
+&vdpu_mmu {
+	status = "okay";
+};
+
+&vepu {
+	status = "okay";
+};
+
+&vepu_mmu {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vp0 {
+	vp0_out_hdmi: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
+		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
+		remote-endpoint = <&hdmi_in_vp0>;
+	};
+};
+
+&vp1 {
+	vp1_out_dsi0: endpoint@ROCKCHIP_VOP2_EP_MIPI0 {
+		reg = <ROCKCHIP_VOP2_EP_MIPI0>;
+		remote-endpoint = <&dsi0_in_vp1>;
+	};
+};
+
+&vp2 {
+	status = "disabled";
+
+	vp2_out_lvds: endpoint@ROCKCHIP_VOP2_EP_LVDS0 {
+		reg = <ROCKCHIP_VOP2_EP_LVDS0>;
+		remote-endpoint = <&lvds_in_vp2>;
+	};
 };
 
 &pinctrl {

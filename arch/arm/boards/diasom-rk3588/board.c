@@ -63,11 +63,7 @@ static void __init diasom_rk3588_check_adc(void)
 {
 	struct device *aio_dev;
 	struct i2c_adapter *adapter;
-	int val = 0, ret;
-
-	if (!of_machine_is_compatible("diasom,ds-rk3588-btb") &&
-	    !of_machine_is_compatible("diasom,ds-rk3588-smarc"))
-			return;
+	int val = 0;
 
 	adapter = diasom_rk3588_i2c_get_adapter(2);
 	if (!adapter) {
@@ -88,8 +84,7 @@ static void __init diasom_rk3588_check_adc(void)
 		return;
 	}
 
-	ret = diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val);
-	if (ret)
+	if (diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val))
 		return;
 
 	if (val < 50) {
@@ -97,8 +92,7 @@ static void __init diasom_rk3588_check_adc(void)
 		globalvar_add_simple("board.recovery", "true");
 	}
 
-	ret = diasom_rk3588_get_adc_value("aiodev0.in_value7_mV", &val);
-	if (ret)
+	if (diasom_rk3588_get_adc_value("aiodev0.in_value7_mV", &val))
 		return;
 
 	if (val > 150 && val < 350) {

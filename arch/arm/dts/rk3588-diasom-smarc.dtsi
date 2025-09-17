@@ -105,6 +105,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc0_vcc_pins>;
 		compatible = "regulator-fixed";
+		enable-active-high;
 		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_sdmmc0";
 		regulator-boot-on;

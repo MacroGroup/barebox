@@ -59,7 +59,7 @@ static int __init diasom_rk3588_get_adc_value(const char *name, int *val)
 	return ret;
 }
 
-static int __init diasom_rk3588_check_adc(void)
+static void __init diasom_rk3588_check_adc(void)
 {
 	struct device *aio_dev;
 	struct i2c_adapter *adapter;
@@ -67,30 +67,30 @@ static int __init diasom_rk3588_check_adc(void)
 
 	if (!of_machine_is_compatible("diasom,ds-rk3588-btb") &&
 	    !of_machine_is_compatible("diasom,ds-rk3588-smarc"))
-			return 0;
+			return;
 
 	adapter = diasom_rk3588_i2c_get_adapter(2);
 	if (!adapter) {
 		pr_err("Could get I2C2 bus. "
 		       "Probably this is not Diasom board!\n");
-		return -ENODEV;
+		return;
 	}
 
 	if (diasom_rk3588_probe_i2c(adapter, 0x42)) {
 		pr_err("Could get I2C2 device. "
 		       "Probably this is not Diasom board!\n");
-		return -ENODEV;
+		return;
 	}
 
 	aio_dev = of_device_enable_and_register_by_name("adc@fec10000");
 	if (!aio_dev) {
 		pr_err("Unable to get ADC device!\n");
-		return -ENODEV;
+		return;
 	}
 
 	ret = diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val);
 	if (ret)
-		return ret;
+		return;
 
 	if (val < 50) {
 		pr_info("Recovery key pressed, enforce gadget mode...\n");
@@ -99,17 +99,14 @@ static int __init diasom_rk3588_check_adc(void)
 
 	ret = diasom_rk3588_get_adc_value("aiodev0.in_value7_mV", &val);
 	if (ret)
-		return ret;
+		return;
 
 	if (val > 150 && val < 350) {
 		som_revision = 0;
 	} else {
 		pr_warn("Unhandled revision ADC value: %i!\n", val);
 	}
-
-	return 0;
 }
-device_initcall(diasom_rk3588_check_adc);
 
 static int __init diasom_rk3588_machine_id(void)
 {
@@ -132,9 +129,11 @@ static int __init diasom_rk3588_machine_id(void)
 }
 of_populate_initcall(diasom_rk3588_machine_id);
 
-static int __init diasom_rk3588_late_init(void)
+static int __init diasom_rk3588_init(void)
 {
 	if (of_machine_is_compatible("diasom,ds-rk3588-btb")) {
+		diasom_rk3588_check_adc();
+
 		switch (som_revision) {
 		case 0:
 			break;
@@ -145,6 +144,8 @@ static int __init diasom_rk3588_late_init(void)
 
 		pr_info("BTB revision: %i\n", som_revision);
 	} else if (of_machine_is_compatible("diasom,ds-rk3588-smarc")) {
+		diasom_rk3588_check_adc();
+
 		switch (som_revision) {
 			case 0:
 				break;
@@ -158,7 +159,7 @@ static int __init diasom_rk3588_late_init(void)
 
 	return 0;
 }
-late_initcall(diasom_rk3588_late_init);
+device_initcall(diasom_rk3588_init);
 
 static int __init diasom_rk3588_probe(struct device *dev)
 {

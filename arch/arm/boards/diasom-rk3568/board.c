@@ -4,7 +4,6 @@
 #include <bootsource.h>
 #include <common.h>
 #include <aiodev.h>
-#include <deep-probe.h>
 #include <environment.h>
 #include <envfs.h>
 #include <globalvar.h>

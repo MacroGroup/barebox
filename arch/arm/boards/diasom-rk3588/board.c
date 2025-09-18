@@ -84,12 +84,11 @@ static void __init diasom_rk3588_check_adc(void)
 		return;
 	}
 
-	if (diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val))
-		return;
-
-	if (val < 50) {
-		pr_info("Recovery key pressed, enforce gadget mode...\n");
-		globalvar_add_simple("board.recovery", "true");
+	if (!diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val)) {
+		if (val < 50) {
+			pr_info("Recovery key pressed, enforce gadget mode...\n");
+			globalvar_add_simple("board.recovery", "true");
+		}
 	}
 
 	if (diasom_rk3588_get_adc_value("aiodev0.in_value7_mV", &val))

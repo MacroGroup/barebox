@@ -162,7 +162,7 @@ static int __init diasom_rk3568_machine_id(void)
 }
 of_populate_initcall(diasom_rk3568_machine_id);
 
-static int __init diasom_rk3588_get_adc_value(const char *name, int *val)
+static int __init diasom_rk3568_get_adc_value(const char *name, int *val)
 {
 	struct aiochannel *aio_ch = aiochannel_by_name(name);
 	int ret;
@@ -191,15 +191,14 @@ static void __init diasom_rk3568_check_adc(void)
 		return;
 	}
 
-	if (diasom_rk3588_get_adc_value("aiodev0.in_value0_mV", &val))
-		return;
-
-	if (val <= 40) {
-		pr_info("Recovery key pressed, enforce gadget mode...\n");
-		globalvar_add_simple("board.recovery", "true");
+	if (!diasom_rk3568_get_adc_value("aiodev0.in_value0_mV", &val)) {
+		if (val <= 40) {
+			pr_info("Recovery key pressed, enforce gadget mode...\n");
+			globalvar_add_simple("board.recovery", "true");
+		}
 	}
 
-	if (diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val))
+	if (diasom_rk3568_get_adc_value("aiodev0.in_value1_mV", &val))
 		return;
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc")) {

@@ -111,6 +111,7 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
 		vin-supply = <&vcc_3v3_sys>;
 	};
 
@@ -633,8 +634,6 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
-	no-sdio;
-	no-mmc;
 	sd-uhs-sdr104;
 	cd-gpios = <&gpio2 RK_PC3 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio2 RK_PC4 GPIO_ACTIVE_HIGH>;

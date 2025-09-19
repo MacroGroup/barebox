@@ -264,9 +264,9 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
-	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 	disable-wp;
 	sd-uhs-sdr104;
+	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&vcc3v3_sys>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";

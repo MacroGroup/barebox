@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-obj-$(CONFIG_OFTREE) += \
+lwl-$(CONFIG_OFTREE) += \
 	sandbox.dtb.o
 
 # just to build a built-in.o. Otherwise compilation fails when no devicetree is
@@ -8,3 +8,4 @@ obj-$(CONFIG_OFTREE) += \
 obj- += dummy.o
 
 clean-files := *.dtb *.dtb.S .*.dtc .*.pre .*.dts *.dtb.z
+clean-files += *.dtbo *.dtbo.S .*.dtso

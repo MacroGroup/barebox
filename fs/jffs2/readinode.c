@@ -601,7 +601,7 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 		spin_unlock(&c->erase_completion_lock);
 	}
 
-	fd = jffs2_alloc_full_dirent(rd->nsize + 1);
+	fd = jffs2_alloc_full_dirent(size_add(rd->nsize, 1));
 	if (unlikely(!fd))
 		return -ENOMEM;
 
@@ -1248,7 +1248,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 			dbg_readinode("symlink's target '%s' cached\n", f->target);
 		}
 
-		/* fall through... */
+		fallthrough;
 
 	case S_IFBLK:
 	case S_IFCHR:

@@ -35,8 +35,8 @@ ssize_t ext4fs_devread(struct ext_filesystem *fs, sector_t __sector, int byte_of
 
 	size = cdev_read(fs->cdev, buf, byte_len, sector * SECTOR_SIZE + byte_offset, 0);
 	if (size < 0) {
-		dev_err(fs->dev, "read error at sector %llu: %s\n", __sector,
-				strerror(-size));
+		dev_err(fs->dev, "read error at sector %llu: %pe\n", __sector,
+			ERR_PTR(size));
 		return size;
 	}
 
@@ -48,12 +48,12 @@ static inline struct ext2fs_node *to_ext2_node(struct inode *inode)
 	return container_of(inode, struct ext2fs_node, i);
 }
 
-static int ext_read(struct device *_dev, FILE *f, void *buf, size_t insize)
+static int ext_read(struct device *_dev, struct file *f, void *buf, size_t insize)
 {
 	struct inode *inode = f->f_inode;
 	struct ext2fs_node *node = to_ext2_node(inode);
 
-	return ext4fs_read_file(node, f->pos, insize, buf);
+	return ext4fs_read_file(node, f->f_pos, insize, buf);
 }
 
 static struct inode *ext_alloc_inode(struct super_block *sb)
@@ -189,7 +189,7 @@ static const char *ext_get_link(struct dentry *dentry, struct inode *inode)
 
 	BUG_ON(inode->i_link);
 
-	inode->i_link = zalloc(inode->i_size + 1);
+	inode->i_link = zalloc(size_add(inode->i_size, 1));
 
 	ret = ext4fs_read_file(node, 0, inode->i_size, inode->i_link);
 	if (ret == 0) {
@@ -301,7 +301,6 @@ static void ext_remove(struct device *dev)
 static struct fs_driver ext_driver = {
 	.read      = ext_read,
 	.type      = filetype_ext,
-	.flags     = 0,
 	.drv = {
 		.probe  = ext_probe,
 		.remove = ext_remove,

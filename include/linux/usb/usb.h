@@ -471,9 +471,6 @@ enum usb_dr_mode {
 	USB_DR_MODE_OTG,
 };
 
-enum usb_phy_interface of_usb_get_phy_mode(struct device_node *np,
-		const char *propname);
-
 enum usb_device_speed of_usb_get_maximum_speed(struct device_node *np,
 		const char *propname);
 
@@ -488,10 +485,10 @@ extern struct list_head usb_device_list;
 
 bool usb_hub_is_root_hub(struct usb_device *hdev);
 
-#ifdef CONFIG_USB_ONBOARD_HUB
-void of_usb_host_probe_hubs(struct usb_host *host);
+#ifdef CONFIG_USB_ONBOARD_DEV
+void of_usb_host_probe_devs(struct usb_host *host);
 #else
-static inline void of_usb_host_probe_hubs(struct usb_host *host)
+static inline void of_usb_host_probe_devs(struct usb_host *host)
 {
 }
 #endif

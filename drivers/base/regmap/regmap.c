@@ -81,6 +81,17 @@ static int _regmap_bus_reg_write(void *context, unsigned int reg,
 	return map->bus->reg_write(map->bus_context, reg, val);
 }
 
+static int _regmap_bus_reg_seal(void *context, unsigned int reg,
+				unsigned int flags)
+{
+	struct regmap *map = context;
+
+	if (!map->bus->reg_seal)
+		return -EOPNOTSUPP;
+
+	return map->bus->reg_seal(map->bus_context, reg, flags);
+}
+
 /*
  * regmap_init - initialize and register a regmap
  *
@@ -112,6 +123,8 @@ struct regmap *regmap_init(struct device *dev,
 	map->format.val_bytes = DIV_ROUND_UP(config->val_bits, 8);
 	map->reg_shift = config->pad_bits % 8;
 	map->max_register = config->max_register;
+
+	map->reg_seal = _regmap_bus_reg_seal;
 
 	if (!bus->read || !bus->write) {
 		map->reg_read = _regmap_bus_reg_read;
@@ -187,6 +200,23 @@ int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val)
 }
 
 /**
+ * regmap_seal() - Seal a register in a map
+ *
+ * @map: Register map to seal
+ * @reg: Register to seal
+ * @flag: Flag to set in the register
+ *
+ * This function is used to seal a register, preventing further writes to it.
+ * The flag is typically used to indicate that the register is sealed.
+ *
+ * Returns zero for success, a negative number on error.
+ */
+int regmap_seal(struct regmap *map, unsigned int reg, unsigned int flags)
+{
+	return map->reg_seal(map, reg, flags);
+}
+
+/**
  * regmap_update_bits() - Perform a read/modify/write cycle on a register
  *
  * @map: Register map to update
@@ -240,6 +270,30 @@ int regmap_write_bits(struct regmap *map, unsigned int reg,
 	tmp |= val & mask;
 
 	return regmap_write(map, reg, tmp);
+}
+
+/**
+ * regmap_field_read(): Read a value to a single register field
+ *
+ * @field: Register field to read from
+ * @val: Pointer to store read value
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_field_read(struct regmap_field *field, unsigned int *val)
+{
+	int ret;
+	unsigned int reg_val;
+	ret = regmap_read(field->regmap, field->reg, &reg_val);
+	if (ret != 0)
+		return ret;
+
+	reg_val &= field->mask;
+	reg_val >>= field->shift;
+	*val = reg_val;
+
+	return ret;
 }
 
 /**
@@ -377,6 +431,67 @@ static int regmap_round_val_bytes(struct regmap *map)
 	return map->format.val_bytes ?: 1;
 }
 
+/**
+ * regmap_update_bits_base() - Perform a read/modify/write cycle on a register
+ *
+ * @map: Register map to update
+ * @reg: Register to update
+ * @mask: Bitmask to change
+ * @val: New value for bitmask
+ * @change: Boolean indicating if a write was done
+ * @async: Boolean indicating asynchronously
+ * @force: Boolean indicating use force update
+ *
+ * Perform a read/modify/write cycle on a register map with change, async, force
+ * options.
+ *
+ * If async is true:
+ *
+ * With most buses the read must be done synchronously so this is most useful
+ * for devices with a cache which do not need to interact with the hardware to
+ * determine the current register value.
+ *
+ * Returns zero for success, a negative number on error.
+ */
+int regmap_update_bits_base(struct regmap *map, unsigned int reg,
+			    unsigned int mask, unsigned int val,
+			    bool *change, bool async, bool force)
+{
+	int ret;
+
+	ret = regmap_update_bits(map, reg, mask, val);
+
+	return ret;
+}
+
+/**
+ * regmap_field_update_bits_base() - Perform a read/modify/write cycle a
+ *                                   register field.
+ *
+ * @field: Register field to write to
+ * @mask: Bitmask to change
+ * @val: Value to be written
+ * @change: Boolean indicating if a write was done
+ * @async: Boolean indicating asynchronously
+ * @force: Boolean indicating use force update
+ *
+ * Perform a read/modify/write cycle on the register field with change,
+ * async, force option.
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_field_update_bits_base(struct regmap_field *field,
+				  unsigned int mask, unsigned int val,
+				  bool *change, bool async, bool force)
+{
+	mask = (mask << field->shift) & field->mask;
+
+	return regmap_update_bits_base(field->regmap, field->reg,
+				       mask, val << field->shift,
+				       change, async, force);
+}
+
 static ssize_t regmap_cdev_read(struct cdev *cdev, void *buf, size_t count, loff_t offset,
 		       unsigned long flags)
 {
@@ -440,6 +555,88 @@ static size_t regmap_count_registers(struct regmap *map)
 size_t regmap_size_bytes(struct regmap *map)
 {
 	return regmap_round_val_bytes(map) * regmap_count_registers(map);
+}
+
+static void regmap_field_init(struct regmap_field *rm_field,
+	struct regmap *regmap, struct reg_field reg_field)
+{
+	rm_field->regmap = regmap;
+	rm_field->reg = reg_field.reg;
+	rm_field->shift = reg_field.lsb;
+	rm_field->mask = GENMASK(reg_field.msb, reg_field.lsb);
+
+	WARN_ONCE(rm_field->mask == 0, "invalid empty mask defined\n");
+
+	rm_field->id_size = reg_field.id_size;
+	rm_field->id_offset = reg_field.id_offset;
+}
+
+/**
+ * regmap_field_bulk_alloc() - Allocate and initialise a bulk register field.
+ *
+ * @regmap: regmap bank in which this register field is located.
+ * @rm_field: regmap register fields within the bank.
+ * @reg_field: Register fields within the bank.
+ * @num_fields: Number of register fields.
+ *
+ * The return value will be an -ENOMEM on error or zero for success.
+ * Newly allocated regmap_fields should be freed by calling
+ * regmap_field_bulk_free()
+ */
+int regmap_field_bulk_alloc(struct regmap *regmap,
+			    struct regmap_field **rm_field,
+			    const struct reg_field *reg_field,
+			    int num_fields)
+{
+	struct regmap_field *rf;
+	int i;
+
+	rf = kcalloc(num_fields, sizeof(*rf), GFP_KERNEL);
+	if (!rf)
+		return -ENOMEM;
+
+	for (i = 0; i < num_fields; i++) {
+		regmap_field_init(&rf[i], regmap, reg_field[i]);
+		rm_field[i] = &rf[i];
+	}
+
+	return 0;
+}
+
+/**
+ * regmap_multi_reg_write() - Write multiple registers to the device
+ *
+ * @map: Register map to write to
+ * @regs: Array of structures containing register,value to be written
+ * @num_regs: Number of registers to write
+ *
+ * Write multiple registers to the device where the set of register, value
+ * pairs are supplied in any order, possibly not all in a single range.
+ *
+ * The 'normal' block write mode will send ultimately send data on the
+ * target bus as R,V1,V2,V3,..,Vn where successively higher registers are
+ * addressed. However, this alternative block multi write mode will send
+ * the data as R1,V1,R2,V2,..,Rn,Vn on the target bus. The target device
+ * must of course support the mode.
+ *
+ * A value of zero will be returned on success, a negative errno will be
+ * returned in error cases.
+ */
+int regmap_multi_reg_write(struct regmap *map, const struct reg_sequence *regs,
+			   int num_regs)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < num_regs; i++) {
+		ret = regmap_write(map, regs[i].reg, regs[i].def);
+		if (ret != 0)
+			return ret;
+
+		if (regs[i].delay_us)
+			udelay(regs[i].delay_us);
+	}
+	return 0;
 }
 
 /*

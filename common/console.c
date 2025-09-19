@@ -264,7 +264,7 @@ struct console_device *of_console_by_stdout_path(void)
 		return NULL;
 
 	for_each_console(console) {
-		if (dev_of_node(console->dev) == stdout_np)
+		if (console->dev && dev_of_node(console->dev) == stdout_np)
 			return console;
 	}
 
@@ -338,7 +338,7 @@ int console_register(struct console_device *newcdev)
 
 	if (newcdev->devname) {
 		dev->id = newcdev->devid;
-		dev_set_name(dev, newcdev->devname);
+		dev_set_name(dev, "%s", newcdev->devname);
 	} else {
 		dev->id = DEVICE_ID_DYNAMIC;
 		dev_set_name(dev, "cs");
@@ -421,7 +421,7 @@ int console_register(struct console_device *newcdev)
 	ret = devfs_create(&newcdev->devfs);
 
 	if (ret) {
-		pr_err("devfs entry creation failed: %s\n", strerror(-ret));
+		pr_err("devfs entry creation failed: %pe\n", ERR_PTR(ret));
 		return ret;
 	}
 
@@ -548,8 +548,8 @@ int getchar(void)
 			start = get_time_ns();
 		}
 
-		if (is_timeout(start, 100 * USECOND) &&
-				kfifo_len(console_input_fifo))
+		if (is_timeout_interruptible(start, 100 * USECOND) &&
+		    kfifo_len(console_input_fifo))
 			break;
 	}
 
@@ -576,8 +576,7 @@ void console_putc(unsigned int ch, char c)
 	switch (init) {
 	case CONSOLE_UNINITIALIZED:
 		console_init_early();
-		/* fall through */
-
+		fallthrough;
 	case CONSOLE_INITIALIZED_BUFFER:
 		kfifo_putc(console_output_fifo, c);
 		if (c == '\n')
@@ -649,12 +648,9 @@ void ctrlc_handled(void)
 	ctrlc_abort = 0;
 }
 
-/* test if ctrl-c was pressed */
-int ctrlc(void)
+int ctrlc_non_interruptible(void)
 {
 	int ret = 0;
-
-	resched();
 
 	if (!ctrlc_allowed)
 		return 0;
@@ -673,6 +669,14 @@ int ctrlc(void)
 		ctrlc_abort = 1;
 
 	return ret;
+}
+EXPORT_SYMBOL(ctrlc_non_interruptible);
+
+/* test if ctrl-c was pressed */
+int ctrlc(void)
+{
+	resched();
+	return ctrlc_non_interruptible();
 }
 EXPORT_SYMBOL(ctrlc);
 

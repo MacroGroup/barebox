@@ -16,12 +16,17 @@ jobs:
 
         include:
           - ARCH: arm
+            lgenv: 'test/arm/*@multi_v5_v6_defconfig.yaml'
+            defconfig: multi_v5_v6_defconfig
+
+          - ARCH: arm
             lgenv: 'test/arm/*@multi_v7_defconfig.yaml'
             defconfig: multi_v7_defconfig
 
           - ARCH: arm
             lgenv: test/arm/multi_v8_defconfig.yaml
             defconfig: multi_v8_defconfig
+            lgargs: --runxfail
 
           - ARCH: mips
             lgenv: test/mips/qemu-malta_defconfig.yaml
@@ -51,45 +56,73 @@ jobs:
             lgenv: 'test/sandbox/sandbox_defconfig.yaml'
             defconfig: sandbox_defconfig
 
+          - ARCH: sandbox
+            lgenv: 'test/sandbox/allyesconfig.yaml'
+            defconfig: allyesconfig
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Build
+      id: build
       run: |
+        export KBUILD_OUTPUT=build-${{matrix.arch}}-${{matrix.defconfig}}
         export ARCH=${{matrix.arch}}
+        export KCONFIG_ADD="common/boards/configs/enable_self_test.config \
+                            common/boards/configs/disable_target_tools.config"
 
-        ./MAKEALL -O build-${{matrix.arch}} \
-                -k common/boards/configs/enable_self_test.config \
-                -k common/boards/configs/disable_target_tools.config \
-                ${{matrix.defconfig}}
+        if [ ${{matrix.arch}} = sandbox ] && [ ${{matrix.defconfig}} = allyesconfig ]; then
+          KCONFIG_ADD="${KCONFIG_ADD} CONFIG_CONSOLE_DISABLE_INPUT=n CONFIG_MALLOC_LIBC=y"
+        fi
+
+        ./MAKEALL -O ${KBUILD_OUTPUT} -l "" -v 0 ${{matrix.defconfig}}
 
         if [ ${{matrix.arch}} = "riscv" ]; then
-          cp /usr/share/qemu/opensbi-riscv32-generic-fw_dynamic.bin build-${{matrix.arch}}
+          cp /usr/share/qemu/opensbi-riscv32-generic-fw_dynamic.bin ${KBUILD_OUTPUT}/
         fi
+
+    - name: Populate testfs
+      run: |
+        export KBUILD_OUTPUT=build-${{matrix.arch}}-${{matrix.defconfig}}
+        export KBUILD_DEFCONFIG=${{matrix.defconfig}}
+
+        for i in ${{matrix.lgenv}}; do
+          grep -wq 'testfs' "$i" || continue
+
+          # Just use already built dtc
+          export PATH="$PATH:${KBUILD_OUTPUT}/scripts/dtc/"
+          exec scripts/generate_testfs.sh
+        done
+
     - name: labgrid-pytest
       run: |
-        export KBUILD_OUTPUT=build-${{matrix.arch}}
+        export KBUILD_OUTPUT=build-${{matrix.arch}}-${{matrix.defconfig}}
 
         for i in ${{matrix.lgenv}}; do
           grep -wq '\(QEMUDriver\|ExternalConsoleDriver\):' "$i" || continue
 
+          extraargs="${{matrix.lgargs}}"
+          if grep -wq 'testfs' "$i"; then
+            extraargs="${extraargs} --fs testfs=${KBUILD_OUTPUT}/testfs"
+          fi
+
           cfg=$(basename $i .yaml)
           echo "Testing $cfg"
           labgrid-pytest --lg-env $i test/py --verbosity=1 \
-          --junitxml=$cfg.tests.xml --lg-log=log/$cfg
+          --junitxml=$cfg.tests.xml --lg-log=log/$cfg $extraargs
         done
 
     - name: Publish Test Results
       uses: EnricoMi/publish-unit-test-result-action@v2
-      if: always()
+      if: steps.build.outcome == 'success'
       with:
         check_name: "Test Results (${{matrix.defconfig}})"
         files: ./*.tests.xml
 
     - name: Publish Labgrid Log Results
       uses: actions/upload-artifact@v4
-      if: always()
+      if: steps.build.outcome == 'success'
       with:
         name: console-log-${{matrix.defconfig}}
         path: log/

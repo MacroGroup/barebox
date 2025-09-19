@@ -179,7 +179,7 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		 * we couldn't. If you want to get rid of this warning, consider
 		 * migrating your platform to have deep probe support.
 		 */
-		rdev_warn(rdev, "Failed to get '%s' regulator (ignored).\n",
+		rdev_warn(rdev, "Failed to get '%s' supply (ignored).\n",
 			 supply_name);
 		return 0;
 	}
@@ -257,7 +257,7 @@ static int __regulator_register(struct regulator_dev *rdev, const char *name)
 	list_add_tail(&rdev->list, &regulator_list);
 
 	if (name)
-		rdev->name = xstrdup(name);
+		rdev->name = xstrdup_const(name);
 
 	ret = regulator_init_voltage(rdev);
 	if (ret)
@@ -276,7 +276,7 @@ static int __regulator_register(struct regulator_dev *rdev, const char *name)
 	return 0;
 err:
 	list_del(&rdev->list);
-	free((char *)rdev->name);
+	free_const(rdev->name);
 
 	return ret;
 }
@@ -425,6 +425,43 @@ int dev_regulator_register(struct regulator_dev *rdev, const char *name)
 	return 0;
 }
 
+struct regulator_dev *
+regulator_register(struct device *dev,
+		   const struct regulator_desc *desc,
+		   const struct regulator_config *config)
+{
+	struct regulator_dev *rdev;
+	struct device_node *search, *child;
+	int ret;
+
+	rdev = xzalloc(sizeof(*rdev));
+
+	rdev->name = desc->name;
+	rdev->desc = desc;
+	rdev->regmap = config->regmap;
+	rdev->dev = dev;
+
+	if (desc->regulators_node)
+		search = of_get_child_by_name(dev->of_node,
+					      desc->regulators_node);
+	else
+		search = dev->of_node;
+
+	if (!search) {
+		dev_err(dev, "Failed to find regulator container node\n");
+		return NULL;
+	}
+
+	for_each_child_of_node(search, child) {
+		if (strcmp(desc->of_match, child->name))
+			continue;
+		ret = of_regulator_register(rdev, child);
+		break;
+	}
+
+	return rdev;
+}
+
 static struct regulator_dev *dev_regulator_get(struct device *dev,
 					       const char *supply)
 {
@@ -571,6 +608,20 @@ int regulator_disable(struct regulator *r)
 		return 0;
 
 	return regulator_disable_rdev(r->rdev);
+}
+
+int regulator_is_enabled(struct regulator *r)
+{
+	if (!r)
+		return 0;
+
+	if (r->rdev->always_on)
+		return 1;
+
+	if (r->rdev->desc->ops->is_enabled)
+		return r->rdev->desc->ops->is_enabled(r->rdev);
+
+	return r->rdev->enable_count;
 }
 
 int regulator_set_voltage(struct regulator *r, int min_uV, int max_uV)

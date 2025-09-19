@@ -5,9 +5,11 @@
  */
 
 #include <common.h>
+#include <of.h>
 #include <bootsource.h>
 #include <environment.h>
 #include <magicvar.h>
+#include <string.h>
 #include <init.h>
 
 static const char *bootsource_str[BOOTSOURCE_MAX] = {
@@ -31,7 +33,6 @@ static const char *bootsource_str[BOOTSOURCE_MAX] = {
 
 static enum bootsource bootsource = BOOTSOURCE_UNKNOWN;
 static int bootsource_instance = BOOTSOURCE_INSTANCE_UNKNOWN;
-const char *bootsource_alias_name = NULL;
 
 const char *bootsource_to_string(enum bootsource src)
 {
@@ -58,10 +59,10 @@ const char *bootsource_get_alias_stem(enum bootsource src)
 	case BOOTSOURCE_SPI_EEPROM:
 	case BOOTSOURCE_SPI_NOR:
 		return bootsource_str[BOOTSOURCE_SPI];
-	case BOOTSOURCE_SERIAL:	/* FALLTHROUGH */
-	case BOOTSOURCE_I2C:	/* FALLTHROUGH */
-	case BOOTSOURCE_MMC:	/* FALLTHROUGH */
-	case BOOTSOURCE_SPI:	/* FALLTHROUGH */
+	case BOOTSOURCE_SERIAL:
+	case BOOTSOURCE_I2C:
+	case BOOTSOURCE_MMC:
+	case BOOTSOURCE_SPI:
 	case BOOTSOURCE_CAN:
 		return bootsource_str[src];
 	default:
@@ -72,27 +73,16 @@ const char *bootsource_get_alias_stem(enum bootsource src)
 /**
  * bootsource_get_alias_name() - Get the name of the bootsource alias
  *
- * This function will return newly allocated string containing name of
+ * This function will return a pointer to a static string containing name of
  * the alias that is expected to point to DTB node corresponding to
  * detected bootsource
  *
- * NOTE: Caller is expected to free() the string allocated by this
- * function
  */
-char *bootsource_get_alias_name(void)
+const char *bootsource_get_alias_name(void)
 {
+	static char buf[sizeof("i2c-eeprom-2147483647")];
 	const char *stem;
-
-	/*
-	 * If alias name was overridden via
-	 * bootsource_set_alias_name() return that value without
-	 * asking any questions.
-	 *
-	 * Note that we have to strdup() the result to make it
-	 * free-able.
-	 */
-	if (bootsource_alias_name)
-		return strdup(bootsource_alias_name);
+	int ret;
 
 	stem = bootsource_get_alias_stem(bootsource);
 	if (!stem)
@@ -105,13 +95,17 @@ char *bootsource_get_alias_name(void)
 	if (bootsource_instance == BOOTSOURCE_INSTANCE_UNKNOWN)
 		return NULL;
 
-	return basprintf("%s%d", stem, bootsource_instance);
+	ret = snprintf(buf, sizeof(buf), "%s%d", stem, bootsource_instance);
+	if (ret < 0 || ret >= sizeof(buf))
+		return NULL;
+
+	return buf;
 }
 
 struct device_node *bootsource_of_node_get(struct device_node *root)
 {
 	struct device_node *np;
-	char *alias_name;
+	const char *alias_name;
 
 	alias_name = bootsource_get_alias_name();
 	if (!alias_name)
@@ -119,14 +113,23 @@ struct device_node *bootsource_of_node_get(struct device_node *root)
 
 	np = of_find_node_by_alias(root, alias_name);
 
-	free(alias_name);
-
 	return np;
 }
 
-void bootsource_set_alias_name(const char *name)
+struct cdev *bootsource_of_cdev_find(void)
 {
-	bootsource_alias_name = name;
+	struct device_node *np;
+	struct cdev *cdev;
+
+	np = bootsource_of_node_get(NULL);
+	if (!np)
+		return NULL;
+
+	cdev = of_cdev_find(np);
+	if (IS_ERR(cdev))
+		return NULL;
+
+	return cdev;
 }
 
 void bootsource_set_raw(enum bootsource src, int instance)
@@ -151,6 +154,33 @@ void bootsource_set_raw_instance(int instance)
 		pr_setenv("bootsource_instance", "%d", instance);
 }
 
+int bootsource_of_node_set(struct device_node *np)
+{
+	const char *alias;
+
+	alias = of_alias_get(np);
+	if (!alias)
+		return -EINVAL;
+
+	for (int bootsrc = 0; bootsrc < ARRAY_SIZE(bootsource_str); bootsrc++) {
+		int ret, instance;
+		size_t prefixlen;
+
+		prefixlen = str_has_prefix(alias, bootsource_str[bootsrc]);
+		if (!prefixlen)
+			continue;
+
+		ret = kstrtoint(alias + prefixlen, 10, &instance);
+		if (ret)
+			return ret;
+
+		bootsource_set_raw(bootsrc, instance);
+		return 0;
+	}
+
+	return -ENODEV;
+}
+
 int bootsource_of_alias_xlate(enum bootsource src, int instance)
 {
 	char chosen[sizeof("barebox,bootsource-harddisk4294967295")];
@@ -158,7 +188,7 @@ int bootsource_of_alias_xlate(enum bootsource src, int instance)
 	struct device_node *np;
 	int alias_id;
 
-	if (!IS_ENABLED(CONFIG_OFDEVICE))
+	if (!IS_ENABLED(CONFIG_OFDEVICE) || IN_PBL)
 		return BOOTSOURCE_INSTANCE_UNKNOWN;
 
 	if (src == BOOTSOURCE_UNKNOWN ||

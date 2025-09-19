@@ -54,7 +54,8 @@
  *
  * @return void
  */
-static void __noreturn omap3_restart_soc(struct restart_handler *rst)
+static void __noreturn omap3_restart_soc(struct restart_handler *rst,
+					 unsigned long flags)
 {
 	writel(OMAP3_PRM_RSTCTRL_RESET, OMAP3_PRM_REG(RSTCTRL));
 
@@ -117,11 +118,9 @@ u32 get_cpu_rev(void)
 			retval = OMAP36XX_ES1_1;
 			break;
 		case 2:
-			/*
-			 * Fall through the default case.
-			 */
 		default:
 			retval = OMAP36XX_ES1_2;
+			break;
 		}
 		break;
 	case CPU_3430:
@@ -149,11 +148,9 @@ u32 get_cpu_rev(void)
 				retval = OMAP34XX_ES3;
 				break;
 			case 4:
-				/*
-				 * Same as default case
-				 */
 			default:
 				retval = OMAP34XX_ES3_1;
+				break;
 			}
 		}
 	}
@@ -193,7 +190,7 @@ u32 get_sdr_cs1_base(void)
 	base = (cs_cfg & 0x0000000F) << 2; /* get CS1STARTHIGH */
 	base = base | ((cs_cfg & 0x00000300) >> 8); /* get CS1STARTLOW */
 	base = base << 25;
-	base += 0x80000000;
+	base += OMAP_DRAM_ADDR_SPACE_START;
 	return base;
 }
 EXPORT_SYMBOL(get_sdr_cs1_base);
@@ -553,7 +550,7 @@ const struct gpmc_config omap3_nand_cfg = {
 	.size = GPMC_SIZE_16M,
 };
 
-#ifndef __PBL__
+#if IN_PROPER
 static int omap3_gpio_init(void)
 {
 	add_generic_device("omap-gpio", 0, NULL, OMAP3_GPIO1_BASE,

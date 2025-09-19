@@ -1,0 +1,387 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+
+#include "rk3568-diasom-som.dtsi"
+
+/ {
+	model = "Diasom DS-RK3568-SODIMM";
+	compatible = "diasom,ds-rk3568-som-sodimm",
+		     "diasom,ds-rk3568-som",
+		     "rockchip,rk3568";
+
+	aliases {
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
+		i2c6 = &i2c6;
+		i2c7 = &i2c7;
+		i2c8 = &i2c8;
+		i2c9 = &i2c9;
+		mmc1 = &sdmmc0;
+		rtc0 = &rtc;
+	};
+
+	chosen {
+		environment-sd {
+			compatible = "barebox,environment";
+			device-path = &sdmmc0, "partname:env";
+			status = "disabled";
+		};
+	};
+
+	vcc2v5_sys: vcc2v5-sys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "2v5_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc3v3_pcie30_clk_oe: vcc3v3-pcie30-clk-oe-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie30_clk_oe_pins>;
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 RK_PC5 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc3v3_pcie30_clk_oe";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+};
+
+&combphy2 {
+	/* PCI-E 2.0 */
+	phy-supply = <&vcc3v3_sys>;
+};
+
+&i2c4 {
+	clock-frequency = <100000>;
+	status = "okay";
+
+	/* 24aa025e48 */
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc3v3_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac0: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+
+	/* 24aa025e48 */
+	eeprom@51 {
+		compatible = "atmel,24c02";
+		reg = <0x51>;
+		pagesize = <16>;
+		vcc-supply = <&vcc3v3_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac1: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+
+	i2c-mux@70 {
+		compatible = "nxp,pca9546";
+		reg = <0x70>;
+		i2c-mux-idle-disconnect;
+		vdd-supply = <&vcc2v5_sys>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c6: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c7: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c8: i2c@2 {
+			reg = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c9: i2c@3 {
+			reg = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rtc: rtc@68 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&rtc_pins>;
+				compatible = "st,m41t62";
+				reg = <0x68>;
+				interrupt-parent = <&gpio0>;
+				interrupts = <RK_PB6 IRQ_TYPE_LEVEL_LOW>;
+				wakeup-source;
+
+				clock {
+					/* Skip registering SQW, used as CLK32K_OUT */
+				};
+			};
+		};
+	};
+};
+
+&i2s1_8ch {
+	/* SODIMM I2S0 */
+	pinctrl-0 = <
+		&i2s1_pins
+		&i2s1m1_sdo0		/* I2S1_SDO0 */
+		&i2s1m1_sdi0		/* I2S1_SDI0 */
+	>;
+	rockchip,trcm-sync-tx-only;
+};
+
+&i2s2_2ch {
+	/* SODIMM I2S1 */
+	pinctrl-0 = <
+		&i2s2_pins
+		&i2s2m0_sdo		/* I2S2_SDO0 */
+		&i2s2m0_sdi		/* I2S2_SDI0 */
+	>;
+	rockchip,trcm-sync-tx-only;
+};
+
+&gmac0 {
+	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>, <&cru SCLK_GMAC0>;
+	assigned-clock-parents = <&cru SCLK_GMAC0_RGMII_SPEED>;
+	assigned-clock-rates = <0>, <125000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&gmac0_tx_bus2 &gmac0_rx_bus2
+		&gmac0_rgmii_clk &gmac0_rgmii_bus
+	>;
+	clock_in_out = "output";
+	phy-handle = <&rgmii_phy0>;
+	phy-mode = "rgmii-id";
+	phy-supply = <&vcc3v3_sys>;
+	nvmem-cells = <&mac0>;
+	nvmem-cell-names = "mac-address";
+	status = "okay";
+};
+
+&gmac1 {
+	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>;
+	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>;
+	assigned-clock-rates = <0>, <125000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&gmac1m1_tx_bus2 &gmac1m1_rx_bus2
+		&gmac1m1_rgmii_clk &gmac1m1_rgmii_bus
+	>;
+	clock_in_out = "output";
+	phy-handle = <&rgmii_phy1>;
+	phy-mode = "rgmii-id";
+	phy-supply = <&vcc3v3_sys>;
+	nvmem-cells = <&mac1>;
+	nvmem-cell-names = "mac-address";
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
+&mdio0 {
+	status = "disabled";
+};
+
+&mdio1 {
+	rgmii_phy0: phy@2 {
+		/* RTL8211F */
+		pinctrl-names = "default";
+		pinctrl-0 = <&gmac0_rst_pins>;
+		compatible = "ethernet-phy-id001c.c916";
+		reg = <0x2>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <100000>;
+		reset-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
+	};
+
+	rgmii_phy1: phy@4 {
+		/* RTL8211F */
+		pinctrl-names = "default";
+		pinctrl-0 = <&gmac1_rst_pins>;
+		compatible = "ethernet-phy-id001c.c916";
+		reg = <0x4>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <100000>;
+		reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pcie2x1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie20_pins>;
+	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_sys>;
+};
+
+&pcie30phy {
+	phy-supply = <&vcc3v3_pcie30_clk_oe>;
+};
+
+&pcie3x2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie30_pins>;
+	reset-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie30_clk_oe>;
+};
+
+&rga {
+	status = "okay";
+};
+
+&sdmmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd &sdmmc0_det>;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	sd-uhs-sdr104;
+	vmmc-supply = <&vcc3v3_sys>;
+	vqmmc-supply = <&vccio_sd>;
+	status = "okay";
+};
+
+&spi1 {
+	/* SODIMM SPI0 */
+	pinctrl-0 = <&spi1m1_pins_hs &spi1_pins>;
+	num-cs = <2>;
+	cs-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>,
+		   <&gpio3 RK_PD3 GPIO_ACTIVE_LOW>;
+};
+
+&spi2 {
+	/* SODIMM SPI1 */
+	pinctrl-0 = <&spi2m1_pins_hs &spi2m1_cs0_hs &spi2m1_cs1_hs>;
+	num-cs = <2>;
+};
+
+&uart3 {
+	/* SODIMM UART1 */
+	pinctrl-0 = <&uart3m0_xfer &uart3m0_ctsn &uart3m0_rtsn>;
+};
+
+&uart4 {
+	/* SODIMM UART0 */
+	pinctrl-0 = <&uart4m0_xfer &uart4m0_ctsn &uart4m0_rtsn>;
+};
+
+&vpu {
+	status = "okay";
+};
+
+&vdpu_mmu {
+	status = "okay";
+};
+
+&vepu {
+	status = "okay";
+};
+
+&vepu_mmu {
+	status = "okay";
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac1m1_miim &sleep_mod_pins>;
+
+	i2s {
+		i2s1_pins: i2s1-pins {
+			rockchip,pins =
+				<3 RK_PC7 4 &pcfg_pull_none_smt>,		/* I2S1_TX_SCLK */
+				<3 RK_PD0 4 &pcfg_pull_none_smt>;		/* I2S1_TX_LRCK */
+		};
+
+		i2s2_pins: i2s2-pins {
+			rockchip,pins =
+				<2 RK_PC2 1 &pcfg_pull_none_smt>,		/* I2S2_TX_SCLK */
+				<2 RK_PC3 1 &pcfg_pull_none_smt>;		/* I2S2_TX_LRCK */
+		};
+	};
+
+	net {
+		gmac0_rst_pins: gmac0-rst-pins {
+			rockchip,pins =
+				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC0_RST */
+		};
+
+		gmac1_rst_pins: gmac1-rst-pins {
+			rockchip,pins =
+				<4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC1_RST */
+		};
+	};
+
+	pcie {
+		pcie20_pins: pcie20-pins {
+			rockchip,pins =
+				<1 RK_PB0 4 &pcfg_pull_none>,			/* PCIE20_CLKREQn_M2 */
+				<1 RK_PB1 4 &pcfg_pull_none>,			/* PCIE20_WAKEn_M2 */
+				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE20_PERST */
+		};
+
+		pcie30_pins: pcie30-pins {
+			rockchip,pins =
+				<4 RK_PC2 4 &pcfg_pull_none>,			/* PCIE30X2_CLKREQn_M2 */
+				<4 RK_PC3 4 &pcfg_pull_none>,			/* PCIE30X2_WAKEn_M2 */
+				<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30X2_PERST */
+		};
+
+		pcie30_clk_oe_pins: pcie30-clk-oe-pins {
+			rockchip,pins =
+				<4 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_CLK_IC_OE */
+		};
+	};
+
+	rtc {
+		rtc_pins: rtc-pins {
+			rockchip,pins =
+				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_IRQ */
+		};
+	};
+
+	sleep {
+		sleep_mod_pins: sleep-mod-pins {
+			rockchip,pins =
+				<2 RK_PB1 RK_FUNC_GPIO &pcfg_output_high>;	/* SLEEP_MOD */
+		};
+	};
+
+	spibus {
+		spi1_pins: spi1-pins {
+			rockchip,pins =
+				<3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>,		/* SPI1_CS0 */
+				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;		/* SPI1_CS1 */
+		};
+	};
+};

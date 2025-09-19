@@ -119,13 +119,13 @@ static int efivars_unlink(struct device *dev, const char *pathname)
 
 struct efivars_file {
 	void *buf;
-	unsigned long size;
+	size_t size;
 	efi_guid_t vendor;
 	s16 *name;
 	u32 attributes;
 };
 
-static int efivarfs_open(struct device *dev, FILE *f, const char *filename)
+static int efivarfs_open(struct device *dev, struct file *f, const char *filename)
 {
 	struct efivars_file *efile;
 	efi_status_t efiret;
@@ -158,8 +158,8 @@ static int efivarfs_open(struct device *dev, FILE *f, const char *filename)
 		goto out;
 	}
 
-	f->size = efile->size;
-	f->priv = efile;
+	f->f_size = efile->size;
+	f->private_data = efile;
 
 	return 0;
 
@@ -170,9 +170,9 @@ out:
 	return ret;
 }
 
-static int efivarfs_close(struct device *dev, FILE *f)
+static int efivarfs_close(struct device *dev, struct file *f)
 {
-	struct efivars_file *efile = f->priv;
+	struct efivars_file *efile = f->private_data;
 
 	free(efile->buf);
 	free(efile);
@@ -180,28 +180,28 @@ static int efivarfs_close(struct device *dev, FILE *f)
 	return 0;
 }
 
-static int efivarfs_read(struct device *_dev, FILE *f, void *buf,
+static int efivarfs_read(struct device *_dev, struct file *f, void *buf,
 			 size_t insize)
 {
-	struct efivars_file *efile = f->priv;
+	struct efivars_file *efile = f->private_data;
 
-	memcpy(buf, efile->buf + f->pos, insize);
+	memcpy(buf, efile->buf + f->f_pos, insize);
 
 	return insize;
 }
 
-static int efivarfs_write(struct device *_dev, FILE *f, const void *buf,
+static int efivarfs_write(struct device *_dev, struct file *f, const void *buf,
 			  size_t insize)
 {
-	struct efivars_file *efile = f->priv;
+	struct efivars_file *efile = f->private_data;
 	efi_status_t efiret;
 
-	if (efile->size < f->pos + insize) {
-		efile->buf = realloc(efile->buf, f->pos + insize);
-		efile->size = f->pos + insize;
+	if (efile->size < f->f_pos + insize) {
+		efile->buf = realloc(efile->buf, f->f_pos + insize);
+		efile->size = f->f_pos + insize;
 	}
 
-	memcpy(efile->buf + f->pos, buf, insize);
+	memcpy(efile->buf + f->f_pos, buf, insize);
 
 	efiret = RT->set_variable(efile->name, &efile->vendor,
 				  efile->attributes,
@@ -212,9 +212,9 @@ static int efivarfs_write(struct device *_dev, FILE *f, const void *buf,
 	return insize;
 }
 
-static int efivarfs_truncate(struct device *dev, FILE *f, loff_t size)
+static int efivarfs_truncate(struct device *dev, struct file *f, loff_t size)
 {
-	struct efivars_file *efile = f->priv;
+	struct efivars_file *efile = f->private_data;
 	efi_status_t efiret;
 
 	efile->size = size;
@@ -225,8 +225,6 @@ static int efivarfs_truncate(struct device *dev, FILE *f, loff_t size)
 				  efile->size ? efile->size : 1, efile->buf);
 	if (EFI_ERROR(efiret))
 		return -efi_errno(efiret);
-
-	f->size = efile->size;
 
 	return 0;
 }
@@ -275,7 +273,7 @@ static int efivarfs_stat(struct device *dev, const char *filename,
 	efi_guid_t vendor;
 	s16 *name;
 	efi_status_t efiret;
-	unsigned long size = 0;
+	size_t size = 0;
 	int ret;
 
 	ret = efivarfs_parse_filename(filename, &vendor, &name);
@@ -301,7 +299,7 @@ static int efivarfs_probe(struct device *dev)
 	efi_guid_t vendor;
 	s16 name[1024];
 	char *name8;
-	unsigned long size;
+	size_t size;
 	struct efivarfs_priv *priv;
 
 	name[0] = 0;
@@ -347,18 +345,22 @@ static void efivarfs_remove(struct device *dev)
 	free(priv);
 }
 
-static struct fs_driver efivarfs_driver = {
-	.create    = efivars_create,
-	.unlink    = efivars_unlink,
+static const struct fs_legacy_ops efivarfs_ops = {
 	.open      = efivarfs_open,
 	.close     = efivarfs_close,
-	.read      = efivarfs_read,
-	.write     = efivarfs_write,
-	.truncate  = efivarfs_truncate,
+	.create    = efivars_create,
+	.unlink    = efivars_unlink,
 	.opendir   = efivarfs_opendir,
 	.readdir   = efivarfs_readdir,
 	.closedir  = efivarfs_closedir,
 	.stat      = efivarfs_stat,
+};
+
+static struct fs_driver efivarfs_driver = {
+	.read      = efivarfs_read,
+	.write     = efivarfs_write,
+	.truncate  = efivarfs_truncate,
+	.legacy_ops = &efivarfs_ops,
 	.drv = {
 		.probe  = efivarfs_probe,
 		.remove = efivarfs_remove,

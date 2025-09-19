@@ -15,10 +15,15 @@
 #include <asm/io.h>
 #include <device.h>
 
-#define DMA_ADDRESS_BROKEN	NULL
+#define DMA_ADDRESS_BROKEN	((dma_addr_t *)NULL)
+#define DMA_DEVICE_BROKEN	((struct device *)NULL)
 
 #ifndef DMA_ALIGNMENT
 #define DMA_ALIGNMENT	32
+#endif
+
+#ifndef ARCH_DMA_MINALIGN
+#define ARCH_DMA_MINALIGN	DMA_ALIGNMENT
 #endif
 
 #ifdef CONFIG_HAS_DMA
@@ -39,6 +44,11 @@ static inline void *dma_zalloc(size_t size)
 static inline void dma_free(void *mem)
 {
 	free(mem);
+}
+
+static inline void dma_free_const(const void *mem)
+{
+	free_const(mem);
 }
 
 static inline void dma_free_sensitive(void *mem)
@@ -89,12 +99,18 @@ void arch_sync_dma_for_device(void *vaddr, size_t size,
 			      enum dma_data_direction dir);
 #endif
 
-#ifndef __PBL__
+#if IN_PROPER
 void dma_sync_single_for_cpu(struct device *dev, dma_addr_t address,
 			     size_t size, enum dma_data_direction dir);
 
 void dma_sync_single_for_device(struct device *dev, dma_addr_t address,
 				size_t size, enum dma_data_direction dir);
+
+dma_addr_t dma_map_single(struct device *dev, void *ptr,
+			  size_t size, enum dma_data_direction dir);
+
+void dma_unmap_single(struct device *dev, dma_addr_t dma_addr,
+		      size_t size, enum dma_data_direction dir);
 #else
 /*
  * assumes buffers are in coherent/uncached memory, e.g. because
@@ -111,24 +127,35 @@ static inline void dma_sync_single_for_device(struct device *dev, dma_addr_t add
 {
 	barrier_data(address);
 }
+
+static inline dma_addr_t dma_map_single(struct device *dev, void *ptr,
+					size_t size, enum dma_data_direction dir)
+{
+	return virt_to_phys(ptr);
+}
+
+static inline void dma_unmap_single(struct device *dev, dma_addr_t dma_addr,
+				    size_t size, enum dma_data_direction dir)
+{
+}
 #endif
 
-dma_addr_t dma_map_single(struct device *dev, void *ptr,
-			  size_t size, enum dma_data_direction dir);
-
-void dma_unmap_single(struct device *dev, dma_addr_t dma_addr,
-		      size_t size, enum dma_data_direction dir);
 
 #ifndef dma_alloc_coherent
-void *dma_alloc_coherent(size_t size, dma_addr_t *dma_handle);
+void *dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle);
 #endif
 
 #ifndef dma_free_coherent
-void dma_free_coherent(void *mem, dma_addr_t dma_handle, size_t size);
+void dma_free_coherent(struct device *dev, void *mem, dma_addr_t dma_handle, size_t size);
 #endif
 
 #ifndef dma_alloc_writecombine
-void *dma_alloc_writecombine(size_t size, dma_addr_t *dma_handle);
+void *dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *dma_handle);
 #endif
 
+static inline bool dma_map_buf_is_aligned(struct device *dev, const void *buf, size_t size)
+{
+	return PTR_IS_ALIGNED(buf, ARCH_DMA_MINALIGN) &&
+		IS_ALIGNED(size, ARCH_DMA_MINALIGN);
+}
 #endif /* __DMA_H */

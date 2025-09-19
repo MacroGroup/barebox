@@ -7,7 +7,7 @@ config SANDBOX
 	select OFTREE
 	select GPIOLIB
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
-	select HAVE_ARCH_ASAN
+	select ARCH_HAS_FORTIFY_SOURCE
 	select HAS_DMA
 	select BLOCK
 	select BLOCK_WRITE
@@ -20,7 +20,17 @@ config SANDBOX
 	select HAS_DEBUG_LL
 	select ARCH_DMA_DEFAULT_COHERENT
 	select ARCH_WANT_FRAME_POINTERS
+	select BAREBOX_CMDLINE
+	select HAVE_ARCH_BOOTM_OFTREE
+	select HAVE_PBL_IMAGE
+	select HAVE_PBL_MULTI_IMAGES
+	select PBL_IMAGE_NO_PIGGY
+	select PBL_CLOCKSOURCE if COMPILE_TEST
 	default y
+
+config ARCH_LINUX_NAME
+	string
+	default "um"
 
 config ARCH_TEXT_BASE
 	hex
@@ -28,27 +38,32 @@ config ARCH_TEXT_BASE
 
 menu "Sandbox specific settings"
 
-config PHYS_ADDR_T_64BIT
-	bool
-
 config CC_IS_64BIT
 	def_bool $(success,$(srctree)/scripts/gcc-64bitptr.sh $(CC))
 
 config CC_HAS_LINUX_I386_SUPPORT
 	def_bool $(cc-option,-m32) && $(ld-option,-m elf_i386)
+	depends on CC_IS_GCC
 
 config 64BIT
 	bool
-	default n if SANDBOX_LINUX_I386
+	prompt "64-bit barebox" if CC_HAS_LINUX_I386_SUPPORT
 	default CC_IS_64BIT
 	select ARCH_DMA_ADDR_T_64BIT
 	select PHYS_ADDR_T_64BIT
+	select ARCH_HAS_ASAN_FIBER_API if ASAN
+	help
+	  Say n here if you want to build a 32-bit barebox, either
+	  to be more similar to a target platform or to reduce
+	  memory usage when fuzzing for example.
+
+	  If unsure, say y.
 
 config 32BIT
 	def_bool !64BIT
 
 config SANDBOX_LINUX_I386
-	bool "32-bit x86 barebox" if CC_HAS_LINUX_I386_SUPPORT
+	def_bool 32BIT && CC_HAS_LINUX_I386_SUPPORT
 
 config SANDBOX_REEXEC
 	prompt "exec(2) reset handler"
@@ -57,7 +72,33 @@ config SANDBOX_REEXEC
 	  The normal reset handler hangs barebox. On Linux, barebox
 	  instead can exec itself to simulate a reset.
 
+config SANDBOX_SJLJ_ASM
+	bool "use setjmp/longjmp/initjmp implemented in assembly" if COMPILE_TEST
+	default y
+	help
+	  sandbox has a C implementation of initjmp, which can run afoul of code
+	  hardening measures like ASAN. The assembly version isn't immune to these
+	  issues, but it's easier to reason about than the sigaltstack hack.
+
+config CMD_SANDBOX_CPUINFO
+	bool "cpuinfo command"
+	depends on COMMAND_SUPPORT
+	default y
+	help
+	  Say yes here to get a dummy cpuinfo command.
+
+config HAVE_LIBSDL2
+	def_bool $(success,$(CROSS_PKG_CONFIG) --exists sdl2)
+
+config HAVE_LIBFTDI
+	def_bool $(success,$(CROSS_PKG_CONFIG) --exists libftdi1)
+
 config SDL
 	bool
+
+config SANDBOX_LINK_CXX
+	def_bool FUZZ_EXTERNAL
+	help
+	  Link with CXX instead of CC to support C++ static libraries.
 
 endmenu

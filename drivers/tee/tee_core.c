@@ -16,7 +16,7 @@
 
 #define TEE_IOCTL_PARAM_SIZE(x) (sizeof(struct tee_param) * (x))
 
-static LIST_HEAD(tee_clients);
+static DEFINE_DEV_CLASS(tee_client_class, "tee_client");
 
 struct tee_context *teedev_open(struct tee_device *teedev)
 {
@@ -526,7 +526,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 	teedev->dev.parent = dev;
 	teedev->dev.type_data = driver_data;
 	teedev->dev.priv = teedev;
-	teedev->dev.info = tee_devinfo;
+	devinfo_add(&teedev->dev, tee_devinfo);
 
 	rc = dev_set_name(&teedev->dev, "tee%s",
 			  teedesc->flags & TEE_DESC_PRIVILEGED ? "priv" : "");
@@ -557,6 +557,7 @@ EXPORT_SYMBOL_GPL(tee_device_alloc);
 
 void tee_device_release(struct tee_device *teedev)
 {
+	devinfo_del(&teedev->dev, tee_devinfo);
 	kfree(teedev);
 }
 
@@ -590,7 +591,7 @@ int tee_device_register(struct tee_device *teedev)
 			goto out;
 	}
 
-	list_add_tail(&teedev->list, &tee_clients);
+	class_add_device(&tee_client_class, &teedev->dev);
 
 	teedev->flags |= TEE_DEVICE_FLAG_REGISTERED;
 	return 0;
@@ -639,7 +640,6 @@ void tee_device_unregister(struct tee_device *teedev)
 	if (!teedev)
 		return;
 
-	list_del(&teedev->list);
 	if (IS_ENABLED(CONFIG_OPTEE_DEVFS))
 		devfs_remove(&teedev->cdev);
 	unregister_device(&teedev->dev);
@@ -686,7 +686,7 @@ tee_client_open_context(struct tee_context *start,
 	if (start)
 		startdev = &start->teedev->dev;
 
-	list_for_each_entry(teedev, &tee_clients, list) {
+	class_for_each_container_of_device(&tee_client_class, teedev, dev) {
 		struct device *dev = &teedev->dev;
 		struct tee_context *ctx ;
 
@@ -753,7 +753,7 @@ int tee_client_invoke_func(struct tee_context *ctx,
 EXPORT_SYMBOL_GPL(tee_client_invoke_func);
 
 static int tee_client_device_match(struct device *dev,
-				   struct device_driver *drv)
+				   const struct device_driver *drv)
 {
 	const struct tee_client_device_id *id_table;
 	struct tee_client_device *tee_device;
@@ -763,11 +763,11 @@ static int tee_client_device_match(struct device *dev,
 
 	while (!uuid_is_null(&id_table->uuid)) {
 		if (uuid_equal(&tee_device->id.uuid, &id_table->uuid))
-			return 0;
+			return true;
 		id_table++;
 	}
 
-	return -1;
+	return false;
 }
 
 struct bus_type tee_bus_type = {

@@ -90,8 +90,8 @@ unsigned long divider_recalc_rate(struct clk *clk, unsigned long parent_rate,
 	div = _get_div(table, val, flags, width);
 	if (!div) {
 		WARN(!(flags & CLK_DIVIDER_ALLOW_ZERO),
-			"%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
-			clk->name);
+			"%pC: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
+			clk);
 		return parent_rate;
 	}
 
@@ -307,7 +307,7 @@ static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk *clk = clk_hw_to_clk(hw);
 	struct clk_divider *divider = to_clk_divider(hw);
-	unsigned int value;
+	int value;
 	u32 val;
 
 	if (divider->flags & CLK_DIVIDER_READ_ONLY)
@@ -322,6 +322,8 @@ static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	value = divider_get_val(rate, parent_rate, divider->table,
 				divider->width, divider->flags);
+	if (value < 0)
+		return value;
 
 	val = readl(divider->reg);
 	val &= ~(clk_div_mask(divider->width) << divider->shift);

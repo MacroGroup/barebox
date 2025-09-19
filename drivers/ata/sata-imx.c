@@ -87,12 +87,12 @@ static int imx_sata_probe(struct device *dev)
 {
 	struct resource *iores;
 	struct imx_ahci *imx_ahci;
-	struct imx_sata_data *data;
+	const struct imx_sata_data *data;
 	int ret;
 
-	ret = dev_get_drvdata(dev, (const void **)&data);
-	if (ret)
-		return ret;
+	data = device_get_match_data(dev);
+	if (!data)
+		return -ENODEV;
 
 	imx_ahci = xzalloc(sizeof(*imx_ahci));
 
@@ -113,7 +113,7 @@ static int imx_sata_probe(struct device *dev)
 
 	imx_ahci->ahci.dev = dev;
 	dev->priv = &imx_ahci->ahci;
-	dev->info = ahci_info;
+	devinfo_add(dev, ahci_info);
 
 	ret = ahci_add_host(&imx_ahci->ahci);
 	if (ret)

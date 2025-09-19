@@ -7,6 +7,8 @@
 #include "imx6ul.dtsi"
 
 / {
+	barebox,deep-probe;
+
 	chosen {
 		environment-sd {
 			compatible = "barebox,environment";
@@ -23,7 +25,7 @@
 
 &usdhc2 {
 	partitions {
-		compatible = "fixed-partitions";
+		compatible = "barebox,fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -36,7 +38,7 @@
 
 &usdhc1 {
 	partitions {
-		compatible = "fixed-partitions";
+		compatible = "barebox,fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 

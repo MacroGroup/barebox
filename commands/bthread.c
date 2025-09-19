@@ -106,7 +106,7 @@ static void bthread_spawner(void *_spawner_arg)
 		arg = malloc(sizeof(*arg));
 		arg->in = i;
 		bthread[i] = bthread_run(bthread_printer, arg,
-					 "%s-bthread%u", bthread_name(current), i+1);
+					 "%s-bthread%lu", bthread_name(current), i+1);
 		if (!bthread[i]) {
 			ret = -ENOMEM;
 			goto cleanup;
@@ -191,7 +191,7 @@ static int do_bthread(int argc, char *argv[])
 			 */
 			list_add(&spawner->list, &spawners);
 
-			/* fallthrough */
+			fallthrough;
 		case 't':
 			time = true;
 		}

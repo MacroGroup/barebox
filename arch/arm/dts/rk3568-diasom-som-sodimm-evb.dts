@@ -1,0 +1,140 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+
+#include <dt-bindings/soc/rockchip,vop2.h>
+
+#include "rk3568-diasom-som-sodimm.dtsi"
+
+/ {
+	model = "Diasom DS-RK3568-SODIMM-EVB";
+	compatible = "diasom,ds-rk3568-som-sodimm-evb",
+		     "diasom,ds-rk3568-som-sodimm",
+		     "diasom,ds-rk3568-som",
+		     "rockchip,rk3568";
+
+	aliases {
+		can0 = &can2;
+	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "HDMI";
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_connector_out>;
+			};
+		};
+	};
+};
+
+&can2 {
+	status = "okay";
+};
+
+&combphy2 {
+	status = "okay";
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_in {
+	hdmi_in_vp0: endpoint {
+		remote-endpoint = <&vp0_out_hdmi>;
+	};
+};
+
+&hdmi_out {
+	hdmi_connector_out: endpoint {
+		remote-endpoint = <&hdmi_connector_in>;
+	};
+};
+
+&hdmi_sound {
+	status = "okay";
+};
+
+&i2s0_8ch {
+	/* HDMI Sound */
+	status = "okay";
+};
+
+&i2s1_8ch {
+	status = "okay";
+};
+
+&i2s2_2ch {
+	status = "okay";
+};
+
+&pcie2x1 {
+	status = "okay";
+};
+
+&pcie30phy {
+	status = "okay";
+};
+
+&pcie3x2 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+	};
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
+};
+
+&spi2 {
+	status = "okay";
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+	};
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vp0 {
+	vp0_out_hdmi: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
+		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
+		remote-endpoint = <&hdmi_in_vp0>;
+	};
+};

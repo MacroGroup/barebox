@@ -10,6 +10,8 @@
 #include <arm/nxp/imx/imx7s-warp.dts>
 
 / {
+	barebox,disable-deep-probe;
+
 	chosen {
 		stdout-path = &uart1;
 
@@ -21,8 +23,8 @@
 };
 
 &usdhc3 {
-	boot0-partitions {
-		compatible = "fixed-partitions";
+	partitions-boot1 {
+		compatible = "barebox,fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 

@@ -19,26 +19,6 @@ struct partition;
 struct node_d;
 struct stat;
 
-typedef struct filep {
-	struct fs_device *fsdev; /* The device this FILE belongs to              */
-	char *path;
-	loff_t pos;            /* current position in stream                   */
-#define FILE_SIZE_STREAM	((loff_t) -1)
-	loff_t size;           /* The size of this inode                       */
-	ulong flags;          /* the O_* flags from open                      */
-
-	void *priv;         /* private to the filesystem driver              */
-
-	/* private fields. Mapping between FILE and filedescriptor number     */
-	int no;
-	char in_use;
-
-	struct inode *f_inode;
-	struct dentry *dentry;
-} FILE;
-
-#define FS_DRIVER_NO_DEV	1
-
 /**
  * enum erase_type - Type of erase operation
  * @ERASE_TO_WRITE: Conduct low-level erase operation to prepare for a write
@@ -63,48 +43,47 @@ enum erase_type {
 struct fs_driver {
 	int (*probe) (struct device *dev);
 
-	/* create a file. The file is guaranteed to not exist */
-	int (*create)(struct device *dev, const char *pathname, mode_t mode);
-	int (*unlink)(struct device *dev, const char *pathname);
-
 	/* Truncate a file to given size */
-	int (*truncate)(struct device *dev, FILE *f, loff_t size);
+	int (*truncate)(struct device *dev, struct file *f, loff_t size);
 
-	int (*open)(struct device *dev, FILE *f, const char *pathname);
-	int (*close)(struct device *dev, FILE *f);
-	int (*read)(struct device *dev, FILE *f, void *buf, size_t size);
-	int (*write)(struct device *dev, FILE *f, const void *buf,
+	int (*read)(struct device *dev, struct file *f, void *buf, size_t size);
+	int (*write)(struct device *dev, struct file *f, const void *buf,
 		     size_t size);
-	int (*flush)(struct device *dev, FILE *f);
-	int (*lseek)(struct device *dev, FILE *f, loff_t pos);
+	int (*flush)(struct device *dev, struct file *f);
+	int (*lseek)(struct device *dev, struct file *f, loff_t pos);
 
-	int (*ioctl)(struct device *dev, FILE *f, unsigned int request, void *buf);
-	int (*erase)(struct device *dev, FILE *f, loff_t count,
+	int (*ioctl)(struct device *dev, struct file *f, unsigned int request, void *buf);
+	int (*erase)(struct device *dev, struct file *f, loff_t count,
 			loff_t offset, enum erase_type type);
-	int (*protect)(struct device *dev, FILE *f, size_t count,
+	int (*protect)(struct device *dev, struct file *f, size_t count,
 			loff_t offset, int prot);
-	int (*discard_range)(struct device *dev, FILE *f, loff_t count,
+	int (*discard_range)(struct device *dev, struct file *f, loff_t count,
 			     loff_t offset);
 
-	int (*memmap)(struct device *dev, FILE *f, void **map, int flags);
+	int (*memmap)(struct device *dev, struct file *f, void **map, int flags);
 
-	/* legacy */
-	int (*mkdir)(struct device *dev, const char *pathname);
-	int (*rmdir)(struct device *dev, const char *pathname);
-	int (*symlink)(struct device *dev, const char *pathname,
-		       const char *newpath);
-	int (*readlink)(struct device *dev, const char *pathname, char *name,
-			size_t size);
-	struct dir* (*opendir)(struct device *dev, const char *pathname);
-	struct dirent* (*readdir)(struct device *dev, struct dir *dir);
-	int (*closedir)(struct device *dev, DIR *dir);
-	int (*stat)(struct device *dev, const char *file, struct stat *stat);
+	const struct fs_legacy_ops {
+		int (*open)(struct device *dev, struct file *f, const char *pathname);
+		int (*close)(struct device *dev, struct file *f);
+		/* create a file. The file is guaranteed to not exist */
+		int (*create)(struct device *dev, const char *pathname, mode_t mode);
+		int (*unlink)(struct device *dev, const char *pathname);
+
+		int (*mkdir)(struct device *dev, const char *pathname);
+		int (*rmdir)(struct device *dev, const char *pathname);
+		int (*symlink)(struct device *dev, const char *pathname,
+			       const char *newpath);
+		int (*readlink)(struct device *dev, const char *pathname, char *name,
+				size_t size);
+		struct dir* (*opendir)(struct device *dev, const char *pathname);
+		struct dirent* (*readdir)(struct device *dev, struct dir *dir);
+		int (*closedir)(struct device *dev, DIR *dir);
+		int (*stat)(struct device *dev, const char *file, struct stat *stat);
+	} *legacy_ops;
 
 	struct driver drv;
 
 	enum filetype type;
-
-	unsigned long flags;
 };
 
 #define dev_to_fs_device(d) container_of(d, struct fs_device, dev)
@@ -176,7 +155,7 @@ char *canonicalize_path(int dirfd, const char *pathname);
 
 struct fs_device *get_fsdevice_by_path(int dirfd, const char *path);
 
-char *get_mounted_path(const char *path);
+const char *get_mounted_path(const char *path);
 
 struct cdev *get_cdev_by_mountpath(const char *path);
 
@@ -196,7 +175,6 @@ void mount_all(void);
 
 void fsdev_set_linux_rootarg(struct fs_device *fsdev, const char *str);
 char *path_get_linux_rootarg(const char *path);
-char *cdev_get_linux_rootarg(const struct cdev *cdev);
 
 static inline const char *devpath_to_name(const char *devpath)
 {

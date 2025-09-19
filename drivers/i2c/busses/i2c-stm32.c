@@ -867,9 +867,9 @@ static int stm32_of_to_plat(struct device *dev, struct stm32_i2c_priv *i2c_priv)
 	const struct stm32_i2c_data *data;
 	int ret;
 
-	ret = dev_get_drvdata(dev, (const void **)&data);
-	if (ret)
-		return ret;
+	data = device_get_match_data(dev);
+	if (!data)
+		return -ENODEV;
 
 	if (of_property_read_u32(dev->of_node, "i2c-digital-filter-width-ns",
 				 &i2c_priv->setup.timings.digital_filter_width_ns))
@@ -941,7 +941,7 @@ static int __init stm32_i2c_probe(struct device *dev)
 
 	/* Setup stm32_i2c driver structure */
 	stm32_i2c->adapter.master_xfer = stm32_i2c_xfer;
-	stm32_i2c->adapter.nr = dev->id;
+	stm32_i2c->adapter.nr = -1;
 	stm32_i2c->adapter.dev.parent = dev;
 	stm32_i2c->adapter.dev.of_node = dev->of_node;
 

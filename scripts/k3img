@@ -1,0 +1,148 @@
+#!/bin/bash
+
+set -e
+
+bootcore_opts=0
+
+TEMP=$(getopt -o '' --long 'out:,key:,help' -n 'k3img' -- "$@")
+
+if [ $? -ne 0 ]; then
+	echo 'Terminating...' >&2
+	exit 1
+fi
+
+# Note the quotes around "$TEMP": they are essential!
+eval set -- "$TEMP"
+unset TEMP
+
+usage() {
+cat <<EndOfHereDocument
+Generate certificate images suitable for booting TI K3 SoCs.
+
+usage: $0 [OPTION]... [COMPONENT]...
+  --out <FILE>		write output image to <FILE>
+  --key <KEYFILE>	signing key
+  --help		this help
+
+Components have the form:
+
+filename:compType:bootCore:compOpts:destAddr
+
+For the meaning of compType, bootCore and compOpts see the Reference Manual
+EndOfHereDocument
+}
+
+while true; do
+        case "$1" in
+	'--out')
+		out="$2"
+		shift 2
+		continue
+	;;
+	'--key')
+		key="$2"
+		shift 2
+		continue
+	;;
+	'--help')
+		usage
+		exit 0
+	;;
+	'--')
+		shift
+		break
+	;;
+	*)
+		echo 'Internal error!' >&2
+		exit 1
+	;;
+	esac
+done
+
+total=0
+num_comp=0
+
+trap 'rm -rf -- "$TMPDIR"' EXIT
+TMPDIR="$(mktemp -d)"
+
+components=${TMPDIR}/components
+ext_boot_info=${TMPDIR}/ext_boot_info
+data=${TMPDIR}/data
+
+for i in $*; do
+	filename=$(echo "$i" | cut -d ":" -f 1)
+	compType=$(echo "$i" | cut -d ":" -f 2)
+	bootCore=$(echo "$i" | cut -d ":" -f 3)
+	compOpts=$(echo "$i" | cut -d ":" -f 4)
+	destAddr=$(echo "$i" | cut -d ":" -f 5)
+
+	sha=$(sha512sum $filename | sed 's/ .*//')
+	size=$(stat -L -c%s $filename)
+
+	total=$((total + size))
+	num_comp=$((num_comp + 1))
+
+	cat >> $components <<EndOfHereDocument
+[comp$num_comp]
+compType = INTEGER:$compType
+bootCore = INTEGER:$bootCore
+compOpts = INTEGER:$compOpts
+destAddr = FORMAT:HEX,OCT:$destAddr
+compSize = INTEGER:$size
+shaType  = OID:2.16.840.1.101.3.4.2.3
+shaValue = FORMAT:HEX,OCT:$sha
+
+EndOfHereDocument
+
+	echo "comp$num_comp = SEQUENCE:comp$num_comp" >> $ext_boot_info
+	cat $filename >> $data
+done
+
+echo >> $ext_boot_info
+
+cat >> $components <<EndOfHereDocument
+[ debug ]
+debugUID = FORMAT:HEX,OCT:0000000000000000000000000000000000000000000000000000000000000000
+debugType = INTEGER:4
+coreDbgEn = INTEGER:0
+coreDbgSecEn = INTEGER:0
+EndOfHereDocument
+
+certcfg=${TMPDIR}/certcfg
+cert=${TMPDIR}/cert
+
+cat > $certcfg <<EndOfHereDocument
+[ req ]
+distinguished_name     = req_distinguished_name
+x509_extensions        = v3_ca
+prompt                 = no
+dirstring_type         = nobmp
+
+[ req_distinguished_name ]
+C                      = US
+ST                     = TX
+L                      = Dallas
+O                      = Texas Instruments Incorporated
+OU                     = Processors
+CN                     = TI Support
+emailAddress           = support@ti.com
+
+[ v3_ca ]
+basicConstraints = CA:true
+1.3.6.1.4.1.294.1.3=ASN1:SEQUENCE:swrv
+1.3.6.1.4.1.294.1.9=ASN1:SEQUENCE:ext_boot_info
+1.3.6.1.4.1.294.1.8=ASN1:SEQUENCE:debug
+
+[swrv]
+swrv=INTEGER:1
+
+[ext_boot_info]
+extImgSize=INTEGER:$total
+numComp=INTEGER:$num_comp
+EndOfHereDocument
+
+cat $ext_boot_info $components >> $certcfg
+
+openssl req -new -x509 -key $key -nodes -outform DER -out $cert -config $certcfg -sha512
+
+cat $cert $data > $out

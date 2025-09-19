@@ -319,9 +319,6 @@ mem_initcall(at91sam9261ek_mem_init);
 
 static int at91sam9261ek_devices_init(void)
 {
-	u32 barebox_part_start;
-	u32 barebox_part_size;
-
 	ek_add_device_nand();
 	ek_add_device_dm9000();
 	ek_add_device_udc();
@@ -330,22 +327,14 @@ static int at91sam9261ek_devices_init(void)
 	ek_add_device_lcdc();
 	ek_add_device_spi();
 
-	if (IS_ENABLED(CONFIG_AT91_LOAD_BAREBOX_SRAM)) {
-		barebox_part_start = 0;
-		barebox_part_size = SZ_256K + SZ_128K;
-		export_env_ull("borebox_first_stage", 1);
-	} else {
-		devfs_add_partition("nand0", 0x00000, SZ_128K, DEVFS_PARTITION_FIXED, "at91bootstrap_raw");
-		barebox_part_start = SZ_128K;
-		barebox_part_size = SZ_256K;
-	}
-	devfs_add_partition("nand0", barebox_part_start, barebox_part_size,
-			    DEVFS_PARTITION_FIXED, "self_raw");
+	devfs_add_partition("nand0", 0x00000, SZ_128K, DEVFS_PARTITION_FIXED, "at91bootstrap_raw");
+	devfs_add_partition("nand0", SZ_128K, SZ_256K, DEVFS_PARTITION_FIXED, "self_raw");
 	dev_add_bb_dev("self_raw", "self0");
 	devfs_add_partition("nand0", SZ_256K + SZ_128K, SZ_128K, DEVFS_PARTITION_FIXED, "env_raw");
 	dev_add_bb_dev("env_raw", "env0");
 	devfs_add_partition("nand0", SZ_512K, SZ_128K, DEVFS_PARTITION_FIXED, "env_raw1");
 	dev_add_bb_dev("env_raw1", "env1");
+	default_environment_path_set("/dev/env0");
 
 	if (machine_is_at91sam9g10ek())
 		armlinux_set_architecture(MACH_TYPE_AT91SAM9G10EK);

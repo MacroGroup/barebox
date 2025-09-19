@@ -26,21 +26,25 @@
 
 #define MAX_BUFFER_NUMBER 0xffffffff
 
-#define UNSTUFF_BITS(resp,start,size)					\
-	({								\
-		const int __size = size;				\
-		const u32 __mask = (__size < 32 ? 1 << __size : 0) - 1;	\
-		const int __off = 3 - ((start) / 32);			\
-		const int __shft = (start) & 31;			\
-		u32 __res;						\
-									\
-		__res = resp[__off] >> __shft;				\
-		if (__size + __shft > 32)				\
-			__res |= resp[__off-1] << ((32 - __shft) % 32);	\
-		__res & __mask;						\
-	})
+static inline u32 unstuff_bits(const u32 *resp, int start, int size)
+{
+	const int __size = size;
+	const u32 __mask = (__size < 32 ? 1 << __size : 0) - 1;
+	const int __off = 3 - (start / 32);
+	const int __shft = start & 31;
+	u32 __res = resp[__off] >> __shft;
 
-LIST_HEAD(mci_list);
+	if (__size + __shft > 32)
+		__res |= resp[__off - 1] << ((32 - __shft) % 32);
+
+	return __res & __mask;
+}
+
+static DEFINE_DEV_CLASS(mmc_class, "mmc");
+
+#define for_each_mci(mci) \
+	class_for_each_container_of_device(&mmc_class, mci, dev)
+
 
 /**
  * @file
@@ -68,7 +72,7 @@ static inline unsigned mci_caps(struct mci *mci)
  * @param data The data according to the command (can be NULL)
  * @return Driver's answer (0 on success)
  */
-static int mci_send_cmd(struct mci *mci, struct mci_cmd *cmd, struct mci_data *data)
+int mci_send_cmd(struct mci *mci, struct mci_cmd *cmd, struct mci_data *data)
 {
 	struct mci_host *host = mci->host;
 
@@ -98,28 +102,13 @@ static int mci_send_cmd_retry(struct mci *mci, struct mci_cmd *cmd,
 }
 
 /**
- * @param p Command definition to setup
- * @param cmd Valid SD/MMC command (refer MMC_CMD_* / SD_CMD_*)
- * @param arg Argument for the command (optional)
- * @param response Command's response type (refer MMC_RSP_*)
- *
- * Note: When calling, the 'response' must match command's requirements
- */
-static void mci_setup_cmd(struct mci_cmd *p, unsigned cmd, unsigned arg, unsigned response)
-{
-	p->cmdidx = cmd;
-	p->cmdarg = arg;
-	p->resp_type = response;
-}
-
-/**
  * configure optional DSR value
  * @param mci_dev MCI instance
  * @return Transaction status (0 on success)
  */
 static int mci_set_dsr(struct mci *mci)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 
 	mci_setup_cmd(&cmd, MMC_CMD_SET_DSR,
 			(mci->host->dsr_val >> 16) | 0xffff, MMC_RSP_NONE);
@@ -134,13 +123,13 @@ static int mci_set_dsr(struct mci *mci)
  */
 static int mci_set_blocklen(struct mci *mci, unsigned len)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 
-	if (mci->host->timing == MMC_TIMING_MMC_DDR52)
+	if (mci->host->ios.timing == MMC_TIMING_MMC_DDR52)
 		return 0;
 
 	mci_setup_cmd(&cmd, MMC_CMD_SET_BLOCKLEN, len, MMC_RSP_R1);
-	return mci_send_cmd(mci, &cmd, NULL);
+	return mci_send_cmd_retry(mci, &cmd, NULL, 4);
 }
 
 static void *sector_buf;
@@ -148,7 +137,7 @@ static void *sector_buf;
 static int mci_send_status(struct mci *mci, unsigned int *status)
 {
 	struct mci_host *host = mci->host;
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	int ret;
 
 	/*
@@ -172,7 +161,7 @@ static int mci_send_status(struct mci *mci, unsigned int *status)
 static int mci_app_sd_status(struct mci *mci, __be32 *ssr)
 {
 	int err;
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	struct mci_data data;
 
 	cmd.cmdidx = MMC_CMD_APP_CMD;
@@ -270,9 +259,9 @@ static int mci_poll_until_ready(struct mci *mci, int timeout_ms)
  * @return Transaction status (0 on success)
  */
 static int mci_block_write(struct mci *mci, const void *src, int blocknum,
-	int blocks)
+			   int blocks)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	struct mci_data data;
 	unsigned mmccmd;
 	int ret;
@@ -364,6 +353,15 @@ err_out:
 	return -EIO;
 }
 
+int mci_set_blockcount(struct mci *mci, unsigned int cmdarg)
+{
+	struct mci_cmd cmd = {};
+
+	mci_setup_cmd(&cmd, MMC_CMD_SET_BLOCK_COUNT, cmdarg, MMC_RSP_R1);
+
+	return mci_send_cmd(mci, &cmd, NULL);
+}
+
 /**
  * Read one or several block(s) of data from the card
  * @param mci MCI instance
@@ -371,10 +369,10 @@ err_out:
  * @param blocknum Block number to read
  * @param blocks number of blocks to read
  */
-static int mci_read_block(struct mci *mci, void *dst, int blocknum,
-		int blocks)
+static int mci_block_read(struct mci *mci, void *dst, int blocknum,
+			  int blocks)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	struct mci_data data;
 	int ret;
 	unsigned mmccmd;
@@ -411,7 +409,7 @@ static int mci_read_block(struct mci *mci, void *dst, int blocknum,
  */
 static int mci_go_idle(struct mci *mci)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	int err;
 
 	udelay(1000);
@@ -431,7 +429,7 @@ static int mci_go_idle(struct mci *mci)
 
 static int sdio_send_op_cond(struct mci *mci)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 
 	mci_setup_cmd(&cmd, SD_IO_SEND_OP_COND, 0, MMC_RSP_SPI_R4 | MMC_RSP_R4 | MMC_CMD_BCR);
 
@@ -446,7 +444,7 @@ static int sdio_send_op_cond(struct mci *mci)
 static int sd_send_op_cond(struct mci *mci)
 {
 	struct mci_host *host = mci->host;
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	int timeout = 1000;
 	int err;
 	unsigned voltages;
@@ -521,7 +519,7 @@ static int sd_send_op_cond(struct mci *mci)
 static int mmc_send_op_cond(struct mci *mci)
 {
 	struct mci_host *host = mci->host;
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	int timeout = 1000;
 	int err;
 
@@ -566,7 +564,7 @@ static int mmc_send_op_cond(struct mci *mci)
  */
 int mci_send_ext_csd(struct mci *mci, char *ext_csd)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	struct mci_data data;
 
 	/* Get the Card Status Register */
@@ -595,7 +593,7 @@ int mci_send_ext_csd(struct mci *mci, char *ext_csd)
 int mci_switch(struct mci *mci, unsigned index, unsigned value)
 {
 	unsigned int status;
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	int ret;
 
 	mci_setup_cmd(&cmd, MMC_CMD_SWITCH,
@@ -671,10 +669,10 @@ static void mci_part_add(struct mci *mci, uint64_t size,
 	part->part_cfg = part_cfg;
 	part->idx = idx;
 
-	if (area_type == MMC_BLK_DATA_AREA_MAIN) {
+	if (area_type == MMC_BLK_DATA_AREA_MAIN)
 		cdev_set_of_node(&part->blk.cdev, mci->host->hw_dev->of_node);
-		part->blk.cdev.flags |= DEVFS_IS_MCI_MAIN_PART_DEV;
-	}
+	else if (area_type == MMC_BLK_DATA_AREA_RPMB)
+		mci->rpmb_part = part;
 
 	mci->nr_parts++;
 }
@@ -797,7 +795,7 @@ static int mmc_change_freq(struct mci *mci)
 		mci->card_caps |= MMC_CAP_MMC_HIGHSPEED_52MHZ;
 
 		if (cardtype & EXT_CSD_CARD_TYPE_DDR_1_8V)
-			mci->card_caps |= MMC_CAP_MMC_3_3V_DDR | MMC_CAP_MMC_1_8V_DDR;
+			mci->card_caps |= MMC_CAP_3_3V_DDR | MMC_CAP_1_8V_DDR;
 	}
 
 	if (IS_ENABLED(CONFIG_MCI_MMC_BOOT_PARTITIONS) &&
@@ -822,6 +820,20 @@ static int mmc_change_freq(struct mci *mci)
 		mci->boot_ack_enable = (mci->ext_csd_part_config >> 6) & 0x1;
 	}
 
+	if (mci->ext_csd[EXT_CSD_REV] >= 5) {
+		if (mci->ext_csd[EXT_CSD_RPMB_SIZE_MULT]) {
+			char *name, *partname;
+
+			partname = basprintf("rpmb");
+			name = basprintf("%s.%s", mci->cdevname, partname);
+
+			mci_part_add(mci, mci->ext_csd[EXT_CSD_RPMB_SIZE_MULT] << 17,
+				EXT_CSD_PART_CONFIG_ACC_RPMB,
+				name, partname, 0, false,
+				MMC_BLK_DATA_AREA_RPMB);
+		}
+	}
+
 	if (IS_ENABLED(CONFIG_MCI_MMC_GPP_PARTITIONS))
 		mmc_extract_gpp_partitions(mci);
 
@@ -840,7 +852,7 @@ static int mmc_change_freq(struct mci *mci)
 static int sd_switch(struct mci *mci, unsigned mode, unsigned group,
 			unsigned value, uint8_t *resp)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	struct mci_data data;
 	unsigned arg;
 
@@ -909,7 +921,7 @@ out:
  */
 static int sd_change_freq(struct mci *mci)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	struct mci_data data;
 	struct mci_host *host = mci->host;
 	uint32_t *switch_status = sector_buf;
@@ -1016,6 +1028,24 @@ retry_scr:
 	return 0;
 }
 
+static const char *mci_timing_tostr(unsigned timing)
+{
+	switch (timing) {
+	case MMC_TIMING_LEGACY:
+		return "legacy";
+	case MMC_TIMING_MMC_HS:
+		return "MMC HS";
+	case MMC_TIMING_SD_HS:
+		return "SD HS";
+	case MMC_TIMING_MMC_DDR52:
+		return "MMC DDR52";
+	case MMC_TIMING_MMC_HS200:
+		return "HS200";
+	default:
+		return "unknown"; /* shouldn't happen */
+	}
+}
+
 /**
  * Setup host's interface bus width and transfer frequency
  * @param mci MCI instance
@@ -1023,15 +1053,15 @@ retry_scr:
 static void mci_set_ios(struct mci *mci)
 {
 	struct mci_host *host = mci->host;
-	struct mci_ios ios = {
-		.bus_width = host->bus_width,
-		.clock = host->clock,
-		.timing = host->timing,
-	};
+	struct mci_ios *ios = &host->ios;
 
-	host->ops.set_ios(host, &ios);
+	dev_dbg(&mci->dev, "clock %u.%uMHz width %u timing %s\n",
+		ios->clock / 1000000, ios->clock % 1000000,
+		1 << ios->bus_width, mci_timing_tostr(ios->timing));
 
-	host->actual_clock = host->clock;
+	host->ops.set_ios(host, ios);
+
+	host->actual_clock = host->ios.clock;
 }
 
 /**
@@ -1050,7 +1080,7 @@ static void mci_set_clock(struct mci *mci, unsigned clock)
 	if (clock < host->f_min)
 		clock = host->f_min;
 
-	host->clock = clock;	/* the new target frequency */
+	host->ios.clock = clock;	/* the new target frequency */
 	mci_set_ios(mci);
 }
 
@@ -1063,7 +1093,20 @@ static void mci_set_bus_width(struct mci *mci, enum mci_bus_width width)
 {
 	struct mci_host *host = mci->host;
 
-	host->bus_width = width;	/* the new target bus width */
+	host->ios.bus_width = width;	/* the new target bus width */
+	mci_set_ios(mci);
+}
+
+/**
+ * Setup host's interface timing
+ * @param mci MCI instance
+ * @param width New timing
+ */
+static void mci_set_timing(struct mci *mci, enum mci_timing timing)
+{
+	struct mci_host *host = mci->host;
+
+	host->ios.timing = timing;
 	mci_set_ios(mci);
 }
 
@@ -1202,7 +1245,7 @@ static void mci_extract_max_tran_speed_from_csd(struct mci *mci)
  */
 static void mci_extract_block_lengths_from_csd(struct mci *mci)
 {
-	mci->read_bl_len = 1 << UNSTUFF_BITS(mci->csd, 80, 4);
+	mci->read_bl_len = 1 << unstuff_bits(mci->csd, 80, 4);
 
 	/* Quoting Physical Layer Simplified Specification Version 9.10:
 	 * Note that in an SD Memory Card the WRITE_BL_LEN is always
@@ -1218,24 +1261,37 @@ static void mci_extract_block_lengths_from_csd(struct mci *mci)
 }
 
 /**
- * Extract erase group size
+ * Configure erase group size
  * @param mci MCI instance
  */
-static void mci_extract_erase_group_size(struct mci *mci)
+static void mci_configure_erase_group_size(struct mci *mci)
 {
+	/* Enable ERASE_GRP_DEF. This bit is lost after a reset or power off.
+	 * This needs to happen even if we don't have erase support compiled-in.
+	 */
+	if (!IS_SD(mci) && mci->version >= MMC_VERSION_4_3) {
+		int err;
+
+		err = mci_switch(mci, EXT_CSD_ERASE_GROUP_DEF, 1);
+		if (err)
+			dev_warn(&mci->dev, "failed erase group switch\n");
+		else
+			mci->ext_csd[EXT_CSD_ERASE_GROUP_DEF] = 1;
+	}
+
 	if (!IS_ENABLED(CONFIG_MCI_ERASE) ||
-	    !(UNSTUFF_BITS(mci->csd, 84, 12) & CCC_ERASE))
+	    !(unstuff_bits(mci->csd, 84, 12) & CCC_ERASE))
 		return;
 
 
 	if (IS_SD(mci)) {
-		if (UNSTUFF_BITS(mci->csd, 126, 2) == 0) {
-			unsigned int write_blkbits = UNSTUFF_BITS(mci->csd, 22, 4);
+		if (unstuff_bits(mci->csd, 126, 2) == 0) {
+			unsigned int write_blkbits = unstuff_bits(mci->csd, 22, 4);
 
-			if (UNSTUFF_BITS(mci->csd, 46, 1)) {
+			if (unstuff_bits(mci->csd, 46, 1)) {
 				mci->erase_grp_size = 1;
 			} else if (write_blkbits >= 9) {
-				mci->erase_grp_size = UNSTUFF_BITS(mci->csd, 39, 7) + 1;
+				mci->erase_grp_size = unstuff_bits(mci->csd, 39, 7) + 1;
 				mci->erase_grp_size <<= write_blkbits - 9;
 			}
 		} else {
@@ -1279,7 +1335,7 @@ static void mci_extract_card_capacity_from_csd(struct mci *mci)
 
 	if (mci->high_capacity) {
 		if (IS_SD(mci)) {
-			csize = UNSTUFF_BITS(mci->csd, 48, 22);
+			csize = unstuff_bits(mci->csd, 48, 22);
 			mci->capacity = (1 + csize) << 10;
 		} else {
 			mci->capacity = mci->ext_csd[EXT_CSD_SEC_COUNT] << 0 |
@@ -1288,12 +1344,12 @@ static void mci_extract_card_capacity_from_csd(struct mci *mci)
 				mci->ext_csd[EXT_CSD_SEC_COUNT + 3] << 24;
 		}
 	} else {
-		cmult = UNSTUFF_BITS(mci->csd, 47, 3);
-		csize = UNSTUFF_BITS(mci->csd, 62, 12);
+		cmult = unstuff_bits(mci->csd, 47, 3);
+		csize = unstuff_bits(mci->csd, 62, 12);
 		mci->capacity = (csize + 1) << (cmult + 2);
 	}
 
-	mci->capacity *= 1 << UNSTUFF_BITS(mci->csd, 80, 4);
+	mci->capacity *= 1 << unstuff_bits(mci->csd, 80, 4);
 	dev_dbg(&mci->dev, "Capacity: %u MiB\n", (unsigned)(mci->capacity >> 20));
 }
 
@@ -1303,7 +1359,7 @@ static void mci_extract_card_capacity_from_csd(struct mci *mci)
  */
 static void mci_extract_card_dsr_imp_from_csd(struct mci *mci)
 {
-	mci->dsr_imp = UNSTUFF_BITS(mci->csd, 76, 1);
+	mci->dsr_imp = unstuff_bits(mci->csd, 76, 1);
 }
 
 static int mmc_compare_ext_csds(struct mci *mci, enum mci_bus_width bus_width)
@@ -1387,7 +1443,7 @@ static char *mci_version_string(struct mci *mci)
 
 static int mci_startup_sd(struct mci *mci)
 {
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	int err;
 
 	if (mci_caps(mci) & MMC_CAP_4_BIT_DATA) {
@@ -1411,7 +1467,7 @@ static int mci_startup_sd(struct mci *mci)
 	}
 
 	if (mci->tran_speed > 25000000)
-		mci->host->timing = MMC_TIMING_SD_HS;
+		mci->host->ios.timing = MMC_TIMING_SD_HS;
 
 	mci_set_clock(mci, mci->tran_speed);
 
@@ -1450,7 +1506,7 @@ static int mci_mmc_try_bus_width(struct mci *mci, enum mci_bus_width bus_width,
 	if (err < 0)
 		goto out;
 
-	mci->host->timing = timing;
+	mci->host->ios.timing = timing;
 	mci_set_bus_width(mci, bus_width);
 
 	switch (bus_width) {
@@ -1505,7 +1561,7 @@ static int mci_mmc_select_bus_width(struct mci *mci)
 		 * 4bit transfer mode. On success set the corresponding
 		 * bus width on the host.
 		 */
-		ret = mci_mmc_try_bus_width(mci, bus_widths[idx], host->timing);
+		ret = mci_mmc_try_bus_width(mci, bus_widths[idx], host->ios.timing);
 		if (ret > 0)
 			break;
 	}
@@ -1524,12 +1580,12 @@ static int mci_mmc_select_hs_ddr(struct mci *mci)
 	 * higher speed modes that require voltage switching like HS200/HS400,
 	 * let's just check for either bit.
 	 */
-	if (!(mci_caps(mci) & (MMC_CAP_MMC_1_8V_DDR | MMC_CAP_MMC_3_3V_DDR)))
+	if (!(mci_caps(mci) & (MMC_CAP_1_8V_DDR | MMC_CAP_3_3V_DDR)))
 		return 0;
 
-	ret = mci_mmc_try_bus_width(mci, host->bus_width, MMC_TIMING_MMC_DDR52);
+	ret = mci_mmc_try_bus_width(mci, host->ios.bus_width, MMC_TIMING_MMC_DDR52);
 	if (ret < 0)
-		return mci_mmc_try_bus_width(mci, host->bus_width, MMC_TIMING_MMC_HS);
+		return mci_mmc_try_bus_width(mci, host->ios.bus_width, MMC_TIMING_MMC_HS);
 
 	/* Block length is fixed to 512 bytes while in DDR mode */
 	mci->read_bl_len = SECTOR_SIZE;
@@ -1543,14 +1599,8 @@ int mci_execute_tuning(struct mci *mci)
 	struct mci_host *host = mci->host;
 	u32 opcode;
 
-	if (!host->ops.execute_tuning) {
-		/*
-		 * For us, implementing ->execute_tuning is mandatory to
-		 * support higher speed modes
-		 */
-		dev_warn(&mci->dev, "tuning failed: no host diver support\n");
-		return -EOPNOTSUPP;
-	}
+	if (!host->ops.execute_tuning)
+		return 0;
 
 	/* Tuning is only supported for MMC / HS200 */
 	if (mmc_card_hs200(mci))
@@ -1560,6 +1610,84 @@ int mci_execute_tuning(struct mci *mci)
 
 	return host->ops.execute_tuning(host, opcode);
 }
+
+static const u8 tuning_blk_pattern_4bit[] = {
+	0xff, 0x0f, 0xff, 0x00, 0xff, 0xcc, 0xc3, 0xcc,
+	0xc3, 0x3c, 0xcc, 0xff, 0xfe, 0xff, 0xfe, 0xef,
+	0xff, 0xdf, 0xff, 0xdd, 0xff, 0xfb, 0xff, 0xfb,
+	0xbf, 0xff, 0x7f, 0xff, 0x77, 0xf7, 0xbd, 0xef,
+	0xff, 0xf0, 0xff, 0xf0, 0x0f, 0xfc, 0xcc, 0x3c,
+	0xcc, 0x33, 0xcc, 0xcf, 0xff, 0xef, 0xff, 0xee,
+	0xff, 0xfd, 0xff, 0xfd, 0xdf, 0xff, 0xbf, 0xff,
+	0xbb, 0xff, 0xf7, 0xff, 0xf7, 0x7f, 0x7b, 0xde,
+};
+
+static const u8 tuning_blk_pattern_8bit[] = {
+	0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00,
+	0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc, 0xcc,
+	0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff, 0xff,
+	0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee, 0xff,
+	0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd, 0xdd,
+	0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff, 0xbb,
+	0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff, 0xff,
+	0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee, 0xff,
+	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
+	0x00, 0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc,
+	0xcc, 0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff,
+	0xff, 0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee,
+	0xff, 0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd,
+	0xdd, 0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff,
+	0xbb, 0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff,
+	0xff, 0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee,
+};
+
+int mmc_send_tuning(struct mci *mci, u32 opcode)
+{
+	struct mci_cmd cmd = {};
+	struct mci_data data = {};
+	const u8 *tuning_block_pattern;
+	int size, err = 0;
+	u8 *data_buf;
+
+	if (mci->host->ios.bus_width == MMC_BUS_WIDTH_8) {
+		tuning_block_pattern = tuning_blk_pattern_8bit;
+		size = sizeof(tuning_blk_pattern_8bit);
+	} else if (mci->host->ios.bus_width == MMC_BUS_WIDTH_4) {
+		tuning_block_pattern = tuning_blk_pattern_4bit;
+		size = sizeof(tuning_blk_pattern_4bit);
+	} else
+		return -EINVAL;
+
+	data_buf = calloc(size, 1);
+	if (!data_buf)
+		return -ENOMEM;
+
+	mci_setup_cmd(&cmd, opcode, 0, MMC_RSP_R1 | MMC_CMD_ADTC);
+
+
+	data.blocksize = size;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+
+	/*
+	 * According to the tuning specs, Tuning process
+	 * is normally shorter 40 executions of CMD19,
+	 * and timeout value should be shorter than 150 ms
+	 */
+	data.timeout_ns = 150 * NSEC_PER_MSEC;
+
+	err = mci_send_cmd(mci, &cmd, &data);
+	if (err)
+		goto out;
+
+	if (memcmp(data_buf, tuning_block_pattern, size))
+		err = -EIO;
+
+out:
+	free(data_buf);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mmc_send_tuning);
 
 int mci_send_abort_tuning(struct mci *mci, u32 opcode)
 {
@@ -1580,6 +1708,28 @@ int mci_send_abort_tuning(struct mci *mci, u32 opcode)
 }
 EXPORT_SYMBOL_GPL(mci_send_abort_tuning);
 
+static void mmc_select_driver_type(struct mci *mci)
+{
+	int card_drv_type, drive_strength;
+	int fixed_drv_type = mci->host->fixed_drv_type;
+
+	card_drv_type = mci->ext_csd[EXT_CSD_DRIVER_STRENGTH] |
+			mmc_driver_type_mask(0);
+
+	if (mci->host->fixed_drv_type_valid)
+		drive_strength = card_drv_type & mmc_driver_type_mask(fixed_drv_type)
+				 ? fixed_drv_type : 0;
+	else
+		drive_strength = 0;
+
+	mci->host->drive_strength = drive_strength;
+
+	/* Linux only sets the drive strength immediately if the driver
+	 * implements select_drive_strength, which none of our drivers
+	 * do yet
+	 */
+}
+
 static void mmc_select_max_dtr(struct mci *mci)
 {
 	u8 card_type = mci->ext_csd[EXT_CSD_DEVICE_TYPE];
@@ -1587,30 +1737,58 @@ static void mmc_select_max_dtr(struct mci *mci)
 	u32 caps = mci->card_caps;
 	unsigned int hs_max_dtr = 0;
 	unsigned int hs200_max_dtr = 0;
+	unsigned int avail_type = 0;
 
 	if ((caps & MMC_CAP_MMC_HIGHSPEED) &&
 	    (card_type & EXT_CSD_CARD_TYPE_26)) {
 		hs_max_dtr = MMC_HIGH_26_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_26;
 	}
 
 	if ((caps & MMC_CAP_MMC_HIGHSPEED) &&
 	    (card_type & EXT_CSD_CARD_TYPE_52)) {
 		hs_max_dtr = MMC_HIGH_52_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_52;
 	}
 
 	if ((caps2 & MMC_CAP2_HS200_1_8V_SDR) &&
 	    (card_type & EXT_CSD_CARD_TYPE_HS200_1_8V)) {
 		hs200_max_dtr = MMC_HS200_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_HS200_1_8V;
 	}
 
 	if ((caps2 & MMC_CAP2_HS200_1_2V_SDR) &&
 	    (card_type & EXT_CSD_CARD_TYPE_HS200_1_2V)) {
 		hs200_max_dtr = MMC_HS200_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_HS200_1_2V;
 	}
 
 	mci->host->hs200_max_dtr = hs200_max_dtr;
 	mci->host->hs_max_dtr = hs_max_dtr;
+	mci->host->mmc_avail_type = avail_type;
 }
+
+static u32 mmc_card_caps2_from_ext_csd(struct mci *mci)
+{
+	u8 card_type;
+	u32 caps2;
+
+	if (!mci->ext_csd)
+		return 0;
+
+	card_type = mci->ext_csd[EXT_CSD_DEVICE_TYPE];
+	caps2 = 0;
+
+	if (card_type & EXT_CSD_CARD_TYPE_HS200_1_8V)
+		caps2 |= MMC_CAP2_HS200_1_8V_SDR;
+
+	if ((caps2 & MMC_CAP2_HS200_1_2V_SDR) &&
+	    (card_type & EXT_CSD_CARD_TYPE_HS200_1_2V))
+		caps2 |= MMC_CAP2_HS200_1_2V_SDR;
+
+	return caps2;
+}
+
 /*
  * For device supporting HS200 mode, the following sequence
  * should be done before executing the tuning process.
@@ -1624,6 +1802,8 @@ static int mmc_select_hs200(struct mci *mci)
 	int err = -EINVAL;
 	u8 val;
 
+	mmc_select_driver_type(mci);
+
 	/*
 	 * Set the bus width(4 or 8) with host's support and
 	 * switch to HS200 mode if bus width is set successfully.
@@ -1631,8 +1811,7 @@ static int mmc_select_hs200(struct mci *mci)
 	/* find out maximum bus width and then try DDR if supported */
 	err = mci_mmc_select_bus_width(mci);
 	if (err > 0) {
-		/* TODO  actually set drive strength instead of 0. Currently unsupported. */
-		val = EXT_CSD_TIMING_HS200 | 0 << EXT_CSD_DRV_STR_SHIFT;
+		val = EXT_CSD_TIMING_HS200 | (mci->host->drive_strength << EXT_CSD_DRV_STR_SHIFT);
 		err = mci_switch(mci, EXT_CSD_HS_TIMING, val);
 		if (err == -EIO)
 			return -EBADMSG;
@@ -1645,11 +1824,10 @@ static int mmc_select_hs200(struct mci *mci)
 		 * NB: We can't move to full (HS200) speeds until after we've
 		 * successfully switched over.
 		 */
-		old_timing = mci->host->timing;
-		old_clock = mci->host->clock;
+		old_timing = mci->host->ios.timing;
+		old_clock = mci->host->ios.clock;
 
-		mci->host->timing = MMC_TIMING_MMC_HS200;
-		mci_set_ios(mci);
+		mci_set_timing(mci, MMC_TIMING_MMC_HS200);
 		mci_set_clock(mci, mci->host->hs_max_dtr);
 
 		err = mci_switch_status(mci, true);
@@ -1659,9 +1837,8 @@ static int mmc_select_hs200(struct mci *mci)
 		 * it is a switch error.
 		 */
 		if (err == -EBADMSG) {
-			mci->host->clock = old_clock;
-			mci->host->timing = old_timing;
-			mci_set_ios(mci);
+			mci->host->ios.clock = old_clock;
+			mci_set_timing(mci, old_timing);
 		}
 	}
 err:
@@ -1694,16 +1871,14 @@ static void mmc_set_bus_speed(struct mci *mci)
  */
 int mmc_select_timing(struct mci *mci)
 {
-	unsigned int mmc_avail_type;
 	int err = 0;
 
 	mmc_select_max_dtr(mci);
 
-	mmc_avail_type = mci->ext_csd[EXT_CSD_DEVICE_TYPE] & EXT_CSD_CARD_TYPE_MASK;
-	if (mmc_avail_type & EXT_CSD_CARD_TYPE_HS200) {
+	if (mci->host->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200) {
 		err = mmc_select_hs200(mci);
 		if (err == -EBADMSG)
-			mmc_avail_type &= ~EXT_CSD_CARD_TYPE_HS200;
+			mci->host->mmc_avail_type &= ~EXT_CSD_CARD_TYPE_HS200;
 		else
 			goto out;
 	}
@@ -1738,40 +1913,105 @@ static int mci_startup_mmc(struct mci *mci)
 		else
 			mci->tran_speed = 26000000;
 
-		host->timing = MMC_TIMING_MMC_HS;
+		host->ios.timing = MMC_TIMING_MMC_HS;
 	}
 
 	if (IS_ENABLED(CONFIG_MCI_TUNING)) {
-		/*
-		 * Select timing interface
-		 */
+		dev_dbg(&mci->dev, "select timing %s\n", mci_timing_tostr(host->ios.timing));
+
 		ret = mmc_select_timing(mci);
 		if (ret)
 			return ret;
 
-		if (mmc_card_hs200(mci))
+		if (mmc_card_hs200(mci)) {
 			ret = mmc_hs200_tuning(mci);
+			if (!ret) {
+				dev_dbg(&mci->dev, "HS200 tuning succeeded\n");
+				return 0;
+			}
 
-		if (ret) {
-			host->timing = MMC_TIMING_MMC_HS;
+			dev_dbg(&mci->dev, "HS200 tuning failed, falling back to HS\n");
+
+			host->ios.timing = MMC_TIMING_MMC_HS;
 			mci_switch(mci, EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS);
 		}
 	}
 
-	if (ret || !IS_ENABLED(CONFIG_MCI_TUNING)) {
-		mci_set_clock(mci, mci->tran_speed);
+	mci_set_clock(mci, mci->tran_speed);
 
-		/* find out maximum bus width and then try DDR if supported */
-		ret = mci_mmc_select_bus_width(mci);
-		if (ret > MMC_BUS_WIDTH_1 && mci->tran_speed == 52000000)
-			ret = mci_mmc_select_hs_ddr(mci);
+	/* find out maximum bus width and then try DDR if supported */
+	ret = mci_mmc_select_bus_width(mci);
+	if (ret > MMC_BUS_WIDTH_1 && mci->tran_speed == 52000000)
+		ret = mci_mmc_select_hs_ddr(mci);
 
-		if (ret < 0) {
-			dev_warn(&mci->dev, "Changing MMC bus width failed: %d\n", ret);
-		}
-	}
+	if (ret < 0)
+		dev_warn(&mci->dev, "Changing MMC bus width failed: %d\n", ret);
 
 	return ret >= MMC_BUS_WIDTH_1 ? 0 : ret;
+}
+
+static void mci_init_erase(struct mci *card)
+{
+	if (!IS_ENABLED(CONFIG_MCI_ERASE))
+		return;
+
+	/* TODO: While it's possible to clear many erase groups at once
+	 * and it greatly improves throughput, drivers need adjustment:
+	 *
+	 * Many drivers hardcode a maximal wait time before aborting
+	 * the wait for R1b and returning -ETIMEDOUT. With long
+	 * erases/trims, we are bound to run into this timeout, so for now
+	 * we just split into sufficiently small erases that are unlikely
+	 * to trigger the timeout.
+	 *
+	 * What Linux does and what we should be doing in barebox is:
+	 *
+	 *  - add a struct mci_cmd::busy_timeout member that drivers should
+	 *    use instead of hardcoding their own timeout delay. The busy
+	 *    timeout length can be calculated by the MCI core after
+	 *    consulting the appropriate CSD/EXT_CSD/SSR registers.
+	 *
+	 *  - add a struct mci_host::max_busy_timeout member, where drivers
+	 *    can indicate the maximum timeout they are able to support.
+	 *    The MCI core will never set a busy_timeout that exceeds this
+	 *    value.
+	 *
+	 *  Example Samsung eMMC 8GTF4:
+	 *
+	 *    time erase /dev/mmc2.part_of_512m # 1024 trims
+	 *    time: 2849ms
+	 *
+	 *    time erase /dev/mmc2.part_of_512m # single trim
+	 *    time: 56ms
+	 */
+	if (IS_SD(card) && card->ssr.au) {
+		card->pref_erase = card->ssr.au;
+	} else if (card->erase_grp_size) {
+		unsigned int sz;
+
+		sz = card->capacity / SZ_1M;
+		if (sz < 128)
+			card->pref_erase = 512 * 1024 / 512;
+		else if (sz < 512)
+			card->pref_erase = 1024 * 1024 / 512;
+		else if (sz < 1024)
+			card->pref_erase = 2 * 1024 * 1024 / 512;
+		else
+			card->pref_erase = 4 * 1024 * 1024 / 512;
+		if (card->pref_erase < card->erase_grp_size)
+			card->pref_erase = card->erase_grp_size;
+		else {
+			sz = card->pref_erase % card->erase_grp_size;
+			if (sz)
+				card->pref_erase += card->erase_grp_size - sz;
+		}
+	} else {
+		card->pref_erase = 0;
+		return;
+	}
+
+	dev_add_param_uint32_fixed(&card->dev, "preferred_erase_size",
+				   card->pref_erase * 512, "%u");
 }
 
 /**
@@ -1782,7 +2022,7 @@ static int mci_startup_mmc(struct mci *mci)
 static int mci_startup(struct mci *mci)
 {
 	struct mci_host *host = mci->host;
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	int err;
 
 	if (IS_ENABLED(CONFIG_MMC_SPI_CRC_ON) && mmc_host_is_spi(host)) { /* enable CRC check for spi */
@@ -1806,10 +2046,10 @@ static int mci_startup(struct mci *mci)
 		return err;
 	}
 
-	memcpy(mci->cid, cmd.response, 16);
+	memcpy(mci->raw_cid, cmd.response, 16);
 
 	dev_dbg(&mci->dev, "Card's identification data is: %08X-%08X-%08X-%08X\n",
-		mci->cid[0], mci->cid[1], mci->cid[2], mci->cid[3]);
+		mci->raw_cid[0], mci->raw_cid[1], mci->raw_cid[2], mci->raw_cid[3]);
 
 	/*
 	 * For MMC cards, set the Relative Address.
@@ -1890,7 +2130,7 @@ static int mci_startup(struct mci *mci)
 	dev_info(&mci->dev, "detected %s card version %s\n", IS_SD(mci) ? "SD" : "MMC",
 		mci_version_string(mci));
 	mci_extract_card_capacity_from_csd(mci);
-	mci_extract_erase_group_size(mci);
+	mci_configure_erase_group_size(mci);
 
 	if (IS_SD(mci))
 		err = mci_startup_sd(mci);
@@ -1902,6 +2142,8 @@ static int mci_startup(struct mci *mci)
 
 	/* we setup the blocklength only one times for all accesses to this media  */
 	err = mci_set_blocklen(mci, mci->read_bl_len);
+
+	mci_init_erase(mci);
 
 	mci_part_add(mci, mci->capacity, 0,
 			mci->cdevname, NULL, 0, true,
@@ -1924,7 +2166,7 @@ static int mci_startup(struct mci *mci)
 static int sd_send_if_cond(struct mci *mci)
 {
 	struct mci_host *host = mci->host;
-	struct mci_cmd cmd;
+	struct mci_cmd cmd = {};
 	int err;
 
 	mci_setup_cmd(&cmd, SD_CMD_SEND_IF_COND,
@@ -1951,12 +2193,14 @@ static int sd_send_if_cond(struct mci *mci)
 /**
  * Switch between hardware MMC partitions on demand
  */
-static int mci_blk_part_switch(struct mci_part *part)
+int mci_blk_part_switch(struct mci_part *part)
 {
 	struct mci *mci = part->mci;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_MCI_MMC_BOOT_PARTITIONS) && !IS_ENABLED(CONFIG_MCI_MMC_GPP_PARTITIONS))
+	if (!IS_ENABLED(CONFIG_MCI_MMC_BOOT_PARTITIONS) &&
+	    !IS_ENABLED(CONFIG_MCI_MMC_GPP_PARTITIONS) &&
+	    !IS_ENABLED(CONFIG_MCI_MMC_RPMB))
 		return 0; /* no need */
 
 	if (mci->part_curr == part)
@@ -2080,7 +2324,7 @@ static int mci_sd_erase(struct block_device *blk, sector_t from,
 	struct mci *mci = part->mci;
 	sector_t i = 0;
 	unsigned arg;
-	sector_t blk_max, to = from + blkcnt;
+	sector_t to = from + blkcnt;
 	int rc;
 
 	mci_blk_part_switch(part);
@@ -2106,45 +2350,10 @@ static int mci_sd_erase(struct block_device *blk, sector_t from,
 	/* 'from' and 'to' are inclusive */
 	to -= 1;
 
-	/* TODO: While it's possible to clear many erase groups at once
-	 * and it greatly improves throughput, drivers need adjustment:
-	 *
-	 * Many drivers hardcode a maximal wait time before aborting
-	 * the wait for R1b and returning -ETIMEDOUT. With long
-	 * erases/trims, we are bound to run into this timeout, so for now
-	 * we just split into sufficiently small erases that are unlikely
-	 * to trigger the timeout.
-	 *
-	 * What Linux does and what we should be doing in barebox is:
-	 *
-	 *  - add a struct mci_cmd::busy_timeout member that drivers should
-	 *    use instead of hardcoding their own timeout delay. The busy
-	 *    timeout length can be calculated by the MCI core after
-	 *    consulting the appropriate CSD/EXT_CSD/SSR registers.
-	 *
-	 *  - add a struct mci_host::max_busy_timeout member, where drivers
-	 *    can indicate the maximum timeout they are able to support.
-	 *    The MCI core will never set a busy_timeout that exceeds this
-	 *    value.
-	 *
-	 *  Example Samsung eMMC 8GTF4:
-	 *
-	 *    time erase /dev/mmc2.part_of_512m # 1024 trims
-	 *    time: 2849ms
-	 *
-	 *    time erase /dev/mmc2.part_of_512m # single trim
-	 *    time: 56ms
-	 */
-
-	if (IS_SD(mci) && mci->ssr.au)
-		blk_max = mci->ssr.au;
-	else
-		blk_max = mci->erase_grp_size;
-
 	while (i < blkcnt) {
 		sector_t blk_r;
 
-		blk_r = min(blkcnt - i, blk_max);
+		blk_r = min_t(blkcnt_t, blkcnt - i, mci->pref_erase);
 
 		rc =  mci_block_erase(mci, from + i, blk_r, arg);
 		if (rc)
@@ -2244,7 +2453,7 @@ static int mci_sd_read(struct block_device *blk, void *buffer, sector_t block,
 
 	while (num_blocks) {
 		read_block = min(num_blocks, max_req_block);
-		rc = mci_read_block(mci, buffer, block, read_block);
+		rc = mci_block_read(mci, buffer, block, read_block);
 		if (rc != 0) {
 			dev_dbg(&mci->dev, "Reading block %llu failed with %d\n", block, rc);
 			return rc;
@@ -2259,185 +2468,107 @@ static int mci_sd_read(struct block_device *blk, void *buffer, sector_t block,
 
 /* ------------------ attach to the device API --------------------------- */
 
-/**
- * Extract the Manufacturer ID from the CID
- * @param mci Instance data
- *
- * The 'MID' is encoded in bit 127:120 in the CID
- */
-static unsigned extract_mid(struct mci *mci)
+static void mci_print_caps(unsigned caps, unsigned caps2)
 {
-	if (!IS_SD(mci) && mci->version <= MMC_VERSION_1_4)
-		return UNSTUFF_BITS(mci->cid, 104, 24);
-	else
-		return UNSTUFF_BITS(mci->cid, 120, 8);
-}
-
-/**
- * Extract the CBX from the CID
- * @param mci Instance data
- *
- * The 'CBX' is encoded in bit 113:112 in the CID and only present in MMC cards
- */
-static unsigned extract_cbx(struct mci *mci)
-{
-	return UNSTUFF_BITS(mci->cid, 112, 2);
-}
-
-/**
- * Extract the OEM/Application ID from the CID
- * @param mci Instance data
- *
- * The 'OID' is encoded in bit 119:104 in the CID for SD cards and 111:104 for
- * MMC cards
- */
-static void extract_oid(struct mci *mci, char oid[static 5])
-{
-	if (IS_SD(mci)) {
-		// SD cards have a 2 character long OEM ID
-		snprintf(oid, 5, "%c%c", UNSTUFF_BITS(mci->cid, 112, 8), UNSTUFF_BITS(mci->cid, 104, 8));
-	} else {
-		// MMC cards have a 8-bit binary number as OEM ID
-		snprintf(oid, 5, "0x%02X", UNSTUFF_BITS(mci->cid, 104, 8));
-	}
-}
-
-/**
- * Extract the product name from the CID
- * @param mci Instance data
- *
- * The 'PNM' is encoded in bit 103:64 in the CID for SD cards and 103:56 for
- * MMC cards
- */
-static void extract_pnm(struct mci *mci, char pnm[static 7])
-{
-	pnm[0] = UNSTUFF_BITS(mci->cid, 96, 8);
-	pnm[1] = UNSTUFF_BITS(mci->cid, 88, 8);
-	pnm[2] = UNSTUFF_BITS(mci->cid, 80, 8);
-	pnm[3] = UNSTUFF_BITS(mci->cid, 72, 8);
-	pnm[4] = UNSTUFF_BITS(mci->cid, 64, 8);
-
-	if (IS_SD(mci)) {
-		// SD cards have a 5 character long product name
-		pnm[5] = '\0';
-	} else {
-		// MMC cards have a 6 character long product name
-		pnm[5] = UNSTUFF_BITS(mci->cid, 56, 8);
-		pnm[6] = '\0';
-	}
-}
-
-/**
- * Extract the product revision from the CID
- * @param mci Instance data
- *
- * The 'PRV' is encoded in bit 63:56 in the CID for SD cards and 55:48 for MMC cards
- */
-static void extract_prv(struct mci *mci, char prv[static 8])
-{
-	unsigned prv_bcd = IS_SD(mci) ? UNSTUFF_BITS(mci->cid, 56, 8) : UNSTUFF_BITS(mci->cid, 48, 8);
-
-	snprintf(prv, 8,"%u.%u", prv_bcd >> 4, prv_bcd & 0xf);
-}
-
-/**
- * Extract the product serial number from the CID
- * @param mci Instance data
- *
- * The 'PSN' is encoded in bit 55:24 in the CID for SD cards and 47:16 for MMC cards
- */
-static unsigned extract_psn(struct mci *mci)
-{
-	if (IS_SD(mci)) {
-		return UNSTUFF_BITS(mci->csd, 24, 32);
-	} else {
-		if (mci->version > MMC_VERSION_1_4)
-			return UNSTUFF_BITS(mci->cid, 16, 32);
-		else
-			return UNSTUFF_BITS(mci->cid, 16, 24);
-	}
-
-}
-
-/**
- * Extract the month of the manufacturing date from the CID
- * @param mci Instance data
- *
- * The 'MDT' is encoded in bit 19:8 in the CID, month in 11:8
- */
-static unsigned extract_mdt_month(struct mci *mci)
-{
-	if (IS_SD(mci))
-		return UNSTUFF_BITS(mci->cid, 8, 4);
-	else
-		return UNSTUFF_BITS(mci->cid, 12, 4);
-}
-
-/**
- * Extract the year of the manufacturing date from the CID
- * @param mci Instance data
- *
- * The 'MDT' is encoded in bit 19:8 in the CID, year in 19:12
- * An encoded 0 means the year 2000
- */
-static unsigned extract_mdt_year(struct mci *mci)
-{
-	unsigned year;
-	if (IS_SD(mci))
-		year = UNSTUFF_BITS(mci->cid, 12, 8) + 2000;
-	else if (mci->version < MMC_VERSION_4_41)
-		return UNSTUFF_BITS(mci->cid, 8, 4) + 1997;
-	else {
-		year = UNSTUFF_BITS(mci->cid, 8, 4) + 1997;
-		if (year < 2010)
-			year += 16;
-	}
-	return year;
-}
-
-/**
- * Extract the manufacturing date from the CID
- * @param mci Instance data
- *
- * The 'MDT' is encoded in bit 19:8 in the CID
- */
-static void extract_mdt(struct mci *mci, char mdt[static 8])
-{
-	unsigned month = extract_mdt_month(mci);
-	unsigned year = extract_mdt_year(mci);
-
-	snprintf(mdt, 8, "%u.%u", year, month);
-}
-
-static const char *mci_timing_tostr(unsigned timing)
-{
-	switch (timing) {
-	case MMC_TIMING_LEGACY:
-		return "legacy";
-	case MMC_TIMING_MMC_HS:
-		return "MMC HS";
-	case MMC_TIMING_SD_HS:
-		return "SD HS";
-	case MMC_TIMING_MMC_DDR52:
-		return "MMC DDR52";
-	case MMC_TIMING_MMC_HS200:
-		return "HS200";
-	default:
-		return "unknown"; /* shouldn't happen */
-	}
-}
-
-static void mci_print_caps(unsigned caps)
-{
-	printf("  capabilities: %s%s%s%s%s%s%s%s\n",
+	printf("  capabilities: %s%s%s%s%s%s%s%s%s%s\n",
 		caps & MMC_CAP_4_BIT_DATA ? "4bit " : "",
 		caps & MMC_CAP_8_BIT_DATA ? "8bit " : "",
 		caps & MMC_CAP_SD_HIGHSPEED ? "sd-hs " : "",
 		caps & MMC_CAP_MMC_HIGHSPEED ? "mmc-hs " : "",
 		caps & MMC_CAP_MMC_HIGHSPEED_52MHZ ? "mmc-52MHz " : "",
-		caps & MMC_CAP_MMC_3_3V_DDR ? "ddr-3.3v " : "",
-		caps & MMC_CAP_MMC_1_8V_DDR ? "ddr-1.8v " : "",
-		caps & MMC_CAP_MMC_1_2V_DDR ? "ddr-1.2v " : "");
+		caps & MMC_CAP_3_3V_DDR ? "ddr-3.3v " : "",
+		caps & MMC_CAP_1_8V_DDR ? "ddr-1.8v " : "",
+		caps & MMC_CAP_1_2V_DDR ? "ddr-1.2v " : "",
+		caps2 & MMC_CAP2_HS200_1_8V_SDR ? "hs200-1.8v " : "",
+		caps2 & MMC_CAP2_HS200_1_2V_SDR ? "hs200-1.2v " : "");
+}
+
+/*
+ * Given the decoded CSD structure, decode the raw CID to our CID structure.
+ */
+static int mci_mmc_decode_cid(struct mci *card)
+{
+	u32 *resp = card->raw_cid;
+	u32 mmca_vsn = unstuff_bits(card->csd, 122, 4);
+
+	/*
+	 * The selection of the format here is based upon published
+	 * specs from sandisk and from what people have reported.
+	 */
+	switch (mmca_vsn) {
+	case 0: /* MMC v1.0 - v1.2 */
+	case 1: /* MMC v1.4 */
+		card->cid.manfid	= unstuff_bits(resp, 104, 24);
+		card->cid.prod_name[0]	= unstuff_bits(resp, 96, 8);
+		card->cid.prod_name[1]	= unstuff_bits(resp, 88, 8);
+		card->cid.prod_name[2]	= unstuff_bits(resp, 80, 8);
+		card->cid.prod_name[3]	= unstuff_bits(resp, 72, 8);
+		card->cid.prod_name[4]	= unstuff_bits(resp, 64, 8);
+		card->cid.prod_name[5]	= unstuff_bits(resp, 56, 8);
+		card->cid.prod_name[6]	= unstuff_bits(resp, 48, 8);
+		card->cid.hwrev		= unstuff_bits(resp, 44, 4);
+		card->cid.fwrev		= unstuff_bits(resp, 40, 4);
+		card->cid.serial	= unstuff_bits(resp, 16, 24);
+		card->cid.month		= unstuff_bits(resp, 12, 4);
+		card->cid.year		= unstuff_bits(resp, 8, 4) + 1997;
+		break;
+
+	case 2: /* MMC v2.0 - v2.2 */
+	case 3: /* MMC v3.1 - v3.3 */
+	case 4: /* MMC v4 */
+		card->cid.manfid	= unstuff_bits(resp, 120, 8);
+		card->cid.oemid		= unstuff_bits(resp, 104, 16);
+		card->cid.prod_name[0]	= unstuff_bits(resp, 96, 8);
+		card->cid.prod_name[1]	= unstuff_bits(resp, 88, 8);
+		card->cid.prod_name[2]	= unstuff_bits(resp, 80, 8);
+		card->cid.prod_name[3]	= unstuff_bits(resp, 72, 8);
+		card->cid.prod_name[4]	= unstuff_bits(resp, 64, 8);
+		card->cid.prod_name[5]	= unstuff_bits(resp, 56, 8);
+		card->cid.prv		= unstuff_bits(resp, 48, 8);
+		card->cid.serial	= unstuff_bits(resp, 16, 32);
+		card->cid.month		= unstuff_bits(resp, 12, 4);
+		card->cid.year		= unstuff_bits(resp, 8, 4) + 1997;
+		break;
+
+	default:
+		dev_err(&card->dev, "card has unknown MMCA version %d\n", mmca_vsn);
+		return -EINVAL;
+	}
+
+	if (card->version >= MMC_VERSION_4_41) {
+		/* Adjust production date as per JEDEC JESD84-B451 */
+		if (card->cid.year < 2010)
+			card->cid.year += 16;
+	}
+
+	return 0;
+}
+
+/*
+ * Given the decoded CSD structure, decode the raw CID to our CID structure.
+ */
+static void mci_sd_decode_cid(struct mci *card)
+{
+	u32 *resp = card->raw_cid;
+
+	/*
+	 * SD doesn't currently have a version field so we will
+	 * have to assume we can parse this.
+	 */
+	card->cid.manfid		= unstuff_bits(resp, 120, 8);
+	card->cid.oemid			= unstuff_bits(resp, 104, 16);
+	card->cid.prod_name[0]		= unstuff_bits(resp, 96, 8);
+	card->cid.prod_name[1]		= unstuff_bits(resp, 88, 8);
+	card->cid.prod_name[2]		= unstuff_bits(resp, 80, 8);
+	card->cid.prod_name[3]		= unstuff_bits(resp, 72, 8);
+	card->cid.prod_name[4]		= unstuff_bits(resp, 64, 8);
+	card->cid.hwrev			= unstuff_bits(resp, 60, 4);
+	card->cid.fwrev			= unstuff_bits(resp, 56, 4);
+	card->cid.serial		= unstuff_bits(resp, 24, 32);
+	card->cid.year			= unstuff_bits(resp, 12, 8);
+	card->cid.month			= unstuff_bits(resp, 8, 4);
+
+	card->cid.year += 2000; /* SD cards year offset */
 }
 
 /**
@@ -2450,24 +2581,24 @@ static void mci_info(struct device *dev)
 	struct mci_host *host = mci->host;
 	int bw;
 
-	if (mci->ready_for_use == 0) {
+	if (!mci->ready_for_use) {
 		printf(" No information available:\n  MCI card not probed yet\n");
 		return;
 	}
 
 	printf("Host information:\n");
-	printf("  current clock: %d\n", host->clock);
+	printf("  current clock: %d\n", host->ios.clock);
 
-	if (host->bus_width == MMC_BUS_WIDTH_8)
+	if (host->ios.bus_width == MMC_BUS_WIDTH_8)
 		bw = 8;
-	else if (host->bus_width == MMC_BUS_WIDTH_4)
+	else if (host->ios.bus_width == MMC_BUS_WIDTH_4)
 		bw = 4;
 	else
 		bw = 1;
 
 	printf("  current buswidth: %d\n", bw);
-	printf("  current timing: %s\n", mci_timing_tostr(host->timing));
-	mci_print_caps(host->host_caps);
+	printf("  current timing: %s\n", mci_timing_tostr(host->ios.timing));
+	mci_print_caps(host->host_caps, host->caps2);
 
 	printf("Card information:\n");
 	printf("  Card type: %s\n", mci->sdio ? "SDIO" : IS_SD(mci) ? "SD" : "MMC");
@@ -2492,61 +2623,88 @@ static void mci_info(struct device *dev)
 
 	if (mci->high_capacity)
 		printf("  High capacity card\n");
-	printf("   CID: %08X-%08X-%08X-%08X\n", mci->cid[0], mci->cid[1],
-		mci->cid[2], mci->cid[3]);
+	printf("   CID: %08X-%08X-%08X-%08X\n", mci->raw_cid[0], mci->raw_cid[1],
+		mci->raw_cid[2], mci->raw_cid[3]);
 	printf("   CSD: %08X-%08X-%08X-%08X\n", mci->csd[0], mci->csd[1],
 		mci->csd[2], mci->csd[3]);
 	printf("  Max. transfer speed: %u Hz\n", mci->tran_speed);
-	mci_print_caps(mci->card_caps);
-	printf("  Manufacturer ID: %s\n", dev_get_param(dev, "cid_mid"));
-	printf("  OEM/Application ID: %s\n", dev_get_param(dev, "cid_oid"));
-	if (!IS_SD(mci))
-		printf("  CBX: %s\n", dev_get_param(dev, "cid_cbx"));
-	printf("  Product name: '%s'\n", dev_get_param(dev, "cid_pnm"));
-	printf("  Product revision: %s\n", dev_get_param(dev, "cid_prv"));
-	printf("  Serial no: %s\n", dev_get_param(dev, "cid_psn"));
-	printf("  Manufacturing date: %s\n", dev_get_param(dev, "cid_mdt"));
+	mci_print_caps(mci->card_caps, mmc_card_caps2_from_ext_csd(mci));
+	printf("  Manufacturer ID: 0x%02x\n", mci->cid.manfid);
+	printf("  OEM/Application ID: 0x%04x\n", mci->cid.oemid);
+	printf("  Product name: '%s'\n", mci->cid.prod_name);
+	printf("  Hardware revision: 0x%02x\n", mci->cid.hwrev);
+	printf("  Firmware revision: 0x%02x\n", mci->cid.fwrev);
+	printf("  Serial no: %u\n", mci->cid.serial);
+	printf("  Manufacturing date: %u.%u\n", mci->cid.year, mci->cid.month);
 }
 
-static void mci_parse_cid(struct mci *mci) {
-	struct device *dev = &mci->dev;
-	char buffer[8];
-
-	dev_add_param_uint32_fixed(dev, "cid_mid", extract_mid(mci), "0x%02X");
-	extract_oid(mci, buffer);
-	dev_add_param_string_fixed(dev, "cid_oid", buffer);
-	if (!IS_SD(mci))
-		dev_add_param_uint32_fixed(dev, "cid_cbx", extract_cbx(mci), "%u");
-	extract_pnm(mci, buffer);
-	dev_add_param_string_fixed(dev, "cid_pnm", buffer);
-	extract_prv(mci, buffer);
-	dev_add_param_string_fixed(dev, "cid_prv", buffer);
-	dev_add_param_uint32_fixed(dev, "cid_psn", extract_psn(mci), "%0u");
-	extract_mdt(mci, buffer);
-	dev_add_param_string_fixed(dev, "cid_mdt", buffer);
-}
-
-/**
- * Check if the MCI card is already probed
- * @param mci MCI device instance
- * @return 0 when not probed yet, -EPERM if already probed
- *
- * @a barebox cannot really cope with hot plugging. So, probing an attached
- * MCI card is a one time only job. If its already done, there is no way to
- * return.
- */
-static int mci_check_if_already_initialized(struct mci *mci)
+static void mci_parse_cid(struct mci *mci)
 {
-	if (mci->ready_for_use != 0)
-		return -EPERM;
+	struct device *dev = &mci->dev;
 
-	return 0;
+	if (IS_SD(mci))
+		mci_sd_decode_cid(mci);
+	else
+		mci_mmc_decode_cid(mci);
+
+	dev_add_param_uint32_fixed(dev, "cid_mid", mci->cid.manfid, "0x%02X");
+	dev_add_param_uint32_fixed(dev, "cid_oid", mci->cid.oemid, "0x%04X");
+	dev_add_param_string_fixed(dev, "cid_pnm", mci->cid.prod_name);
+	dev_add_param_uint32_fixed(dev, "cid_hwrev", mci->cid.hwrev, "0x%02X");
+	dev_add_param_uint32_fixed(dev, "cid_fwrev", mci->cid.fwrev, "0x%02X");
+	dev_add_param_uint32_fixed(dev, "cid_psn", mci->cid.serial, "%0u");
+	dev_add_param_uint32_fixed(dev, "cid_year", mci->cid.year, "%0u");
+	dev_add_param_uint32_fixed(dev, "cid_month", mci->cid.month, "%0u");
+}
+
+static bool cdev_partname_equal(const struct cdev *a,
+				const struct cdev *b)
+{
+	return a->partname && b->partname &&
+		!strcmp(a->partname, b->partname);
+}
+
+static char *mci_get_linux_mmcblkdev(struct block_device *blk,
+				     const struct cdev *partcdev)
+
+{
+	struct mci_part *mci_part = container_of(blk, struct mci_part, blk);
+	struct cdev *cdevm = partcdev->master, *cdev;
+	int id, partnum;
+
+	if (mci_part->area_type != MMC_BLK_DATA_AREA_MAIN)
+		return NULL;
+
+	if (!cdevm)
+		return NULL;
+
+	id = of_alias_get_id(cdev_of_node(cdevm), "mmc");
+	if (id < 0)
+		return NULL;
+
+	partnum = 1; /* linux partitions are 1 based */
+	list_for_each_entry(cdev, &cdevm->partitions, partition_entry) {
+
+		/*
+		 * Partname is not guaranteed but this partition cdev is listed
+		 * in the partitions list so we need to count it instead of
+		 * skipping it.
+		 */
+		if (cdev_partname_equal(partcdev, cdev))
+			return basprintf("root=/dev/mmcblk%dp%d", id, partnum);
+		if (cdev->flags & DEVFS_PARTITION_FROM_TABLE)
+			partnum++;
+	}
+
+	return NULL;
 }
 
 static struct block_device_ops mci_ops = {
 	.read = mci_sd_read,
 	.write = IS_ENABLED(CONFIG_MCI_WRITE) ? mci_sd_write : NULL,
 	.erase = IS_ENABLED(CONFIG_MCI_ERASE) ? mci_sd_erase : NULL,
+	.get_rootarg = IS_ENABLED(CONFIG_MMCBLKDEV_ROOTARG) ?
+		mci_get_linux_mmcblkdev : NULL,
 };
 
 static int mci_set_boot(struct param_d *param, void *priv)
@@ -2582,11 +2740,49 @@ static const char *mci_boot_names[] = {
 	"user",
 };
 
+static struct device_node *mci_get_partition_node(struct device_node *hwnode,
+						  unsigned int type,
+						  unsigned int index)
+{
+	struct device_node *np;
+	char partnodename[sizeof("bootx-partitions")];
+
+	if (index > 8)
+		return NULL;
+
+	switch (type) {
+	case MMC_BLK_DATA_AREA_BOOT:
+		sprintf(partnodename, "partitions-boot%u", index + 1);
+		break;
+	case MMC_BLK_DATA_AREA_MAIN:
+		return hwnode;
+	case MMC_BLK_DATA_AREA_GP:
+		sprintf(partnodename, "partitions-gp%u", index + 1);
+		break;
+	default:
+		return NULL;
+	}
+
+	np = of_get_child_by_name(hwnode, partnodename);
+	if (np)
+		return np;
+
+	if (type != MMC_BLK_DATA_AREA_BOOT)
+		return NULL;
+
+	/*
+	 * barebox historically understands "bootx-partitions" with x starting
+	 * at zero.
+	 */
+	sprintf(partnodename, "boot%u-partitions", index);
+
+	return of_get_child_by_name(hwnode, partnodename);
+}
+
 static int mci_register_partition(struct mci_part *part)
 {
 	struct mci *mci = part->mci;
 	struct mci_host *host = mci->host;
-	const char *partnodename = NULL;
 	struct device_node *np;
 	int rc;
 
@@ -2597,6 +2793,10 @@ static int mci_register_partition(struct mci_part *part)
 	part->blk.dev = &mci->dev;
 	part->blk.ops = &mci_ops;
 	part->blk.type = IS_SD(mci) ? BLK_TYPE_SD : BLK_TYPE_MMC;
+	part->blk.rootwait = true;
+
+	if (part->area_type == MMC_BLK_DATA_AREA_RPMB)
+		return 0;
 
 	rc = blockdevice_register(&part->blk);
 	if (rc != 0) {
@@ -2605,27 +2805,7 @@ static int mci_register_partition(struct mci_part *part)
 	}
 	dev_info(&mci->dev, "registered %s\n", part->blk.cdev.name);
 
-	np = host->hw_dev->of_node;
-
-	/* create partitions on demand */
-	switch (part->area_type) {
-	case MMC_BLK_DATA_AREA_BOOT:
-		if (part->idx == 0)
-			partnodename = "boot0-partitions";
-		else
-			partnodename = "boot1-partitions";
-
-		np = of_get_child_by_name(host->hw_dev->of_node,
-					  partnodename);
-		break;
-	case MMC_BLK_DATA_AREA_MAIN:
-		break;
-	case MMC_BLK_DATA_AREA_GP:
-		break;
-	default:
-		return 0;
-	}
-
+	np = mci_get_partition_node(host->hw_dev->of_node, part->area_type, part->idx);
 	if (np) {
 		of_parse_partitions(&part->blk.cdev, np);
 
@@ -2702,8 +2882,8 @@ static int mci_card_probe(struct mci *mci)
 
 	ret = regulator_enable(host->supply);
 	if (ret) {
-		dev_err(&mci->dev, "failed to enable regulator: %s\n",
-			strerror(-ret));
+		dev_err(&mci->dev, "failed to enable regulator: %pe\n",
+			ERR_PTR(ret));
 		return ret;
 	}
 
@@ -2769,7 +2949,7 @@ static int mci_card_probe(struct mci *mci)
 	}
 
 	dev_dbg(&mci->dev, "Card is up and running now, registering as a disk\n");
-	mci->ready_for_use = 1;	/* TODO now or later? */
+	mci->ready_for_use = true; /* TODO now or later? */
 
 	for (i = 0; i < mci->nr_parts; i++) {
 		struct mci_part *part = &mci->part[i];
@@ -2804,7 +2984,7 @@ static int mci_card_probe(struct mci *mci)
 
 on_error:
 	if (rc != 0) {
-		host->clock = 0;	/* disable the MCI clock */
+		host->ios.clock = 0;	/* disable the MCI clock */
 		mci_set_ios(mci);
 		regulator_disable(host->supply);
 		mci->nr_parts = 0;
@@ -2828,8 +3008,7 @@ static int mci_set_probe(struct param_d *param, void *priv)
 	if (!mci->probe)
 		return 0;
 
-	rc = mci_check_if_already_initialized(mci);
-	if (rc != 0)
+	if (mci->ready_for_use)
 		return 0;
 
 	rc = mci_card_probe(mci);
@@ -2841,10 +3020,7 @@ static int mci_set_probe(struct param_d *param, void *priv)
 
 int mci_detect_card(struct mci_host *host)
 {
-	int rc;
-
-	rc = mci_check_if_already_initialized(host->mci);
-	if (rc != 0)
+	if (host->mci->ready_for_use)
 		return 0;
 
 	return mci_card_probe(host->mci);
@@ -2861,7 +3037,7 @@ static int mci_hw_detect(struct device *dev)
 {
 	struct mci *mci;
 
-	list_for_each_entry(mci, &mci_list, list) {
+	for_each_mci(mci) {
 		if (dev == mci->host->hw_dev)
 			return mci_detect_card(mci->host);
 	}
@@ -2884,7 +3060,7 @@ int mci_register(struct mci_host *host)
 	mci->host = host;
 
 	if (host->devname) {
-		dev_set_name(&mci->dev, host->devname);
+		dev_set_name(&mci->dev, "%s", host->devname);
 		mci->dev.id = DEVICE_ID_SINGLE;
 	} else {
 		dev_set_name(&mci->dev, "mci");
@@ -2926,10 +3102,12 @@ int mci_register(struct mci_host *host)
 			   &mci->probe, mci);
 
 	if (IS_ENABLED(CONFIG_MCI_INFO))
-		mci->dev.info = mci_info;
+		devinfo_add(&mci->dev, mci_info);
 
 	/* if enabled, probe the attached card immediately */
-	if (IS_ENABLED(CONFIG_MCI_STARTUP))
+	if (IS_ENABLED(CONFIG_MCI_STARTUP) ||
+	   (IS_ENABLED(CONFIG_MCI_STARTUP_NONREMOVABLE) &&
+	    (host->host_caps & MMC_CAP_NONREMOVABLE)))
 		mci_card_probe(mci);
 
 	if (!(host->caps2 & MMC_CAP2_NO_SD) && dev_of_node(host->hw_dev)) {
@@ -2939,7 +3117,7 @@ int mci_register(struct mci_host *host)
 		of_register_fixup(of_broken_cd_fixup, host);
 	}
 
-	list_add_tail(&mci->list, &mci_list);
+	class_add_device(&mmc_class, &mci->dev);
 
 	return 0;
 
@@ -2954,7 +3132,6 @@ void mci_of_parse_node(struct mci_host *host,
 {
 	u32 bus_width;
 	u32 dsr_val;
-	const char *alias;
 
 	if (!IS_ENABLED(CONFIG_OFDEVICE))
 		return;
@@ -2962,9 +3139,14 @@ void mci_of_parse_node(struct mci_host *host,
 	if (!host->hw_dev || !np)
 		return;
 
-	alias = of_alias_get(np);
-	if (alias)
-		host->devname = xstrdup(alias);
+	host->of_id = of_alias_get_id(np, "mmc");
+	if (host->of_id < 0)
+		host->of_id = of_alias_get_id(np->parent, "mmc");
+
+	if (host->of_id >= 0) {
+		host->devname = xasprintf("mmc%u", host->of_id);
+		host->of_id_valid = true;
+	}
 
 	/* "bus-width" is translated to MMC_CAP_*_BIT_DATA flags */
 	if (of_property_read_u32(np, "bus-width", &bus_width) < 0) {
@@ -2983,8 +3165,10 @@ void mci_of_parse_node(struct mci_host *host,
 		switch (bus_width) {
 		case 8:
 			host->host_caps |= MMC_CAP_8_BIT_DATA;
-		case 4: /* note fall through from above */
+			fallthrough;
+		case 4:
 			host->host_caps |= MMC_CAP_4_BIT_DATA;
+			fallthrough;
 		case 1:
 			break;
 		default:
@@ -3017,7 +3201,11 @@ void mci_of_parse_node(struct mci_host *host,
 		host->caps2 |= MMC_CAP2_NO_SD;
 	if (of_property_read_bool(np, "no-mmc"))
 		host->caps2 |= MMC_CAP2_NO_MMC;
+	if (of_property_read_bool(np, "non-removable"))
+                host->host_caps |= MMC_CAP_NONREMOVABLE;
 	if (IS_ENABLED(CONFIG_MCI_TUNING)) {
+		u32 drv_type;
+
 		if (of_property_read_bool(np, "mmc-hs200-1_8v"))
 			host->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
 		if (of_property_read_bool(np, "mmc-hs200-1_2v"))
@@ -3031,6 +3219,28 @@ void mci_of_parse_node(struct mci_host *host,
 		if (of_property_read_bool(np, "no-mmc-hs400"))
 			host->caps2 &= ~(MMC_CAP2_HS400_1_8V | MMC_CAP2_HS400_1_2V |
 					 MMC_CAP2_HS400_ES);
+		if (of_property_read_bool(np, "no-1-8-v")) {
+			/*
+			 * The SDHCI controller in a SoC might support HS200/HS400
+			 * (indicated using mmc-hs200-1_8v/mmc-hs400-1_8v dt property),
+			 * but if the board is modeled such that the IO lines are not
+			 * connected to 1.8v then HS200/HS400 cannot be supported.
+			 * Disable HS200/HS400 if the board does not have 1.8v connected
+			 * to the IO lines. (Applicable for other modes in 1.8v)
+			 */
+			host->caps2 &= ~(MMC_CAP2_HSX00_1_8V | MMC_CAP2_HS400_ES);
+		}
+
+		/* Must be after "non-removable" check */
+		if (of_property_read_u32(np, "fixed-emmc-driver-type", &drv_type) == 0) {
+			if (host->non_removable) {
+				host->fixed_drv_type = drv_type;
+				host->fixed_drv_type_valid = true;
+			 } else {
+				dev_err(host->hw_dev,
+					"can't use fixed driver type, media is removable\n");
+			 }
+		}
 	}
 }
 
@@ -3043,11 +3253,32 @@ struct mci *mci_get_device_by_name(const char *name)
 {
 	struct mci *mci;
 
-	list_for_each_entry(mci, &mci_list, list) {
+	for_each_mci(mci) {
 		if (!mci->cdevname)
 			continue;
 		if (!strcmp(mci->cdevname, name))
 			return mci;
+	}
+
+	return NULL;
+}
+
+struct mci *mci_get_rpmb_dev(unsigned int id)
+{
+	struct mci *mci;
+
+	for_each_mci(mci) {
+		if (mci->host->of_id != id)
+			continue;
+
+		mci_detect_card(mci->host);
+
+		if (!mci->rpmb_part) {
+			dev_err(&mci->dev, "requested MMC does not have a RPMB partition\n");
+			return NULL;
+		}
+
+		return mci;
 	}
 
 	return NULL;

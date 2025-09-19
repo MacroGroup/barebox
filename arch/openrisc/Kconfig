@@ -3,12 +3,15 @@
 config OPENRISC
 	bool
 	select OFTREE
-	select HAS_CACHE
 	select HAVE_CONFIGURABLE_MEMORY_LAYOUT
 	select GENERIC_FIND_NEXT_BIT
 	select ARCH_HAS_SJLJ
 	select HAS_DEBUG_LL
 	default y
+
+config ARCH_MKIMAGE_NAME
+	string
+	default "or1k"
 
 # not used
 config ARCH_TEXT_BASE

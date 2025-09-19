@@ -65,6 +65,35 @@ typedef int (*regmap_hw_reg_read)(void *context, unsigned int reg,
 				  unsigned int *val);
 typedef int (*regmap_hw_reg_write)(void *context, unsigned int reg,
 				   unsigned int val);
+typedef int (*regmap_hw_reg_seal)(void *context, unsigned int reg,
+				  unsigned int flags);
+
+/**
+ * @REGMAP_SEAL_WRITE_PROTECT: Request to make the register(s) write-protected.
+ * If this flag is set, the bus-specific seal operation should attempt to
+ * prevent further writes to the specified register or range.
+ */
+#define REGMAP_SEAL_WRITE_PROTECT	BIT(0)
+
+/**
+ * @REGMAP_SEAL_PERMANENT: Signifies the sealing operation is intended to be
+ * permanent and irreversible. If this flag is not set (and REGMAP_SEAL_CLEAR
+ * is also not set), the protection might be temporary or its permanence
+ * is undefined by this generic flag (bus-specific behavior would dictate).
+ * For operations like OTP locking, this flag should be used with
+ * REGMAP_SEAL_WRITE_PROTECT.
+ */
+#define REGMAP_SEAL_PERMANENT		BIT(1)
+
+/**
+ * @REGMAP_SEAL_CLEAR: Request to clear a previously set protection.
+ * This flag should be used in conjunction with other flags (e.g.,
+ * REGMAP_SEAL_WRITE_PROTECT) to specify which type of protection to attempt
+ * to clear. The underlying hardware must support clearing the protection.
+ * If the protection is permanent, an attempt to clear it should fail with
+ * an appropriate error code (e.g., -EOPNOTSUPP or -EPERM).
+ */
+#define REGMAP_SEAL_CLEAR		BIT(2)
 
 /**
  * struct regmap_bus - Description of a hardware bus for the register map
@@ -73,6 +102,8 @@ typedef int (*regmap_hw_reg_write)(void *context, unsigned int reg,
  * @reg_write: Write a single register value to the given register address. This
  *             write operation has to complete when returning from the function.
  * @reg_read: Read a single register value from a given register address.
+ * @reg_seal: Optional. Perform a hardware operation to seal or permanently
+ *            protect a register or region (e.g., OTP write-locking).
  * @read: Read operation.  Data is returned in the buffer used to transmit
  *         data.
  * @write: Write operation.
@@ -88,6 +119,7 @@ typedef int (*regmap_hw_reg_write)(void *context, unsigned int reg,
 struct regmap_bus {
 	regmap_hw_reg_write reg_write;
 	regmap_hw_reg_read reg_read;
+	regmap_hw_reg_seal reg_seal;
 
 	int (*read)(void *context,
 		    const void *reg_buf, size_t reg_size,
@@ -202,6 +234,7 @@ int regmap_multi_register_cdev(struct regmap *map8,
 
 int regmap_write(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val);
+int regmap_seal(struct regmap *map, unsigned int reg, unsigned int flags);
 
 #ifndef regmap_bulk_read
 #define regmap_bulk_read regmap_bulk_read
@@ -212,6 +245,45 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 #define regmap_bulk_write regmap_bulk_write
 int regmap_bulk_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_count);
+
+struct regmap_field;
+
+struct reg_field {
+	unsigned int reg;
+	unsigned int lsb;
+	unsigned int msb;
+	unsigned int id_size;
+	unsigned int id_offset;
+};
+
+#define REG_FIELD(_reg, _lsb, _msb) {           \
+				.reg = _reg,    \
+				.lsb = _lsb,    \
+				.msb = _msb,    \
+				}
+
+int regmap_field_bulk_alloc(struct regmap *regmap,
+			    struct regmap_field **rm_field,
+			    const struct reg_field *reg_field,
+			    int num_fields);
+
+int regmap_field_read(struct regmap_field *field, unsigned int *val);
+
+int regmap_update_bits_base(struct regmap *map, unsigned int reg,
+			    unsigned int mask, unsigned int val,
+			    bool *change, bool async, bool force);
+
+int regmap_field_update_bits_base(struct regmap_field *field,
+				  unsigned int mask, unsigned int val,
+				  bool *change, bool async, bool force);
+
+static inline int regmap_field_write(struct regmap_field *field,
+				     unsigned int val)
+{
+	return regmap_field_update_bits_base(field, ~0, val,
+					     NULL, false, false);
+}
+
 #endif
 
 int regmap_get_val_bytes(struct regmap *map);
@@ -236,6 +308,32 @@ static inline int regmap_clear_bits(struct regmap *map,
 }
 
 size_t regmap_size_bytes(struct regmap *map);
+
+/**
+ * struct reg_sequence - An individual write from a sequence of writes.
+ *
+ * @reg: Register address.
+ * @def: Register value.
+ * @delay_us: Delay to be applied after the register write in microseconds
+ *
+ * Register/value pairs for sequences of writes with an optional delay in
+ * microseconds to be applied after each write.
+ */
+struct reg_sequence {
+	unsigned int reg;
+	unsigned int def;
+	unsigned int delay_us;
+};
+
+#define REG_SEQ(_reg, _def, _delay_us) {		\
+				.reg = _reg,		\
+				.def = _def,		\
+				.delay_us = _delay_us,	\
+				}
+#define REG_SEQ0(_reg, _def)	REG_SEQ(_reg, _def, 0)
+
+int regmap_multi_reg_write(struct regmap *map, const struct reg_sequence *regs,
+			   int num_regs);
 
 /**
  * regmap_read_poll_timeout - Poll until a condition is met or a timeout occurs

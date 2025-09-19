@@ -9,6 +9,16 @@ config X86
 	select HAVE_EFI_PAYLOAD
 	default y
 
+config ARCH_LINUX_NAME
+	string
+	default "i386" if X86_32
+	default "x86_64" if X86_64
+
+config ARCH_MKIMAGE_NAME
+	string
+	default "x86" if X86_32
+	default "x86_64" if X86_64
+
 config ARCH_TEXT_BASE
 	hex
 	default 0x0
@@ -18,6 +28,7 @@ menu "ARCH specific settings"
 config 64BIT
 	def_bool y if X86_EFI
 	select ARCH_DMA_ADDR_T_64BIT
+	select PHYS_ADDR_T_64BIT
 	help
 	  Say yes to build a 64-bit binary - formerly known as x86_64
 	  Say no to build a 32-bit binary - formerly known as i386.

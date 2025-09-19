@@ -14,6 +14,7 @@
 #include <malloc.h>
 #include <init.h>
 #include <memory.h>
+#include <bootsource.h>
 #include <linux/sizes.h>
 #include <of_graph.h>
 #include <string.h>
@@ -270,6 +271,30 @@ int of_alias_get_id(struct device_node *np, const char *stem)
 }
 EXPORT_SYMBOL_GPL(of_alias_get_id);
 
+/**
+ * of_alias_get_highest_id - Get highest alias id for the given stem
+ * @stem:	Alias stem to be examined
+ *
+ * The function travels the lookup table to get the highest alias id for the
+ * given alias stem.  It returns the alias id if found.
+ */
+int of_alias_get_highest_id(const char *stem)
+{
+	struct alias_prop *app;
+	int id = -ENODEV;
+
+	list_for_each_entry(app, &aliases_lookup, link) {
+		if (strcmp(app->stem, stem) != 0)
+			continue;
+
+		if (app->id > id)
+			id = app->id;
+	}
+
+	return id;
+}
+EXPORT_SYMBOL_GPL(of_alias_get_highest_id);
+
 int of_alias_get_id_from(struct device_node *root, struct device_node *np,
 			 const char *stem)
 {
@@ -317,6 +342,63 @@ const char *of_alias_get(struct device_node *np)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(of_alias_get);
+
+static const char *of_get_partition_device_alias(struct device_node *np)
+{
+	const char *alias;
+
+	alias = of_alias_get(np);
+	if (alias)
+		return alias;
+
+	np = of_get_parent(np);
+	if (np && of_node_is_fixed_partitions(np))
+		np = of_get_parent(np);
+
+	return of_alias_get(np);
+}
+
+const char *of_property_get_alias_from(struct device_node *root,
+				       const char *np_name, const char *propname,
+				       int index)
+{
+	struct device_node *node, *rnode;
+	const char *path;
+	int ret;
+
+	node = of_find_node_by_path_or_alias(root, np_name);
+	if (!node)
+		return NULL;
+
+	ret = of_property_read_string_index(node, propname, index, &path);
+	if (ret < 0)
+		return NULL;
+
+	rnode = of_find_node_by_path(path);
+	if (!rnode)
+		return NULL;
+
+	return of_get_partition_device_alias(rnode);
+}
+EXPORT_SYMBOL_GPL(of_property_get_alias_from);
+
+const char *of_parse_phandle_and_get_alias_from(struct device_node *root,
+						const char *np_name, const char *phandle_name,
+						int index)
+{
+	struct device_node *node, *rnode;
+
+	node = of_find_node_by_path_or_alias(root, np_name);
+	if (!node)
+		return NULL;
+
+	rnode = of_parse_phandle_from(node, root, phandle_name, index);
+	if (!rnode)
+		return NULL;
+
+	return of_get_partition_device_alias(rnode);
+}
+EXPORT_SYMBOL_GPL(of_parse_phandle_and_get_alias_from);
 
 /*
  * of_find_node_by_alias - Find a node given an alias name
@@ -760,17 +842,17 @@ struct device_node *of_find_matching_node_and_match(struct device_node *from,
 }
 EXPORT_SYMBOL(of_find_matching_node_and_match);
 
-int of_match(struct device *dev, struct driver *drv)
+bool of_match(struct device *dev, const struct driver *drv)
 {
 	const struct of_device_id *id;
 
 	id = of_match_node(drv->of_compatible, dev->of_node);
 	if (!id)
-		return 1;
+		return false;
 
 	dev->of_id_entry = id;
 
-	return 0;
+	return true;
 }
 EXPORT_SYMBOL(of_match);
 /**
@@ -2054,6 +2136,9 @@ EXPORT_SYMBOL(of_get_next_available_child);
 struct device_node *of_get_next_child(const struct device_node *node,
 	struct device_node *prev)
 {
+	if (prev)
+		node = prev->parent;
+
 	prev = list_prepare_entry(prev, &node->children, parent_list);
 	list_for_each_entry_continue(prev, &node->children, parent_list)
 		return prev;
@@ -2136,7 +2221,7 @@ EXPORT_SYMBOL(of_get_compatible_child);
  *	@node:	parent node
  *	@name:	child name to look for.
  *
- *      This function looks for child node for given matching name
+ *      This function looks for child node for given matching full name
  *
  *	Returns a node pointer if found or NULL.
  */
@@ -2152,6 +2237,28 @@ struct device_node *of_get_child_by_name(const struct device_node *node,
 	return NULL;
 }
 EXPORT_SYMBOL(of_get_child_by_name);
+
+/**
+ *	of_get_child_by_name_stem - Find the child node by name for a given parent
+ *	@node:	parent node
+ *	@name:	child name to look for.
+ *
+ *      This function looks for child node for given matching name excluding the
+ *      unit address
+ *
+ *	Returns a node pointer if found or NULL.
+ */
+struct device_node *of_get_child_by_name_stem(const struct device_node *node,
+				const char *name)
+{
+	struct device_node *child;
+
+	for_each_child_of_node(node, child)
+		if (of_node_name_eq(child, name))
+			break;
+	return child;
+}
+EXPORT_SYMBOL(of_get_child_by_name_stem);
 
 /**
  * of_property_read_string_helper() - Utility helper for parsing string properties
@@ -2392,12 +2499,12 @@ struct device_node *of_new_node(struct device_node *parent, const char *name)
 	INIT_LIST_HEAD(&node->properties);
 
 	if (parent) {
-		node->name = xstrdup(name);
+		node->name = xstrdup_const(name);
 		node->full_name = basprintf("%pOF/%s",
 					      node->parent, name);
 		list_add(&node->list, &parent->list);
 	} else {
-		node->name = xstrdup("");
+		node->name = xstrdup_const("");
 		node->full_name = xstrdup("");
 		INIT_LIST_HEAD(&node->list);
 	}
@@ -2411,7 +2518,7 @@ struct property *__of_new_property(struct device_node *node, const char *name,
 	struct property *prop;
 
 	prop = xzalloc(sizeof(*prop));
-	prop->name = xstrdup(name);
+	prop->name = xstrdup_const(name);
 	prop->length = len;
 	prop->value = data;
 
@@ -2480,7 +2587,7 @@ void of_delete_property(struct property *pp)
 
 	list_del(&pp->list);
 
-	free(pp->name);
+	free_const(pp->name);
 	free(pp->value);
 	free(pp);
 }
@@ -2496,7 +2603,7 @@ struct property *of_rename_property(struct device_node *np,
 
 	of_property_write_bool(np, new_name, false);
 
-	free(pp->name);
+	free_const(pp->name);
 	pp->name = xstrdup(new_name);
 	return pp;
 }
@@ -2878,7 +2985,7 @@ void of_delete_node(struct device_node *node)
 		list_del(&node->list);
 	}
 
-	free(node->name);
+	free_const(node->name);
 	free(node->full_name);
 	free(node);
 }
@@ -3165,10 +3272,8 @@ char *of_get_reproducible_name(struct device_node *node)
 	 * "fixed-partitions" compatible. We skip this extra subnode from the
 	 * reproducible name to get the same name for both bindings.
 	 */
-	if (node->parent &&
-	    of_device_is_compatible(node->parent, "fixed-partitions")) {
+	if (node->parent && of_node_is_fixed_partitions(node->parent))
 		node = node->parent;
-	}
 
 	offset = of_read_number(reg, na);
 
@@ -3246,11 +3351,14 @@ EXPORT_SYMBOL(of_graph_parse_endpoint);
  *
  * Return: A 'port' node pointer with refcount incremented.
  */
-struct device_node *of_graph_get_port_by_id(struct device_node *node, u32 id)
+struct device_node *of_graph_get_port_by_id(struct device_node *parent, u32 id)
 {
-	struct device_node *port;
+	struct device_node *port, *node = of_get_child_by_name(parent, "ports");
 
-	for_each_child_of_node(node, port) {
+	if (node)
+		parent = node;
+
+	for_each_child_of_node(parent, port) {
 		u32 port_id = 0;
 
 		if (strncmp(port->name, "port", 4) != 0)
@@ -3293,7 +3401,7 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 		if (node)
 			parent = node;
 
-		port = of_get_child_by_name(parent, "port");
+		port = of_get_child_by_name_stem(parent, "port");
 		if (!port) {
 			pr_err("%s(): no port node found in %pOF\n",
 			       __func__, parent);
@@ -3325,10 +3433,36 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 			port = of_get_next_child(parent, port);
 			if (!port)
 				return NULL;
-		} while (of_node_cmp(port->name, "port"));
+		} while (port->name && !of_node_name_eq(port, "port"));
 	}
 }
 EXPORT_SYMBOL(of_graph_get_next_endpoint);
+
+/**
+ * of_graph_get_endpoint_by_regs() - get endpoint node of specific identifiers
+ * @parent: pointer to the parent device node
+ * @port_reg: identifier (value of reg property) of the parent port node
+ * @reg: identifier (value of reg property) of the endpoint node
+ *
+ * Return: An 'endpoint' node pointer which is identified by reg and at the same
+ * is the child of a port node identified by port_reg. reg and port_reg are
+ * ignored when they are -1. Use of_node_put() on the pointer when done.
+ */
+struct device_node *of_graph_get_endpoint_by_regs(
+	const struct device_node *parent, int port_reg, int reg)
+{
+	struct of_endpoint endpoint;
+	struct device_node *node = NULL;
+
+	for_each_endpoint_of_node(parent, node) {
+		of_graph_parse_endpoint(node, &endpoint);
+		if (((port_reg == -1) || (endpoint.port == port_reg)) &&
+			((reg == -1) || (endpoint.id == reg)))
+			return node;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(of_graph_get_endpoint_by_regs);
 
 /**
  * of_graph_get_remote_port_parent() - get remote port's parent node
@@ -3375,6 +3509,44 @@ struct device_node *of_graph_get_remote_port(const struct device_node *node)
 }
 EXPORT_SYMBOL(of_graph_get_remote_port);
 
+/**
+ * of_graph_get_remote_node() - get remote parent device_node for given port/endpoint
+ * @node: pointer to parent device_node containing graph port/endpoint
+ * @port: identifier (value of reg property) of the parent port node
+ * @endpoint: identifier (value of reg property) of the endpoint node
+ *
+ * Return: Remote device node associated with remote endpoint node linked
+ * to @node. Use of_node_put() on it when done.
+ */
+struct device_node *of_graph_get_remote_node(const struct device_node *node,
+					     u32 port, u32 endpoint)
+{
+	struct device_node *endpoint_node, *remote;
+
+	endpoint_node = of_graph_get_endpoint_by_regs(node, port, endpoint);
+	if (!endpoint_node) {
+		pr_debug("no valid endpoint (%d, %d) for node %pOF\n",
+			 port, endpoint, node);
+		return NULL;
+	}
+
+	remote = of_graph_get_remote_port_parent(endpoint_node);
+	of_node_put(endpoint_node);
+	if (!remote) {
+		pr_debug("no valid remote node\n");
+		return NULL;
+	}
+
+	if (!of_device_is_available(remote)) {
+		pr_debug("not available for remote node\n");
+		of_node_put(remote);
+		return NULL;
+	}
+
+	return remote;
+}
+EXPORT_SYMBOL(of_graph_get_remote_node);
+
 int of_graph_port_is_available(struct device_node *node)
 {
 	struct device_node *endpoint;
@@ -3396,6 +3568,37 @@ int of_graph_port_is_available(struct device_node *node)
 	return available;
 }
 EXPORT_SYMBOL(of_graph_port_is_available);
+
+/**
+ * of_alias_from_compatible - Lookup appropriate alias for a device node
+ *			      depending on compatible
+ * @node:	pointer to a device tree node
+ * @alias:	Pointer to buffer that alias value will be copied into
+ * @len:	Length of alias value
+ *
+ * Based on the value of the compatible property, this routine will attempt
+ * to choose an appropriate alias value for a particular device tree node.
+ * It does this by stripping the manufacturer prefix (as delimited by a ',')
+ * from the first entry in the compatible list property.
+ *
+ * Note: The matching on just the "product" side of the compatible is a relic
+ * from I2C and SPI. Please do not add any new user.
+ *
+ * Return: This routine returns 0 on success, <0 on failure.
+ */
+int of_alias_from_compatible(const struct device_node *node, char *alias, int len)
+{
+	const char *compatible, *p;
+	int cplen;
+
+	compatible = of_get_property(node, "compatible", &cplen);
+	if (!compatible || strlen(compatible) > cplen)
+		return -ENODEV;
+	p = strchr(compatible, ',');
+	strscpy(alias, p ? p + 1 : compatible, len);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_alias_from_compatible);
 
 /**
  * of_get_machine_compatible - get first compatible string from the root node.
@@ -3420,7 +3623,22 @@ const char *of_get_machine_compatible(void)
 }
 EXPORT_SYMBOL(of_get_machine_compatible);
 
-static int of_init_hostname(void)
+static int of_init_early_vars(void)
+{
+	struct device_node *bootsource;
+
+	if (!IS_ENABLED(CONFIG_BAREBOX_DT_2ND))
+		return 0;
+
+	bootsource = of_find_node_by_chosen("bootsource", NULL);
+	if (bootsource)
+		bootsource_of_node_set(bootsource);
+
+	return 0;
+}
+postcore_initcall(of_init_early_vars);
+
+static int of_init_late_vars(void)
 {
 	const char *name;
 
@@ -3429,4 +3647,4 @@ static int of_init_hostname(void)
 
 	return 0;
 }
-late_initcall(of_init_hostname);
+late_initcall(of_init_late_vars);

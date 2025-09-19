@@ -11,6 +11,8 @@
 #include "wolfvision-state.dtsi"
 
 / {
+	barebox,deep-probe;
+
 	aliases {
 		saradc = &saradc;
 	};
@@ -31,7 +33,7 @@
 
 &sdhci {
 	partitions {
-		compatible = "fixed-partitions";
+		compatible = "barebox,fixed-partitions";
 		#address-cells = <2>;
 		#size-cells = <2>;
 

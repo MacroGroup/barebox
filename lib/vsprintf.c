@@ -16,11 +16,13 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/math64.h>
+#include <linux/clk.h>
 #include <malloc.h>
 #include <kallsyms.h>
 #include <wchar.h>
 #include <of.h>
 #include <efi.h>
+#include <fuzz.h>
 
 #include <common.h>
 #include <pbl.h>
@@ -229,7 +231,8 @@ static char *wstring(char *buf, const char *end, const wchar_t *s, int field_wid
 		s = L"<NULL>";
 
 	len = wcsnlen(s, precision);
-	leading_spaces(buf, end, len, &field_width, flags);
+
+	buf = leading_spaces(buf, end, len, &field_width, flags);
 
 	for (i = 0; i < len; ++i) {
 		if (buf < end)
@@ -251,14 +254,14 @@ static char *raw_pointer(char *buf, const char *end, const void *ptr, int field_
 	return number(buf, end, (unsigned long) ptr, 16, field_width, precision, flags);
 }
 
-#ifndef __PBL__
+#if IN_PROPER
 static char *symbol_string(char *buf, const char *end, const void *ptr, int field_width,
-			   int precision, int flags)
+			   int precision, int flags, bool with_offset)
 {
 	unsigned long value = (unsigned long) ptr;
 #ifdef CONFIG_KALLSYMS
 	char sym[KSYM_SYMBOL_LEN];
-	sprint_symbol(sym, value);
+	sprint_symbol(sym, value, with_offset);
 	return string(buf, end, sym, field_width, precision, flags);
 #else
 	field_width = 2*sizeof(void *);
@@ -309,7 +312,7 @@ char *ip4_addr_string(char *buf, const char *end, const u8 *addr, int field_widt
 }
 
 static
-char *error_string(char *buf, const char *end, const u8 *errptr, int field_width,
+char *error_string(char *buf, const char *end, const void *errptr, int field_width,
 		   int precision, int flags, const char *fmt)
 {
     if (!IS_ERR(errptr))
@@ -336,7 +339,8 @@ char *uuid_string(char *buf, const char *end, const u8 *addr, int field_width,
 
 	switch (*(++fmt)) {
 	case 'L':
-		uc = true;		/* fall-through */
+		uc = true;
+		fallthrough;
 	case 'l':
 		index = le;
 		break;
@@ -475,6 +479,18 @@ char *device_node_string(char *buf, const char *end, const struct device_node *n
 		      precision, flags);
 }
 
+static noinline_for_stack
+char *clock(char *buf, const char *end, const struct clk *clk,
+	    int field_width, int precision, int flags, const char *fmt)
+{
+#ifdef CONFIG_COMMON_CLK
+	if (!IS_ERR_OR_NULL(clk))
+		return string(buf, end, clk->name, field_width, precision, flags);
+#endif
+
+	return error_string(buf, end, clk, field_width, precision, flags, fmt);
+}
+
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
@@ -482,7 +498,8 @@ char *device_node_string(char *buf, const char *end, const struct device_node *n
  *
  * Right now we handle following Linux-compatible format specifiers:
  *
- * - 'S' For symbolic direct pointers
+ * - 'S' For symbolic direct pointers (or function descriptors) with offset
+ * - 's' For symbolic direct pointers (or function descriptors) without offset
  * - 'U' For a 16 byte UUID/GUID, it prints the UUID/GUID in the form
  *       "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
  *       Options for %pU are:
@@ -510,20 +527,26 @@ char *device_node_string(char *buf, const char *end, const struct device_node *n
  *              C colon
  *              D dash
  *              N no separator
- * - 'JP' For a JSON path
  * - 'M' For a 6-byte MAC address, it prints the address in the
  *       usual colon-separated hex notation
+ * - 'C' For a clock, it prints the name in the Common Clock Framework
  *
  * Additionally, we support following barebox-specific format specifiers:
  *
+ * - 'JP' For a JSON path
  * - 'D' For EFI device paths
  */
 static char *pointer(const char *fmt, char *buf, const char *end, const void *ptr,
 		     int field_width, int precision, int flags)
 {
+	bool with_offset = false;
+
 	switch (*fmt) {
 	case 'S':
-		return symbol_string(buf, end, ptr, field_width, precision, flags);
+		with_offset = true;
+		fallthrough;
+	case 's':
+		return symbol_string(buf, end, ptr, field_width, precision, flags, with_offset);
 	case 'U':
 		if (IS_ENABLED(CONFIG_PRINTF_UUID))
 			return uuid_string(buf, end, ptr, field_width, precision, flags, fmt);
@@ -559,6 +582,7 @@ static char *pointer(const char *fmt, char *buf, const char *end, const void *pt
 	case 'J':
 		if (fmt[1] == 'P' && IS_ENABLED(CONFIG_JSMN))
 			return jsonpath_string(buf, end, ptr, field_width, precision, flags, fmt);
+		break;
         case 'M':
 		/* Colon separated: 00:01:02:03:04:05 */
 		return mac_address_string(buf, end, ptr, field_width, precision, flags, fmt);
@@ -566,6 +590,8 @@ static char *pointer(const char *fmt, char *buf, const char *end, const void *pt
 		if (IS_ENABLED(CONFIG_EFI_DEVICEPATH))
 			return device_path_string(buf, end, ptr, field_width, precision, flags);
 		break;
+	case 'C':
+		return clock(buf, end, ptr, field_width, precision, flags, fmt);
 	}
 
 	return raw_pointer(buf, end, ptr, field_width, precision, flags);
@@ -727,7 +753,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				continue;
 
 			case 's':
-				if (IS_ENABLED(CONFIG_PRINTF_WCHAR) && !IN_PBL && qualifier == 'l')
+				if (IS_ENABLED(CONFIG_PRINTF_WCHAR) && IN_PROPER && qualifier == 'l')
 					str = wstring(str, end, va_arg(args, wchar_t *),
 						      field_width, precision, flags);
 				else
@@ -772,6 +798,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 
 			case 'x':
 				flags |= SMALL;
+				fallthrough;
 			case 'X':
 				base = 16;
 				break;
@@ -779,6 +806,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			case 'd':
 			case 'i':
 				flags |= SIGN;
+				fallthrough;
 			case 'u':
 				break;
 
@@ -933,6 +961,10 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 	va_list aq;
 	char *p;
 
+	/* Silence -Wmaybe-uninitialized false positive */
+	if (IN_PBL)
+		return -1;
+
 	va_copy(aq, ap);
 	len = vsnprintf(NULL, 0, fmt, aq);
 	va_end(aq);
@@ -975,19 +1007,16 @@ int asprintf(char **strp, const char *fmt, ...)
 }
 EXPORT_SYMBOL(asprintf);
 
-char *basprintf(const char *fmt, ...)
+static int __maybe_unused fuzz_printf(const uint8_t *data, size_t size)
 {
-	va_list ap;
-	char *p;
-	int len;
+	static bool initialized = false;
 
-	va_start(ap, fmt);
-	len = vasprintf(&p, fmt, ap);
-	va_end(ap);
+	if (!initialized) {
+		printf("initializing\n");
+		initialized = true;
+	}
 
-	if (len < 0)
-		return NULL;
-
-	return p;
+	printf("%*ph\n", (int)size, data);
+	return 0;
 }
-EXPORT_SYMBOL(basprintf);
+fuzz_test("printf", fuzz_printf);

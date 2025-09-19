@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <malloc.h>
 #include <tlsf.h>
 #include "tlsfbits.h"
 #include <linux/kasan.h>
@@ -11,6 +12,10 @@
 
 #ifndef CONFIG_KASAN
 #define __memcpy memcpy
+/* This is only an optimization: On sandbox, with ASan, we don't have
+ * an asan-less memset implementation, so we must unpoison memory anyhow.
+ */
+#define __memzero_explicit memzero_explicit
 #endif
 
 /*
@@ -45,15 +50,7 @@ enum tlsf_private
 	** blocks below that size into the 0th first-level list.
 	*/
 
-#if defined (TLSF_64BIT)
-	/*
-	** TODO: We can increase this to support larger sizes, at the expense
-	** of more overhead in the TLSF structure.
-	*/
-	FL_INDEX_MAX = 32,
-#else
-	FL_INDEX_MAX = 30,
-#endif
+	FL_INDEX_MAX = MALLOC_SHIFT_MAX,
 	SL_INDEX_COUNT = (1 << SL_INDEX_COUNT_LOG2),
 	FL_INDEX_SHIFT = (SL_INDEX_COUNT_LOG2 + ALIGN_SIZE_LOG2),
 	FL_INDEX_COUNT = (FL_INDEX_MAX - FL_INDEX_SHIFT + 1),
@@ -614,6 +611,18 @@ static void* block_prepare_used(control_t* control, block_header_t* block,
 
 		kasan_poison_shadow(&block->size, size + 2 * sizeof(size_t),
 			    KASAN_KMALLOC_REDZONE);
+
+		if (want_init_on_alloc()) {
+			kasan_unpoison_shadow(p, size);
+			__memzero_explicit(p, size);
+			/*
+			 * KASAN doesn't play nicely with poisoning addresses
+			 * that are not granule-aligned, which is why we poison
+			 * the full size and then unpoison the rest.
+			 */
+			kasan_poison_shadow(p, size, 0xff);
+		}
+
 		kasan_unpoison_shadow(p, used);
 	}
 	return p;
@@ -747,7 +756,7 @@ void tlsf_walk_pool(pool_t pool, tlsf_walker walker, void* user)
 size_t tlsf_block_size(void* ptr)
 {
 	size_t size = 0;
-	if (ptr)
+	if (likely(!ZERO_OR_NULL_PTR(ptr)))
 	{
 		const block_header_t* block = block_from_ptr(ptr);
 		size = block_size(block);
@@ -820,15 +829,9 @@ pool_t tlsf_add_pool(tlsf_t tlsf, void* mem, size_t bytes)
 
 	if (pool_bytes < block_size_min || pool_bytes > block_size_max)
 	{
-#if defined (TLSF_64BIT)
-		printf("tlsf_add_pool: Memory size must be between 0x%x and 0x%x00 bytes.\n",
-			(unsigned int)(pool_overhead + block_size_min),
-			(unsigned int)((pool_overhead + block_size_max) / 256));
-#else
 		printf("tlsf_add_pool: Memory size must be between %u and %u bytes.\n",
 			(unsigned int)(pool_overhead + block_size_min),
 			(unsigned int)(pool_overhead + block_size_max));
-#endif
 		return 0;
 	}
 
@@ -945,6 +948,8 @@ void* tlsf_malloc(tlsf_t tlsf, size_t size)
 	const size_t adjust = adjust_request_size(size, ALIGN_SIZE);
 	block_header_t* block;
 
+	if (!size)
+		return ZERO_SIZE_PTR;
 	if (!adjust)
 		return NULL;
 
@@ -971,12 +976,14 @@ void* tlsf_memalign(tlsf_t tlsf, size_t align, size_t size)
 
 	/*
 	** If alignment is less than or equals base alignment, we're done.
-	** If we requested 0 bytes, return null, as tlsf_malloc(0) does.
+	** If we requested 0 bytes, return ZERO_SIZE_PTR, as tlsf_malloc(0) does.
 	*/
 	const size_t aligned_size = (adjust && align > ALIGN_SIZE) ? size_with_gap : adjust;
 
 	block_header_t* block;
 
+	if (!size)
+		return ZERO_SIZE_PTR;
 	if (!adjust || !size_with_gap)
 		return NULL;
 
@@ -1018,11 +1025,15 @@ void* tlsf_memalign(tlsf_t tlsf, size_t align, size_t size)
 void tlsf_free(tlsf_t tlsf, void* ptr)
 {
 	/* Don't attempt to free a NULL pointer. */
-	if (ptr)
+	if (!ZERO_OR_NULL_PTR(ptr))
 	{
 		control_t* control = tlsf_cast(control_t*, tlsf);
 		block_header_t* block = block_from_ptr(ptr);
 		tlsf_assert(!block_is_free(block) && "block already marked as free");
+		if (want_init_on_free()) {
+			kasan_unpoison_shadow(ptr, block_size(block));
+			__memzero_explicit(ptr, block_size(block));
+		}
 		kasan_poison_shadow(ptr, block_size(block), 0xff);
 		block_mark_as_free(block);
 		block = block_merge_prev(control, block);
@@ -1050,12 +1061,13 @@ void* tlsf_realloc(tlsf_t tlsf, void* ptr, size_t size)
 	void* p = 0;
 
 	/* Zero-size requests are treated as free. */
-	if (ptr && size == 0)
+	if (size == 0)
 	{
 		tlsf_free(tlsf, ptr);
+		return ZERO_SIZE_PTR;
 	}
 	/* Requests with NULL pointers are treated as malloc. */
-	else if (!ptr)
+	else if (ZERO_OR_NULL_PTR(ptr))
 	{
 		p = tlsf_malloc(tlsf, size);
 	}

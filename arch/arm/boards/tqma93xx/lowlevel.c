@@ -9,7 +9,6 @@
 #include <soc/imx9/ddr.h>
 #include <mach/imx/atf.h>
 #include <mach/imx/xload.h>
-#include <mach/imx/romapi.h>
 #include <mach/imx/esdctl.h>
 #include <pbl/i2c.h>
 #include <boards/tq/tq_eeprom.h>
@@ -81,7 +80,6 @@ static noinline void tqma93xx_continue(void)
 			break;
 		}
 
-		imx93_romapi_load_image();
 		imx93_load_and_start_image_via_tfa();
 	}
 
@@ -92,6 +90,8 @@ static noinline void tqma93xx_continue(void)
 	case VARD_FORMFACTOR_TYPE_CONNECTOR:
 		fdt = __dtb_z_imx93_tqma9352_mba93xxca_start;
 		break;
+	default:
+		__builtin_unreachable();
 	}
 
 	imx93_barebox_entry(fdt);

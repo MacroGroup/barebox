@@ -21,12 +21,14 @@
 #include <malloc.h>
 #include <ioctl.h>
 #include <nand.h>
+#include <string.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/mtd/mtd.h>
 #include <unistd.h>
 #include <range.h>
 #include <fs.h>
+#include <spec/dps.h>
 
 LIST_HEAD(cdev_list);
 
@@ -48,7 +50,7 @@ int devfs_partition_complete(struct string_list *sl, char *instr)
 }
 #endif
 
-struct cdev *cdev_readlink(struct cdev *cdev)
+struct cdev *cdev_readlink(const struct cdev *cdev)
 {
 	if (!cdev)
 		return NULL;
@@ -59,7 +61,7 @@ struct cdev *cdev_readlink(struct cdev *cdev)
 	/* links to links are not allowed */
 	BUG_ON(cdev->link);
 
-	return cdev;
+	return (void *)cdev;
 }
 
 struct cdev *lcdev_by_name(const char *filename)
@@ -126,6 +128,56 @@ struct cdev *cdev_by_diskuuid(const char *diskuuid)
 	return NULL;
 }
 
+struct cdev *
+cdev_find_child_by_gpt_typeuuid(struct cdev *cdev, const guid_t *typeuuid)
+{
+	struct cdev *partcdev;
+
+        /* Follow links to support storage-by-alias */
+        cdev = cdev_readlink(cdev);
+
+	if (!cdev_is_gpt_partitioned(cdev))
+		return ERR_PTR(-EINVAL);
+
+	for_each_cdev_partition(partcdev, cdev) {
+		if (!guid_equal(&partcdev->typeuuid, typeuuid))
+			continue;
+		if (cdev->typeflags & DPS_TYPE_FLAG_NO_AUTO) {
+			dev_dbg(cdev->dev, "auto discovery skipped\n");
+			continue;
+		}
+
+		return partcdev;
+	}
+
+	return ERR_PTR(-ENOENT);
+}
+
+/**
+ * cdev_find_partition - find a partition belonging to a physical device
+ *
+ * @cdev: the cdev which should be searched for partitions
+ * @name: the partition name
+ */
+struct cdev *cdev_find_partition(struct cdev *cdevm, const char *name)
+{
+	struct cdev *partcdev;
+
+	for_each_cdev_partition(partcdev, cdevm) {
+		struct cdev *cdevl;
+
+		if (streq_ptr(partcdev->partname, name))
+			return partcdev;
+
+		list_for_each_entry(cdevl, &partcdev->links, link_entry) {
+			if (streq_ptr(cdevl->partname, name))
+				return cdevl;
+		}
+	}
+
+	return NULL;
+}
+
 /**
  * device_find_partition - find a partition belonging to a physical device
  *
@@ -140,13 +192,11 @@ struct cdev *device_find_partition(struct device *dev, const char *name)
 	list_for_each_entry(cdev, &dev->cdevs, devices_list) {
 		struct cdev *cdevl;
 
-		if (!cdev->partname)
-			continue;
-		if (!strcmp(cdev->partname, name))
+		if (streq_ptr(cdev->partname, name))
 			return cdev;
 
 		list_for_each_entry(cdevl, &cdev->links, link_entry) {
-			if (!strcmp(cdevl->partname, name))
+			if (streq_ptr(cdevl->partname, name))
 				return cdev_readlink(cdevl);
 		}
 	}
@@ -174,12 +224,25 @@ int cdev_find_free_index(const char *basename)
 	return -EBUSY;	/* all indexes are used */
 }
 
+static struct cdev *cdev_get_master(struct cdev *cdev)
+{
+	/* mtd devices handle partitions themselves */
+	if (cdev->mtd)
+		return cdev;
+
+	while (cdev && cdev_is_partition(cdev))
+		cdev = cdev->master;
+
+	return cdev;
+}
+
 int cdev_open(struct cdev *cdev, unsigned long flags)
 {
+	struct cdev *master = cdev_get_master(cdev);
 	int ret;
 
 	if (cdev->ops->open) {
-		ret = cdev->ops->open(cdev, flags);
+		ret = cdev->ops->open(master, flags);
 		if (ret)
 			return ret;
 	}
@@ -199,9 +262,7 @@ int cdev_fdopen(struct cdev *cdev, unsigned long flags)
 	if (IS_ERR(cdev))
 		return PTR_ERR(cdev);
 
-	path = basprintf("/dev/%s", cdev->name);
-	if (!path)
-		return -ENOMEM;
+	path = xasprintf("/dev/%s", cdev->name);
 
 	fd = open(path, flags);
 
@@ -214,7 +275,7 @@ struct cdev *cdev_open_by_name(const char *name, unsigned long flags)
 	struct cdev *cdev;
 	int ret;
 
-	cdev = cdev_by_name(devpath_to_name(name));
+	cdev = cdev_by_name(name);
 	if (!cdev)
 		return NULL;
 
@@ -225,10 +286,27 @@ struct cdev *cdev_open_by_name(const char *name, unsigned long flags)
 	return cdev;
 }
 
+struct cdev *cdev_open_by_path_name(const char *name, unsigned long flags)
+{
+	char *canon = canonicalize_path(AT_FDCWD, name);
+	struct cdev *cdev;
+
+	if (!canon)
+		return cdev_open_by_name(name, flags);
+
+	cdev = cdev_open_by_name(devpath_to_name(canon), flags);
+
+	free(canon);
+
+	return cdev;
+}
+
 int cdev_close(struct cdev *cdev)
 {
+	struct cdev *master = cdev_get_master(cdev);
+
 	if (cdev->ops->close) {
-		int ret = cdev->ops->close(cdev);
+		int ret = cdev->ops->close(master);
 		if (ret)
 			return ret;
 	}
@@ -240,50 +318,61 @@ int cdev_close(struct cdev *cdev)
 
 ssize_t cdev_read(struct cdev *cdev, void *buf, size_t count, loff_t offset, ulong flags)
 {
+	struct cdev *master = cdev_get_master(cdev);
+
 	if (!cdev->ops->read)
 		return -ENOSYS;
 
-	return cdev->ops->read(cdev, buf, count, cdev->offset +offset, flags);
+	return cdev->ops->read(master, buf, count, cdev->offset +offset, flags);
 }
 
 ssize_t cdev_write(struct cdev *cdev, const void *buf, size_t count, loff_t offset, ulong flags)
 {
+	struct cdev *master = cdev_get_master(cdev);
+
 	if (!cdev->ops->write)
 		return -ENOSYS;
 
-	return cdev->ops->write(cdev, buf, count, cdev->offset + offset, flags);
+	return cdev->ops->write(master, buf, count, cdev->offset + offset, flags);
 }
 
 int cdev_flush(struct cdev *cdev)
 {
+	struct cdev *master = cdev_get_master(cdev);
+
 	if (!cdev->ops->flush)
 		return 0;
 
-	return cdev->ops->flush(cdev);
+	return cdev->ops->flush(master);
 }
 
 int cdev_ioctl(struct cdev *cdev, unsigned int request, void *buf)
 {
+	struct cdev *master = cdev_get_master(cdev);
+
 	if (!cdev->ops->ioctl)
 		return -EINVAL;
 
-	return cdev->ops->ioctl(cdev, request, buf);
+	return cdev->ops->ioctl(master, request, buf);
 }
 
 int cdev_erase(struct cdev *cdev, loff_t count, loff_t offset)
 {
+	struct cdev *master = cdev_get_master(cdev);
+
 	if (!cdev->ops->erase)
 		return -ENOSYS;
 
-	return cdev->ops->erase(cdev, count, cdev->offset + offset);
+	return cdev->ops->erase(master, count, cdev->offset + offset);
 }
 
 int cdev_lseek(struct cdev *cdev, loff_t pos)
 {
+	struct cdev *master = cdev_get_master(cdev);
 	int ret;
 
 	if (cdev->ops->lseek) {
-		ret = cdev->ops->lseek(cdev, pos + cdev->offset);
+		ret = cdev->ops->lseek(master, pos + cdev->offset);
 		if (ret < 0)
 			return ret;
 	}
@@ -293,14 +382,18 @@ int cdev_lseek(struct cdev *cdev, loff_t pos)
 
 int cdev_protect(struct cdev *cdev, size_t count, loff_t offset, int prot)
 {
+	struct cdev *master = cdev_get_master(cdev);
+
 	if (!cdev->ops->protect)
 		return -ENOSYS;
 
-	return cdev->ops->protect(cdev, count, offset + cdev->offset, prot);
+	return cdev->ops->protect(master, count, offset + cdev->offset, prot);
 }
 
 int cdev_discard_range(struct cdev *cdev, loff_t count, loff_t offset)
 {
+	struct cdev *master = cdev_get_master(cdev);
+
 	if (!cdev->ops->discard_range)
 		return -ENOSYS;
 
@@ -313,17 +406,18 @@ int cdev_discard_range(struct cdev *cdev, loff_t count, loff_t offset)
 	if (count + offset > cdev->size)
 		count = cdev->size - offset;
 
-	return cdev->ops->discard_range(cdev, count, offset + cdev->offset);
+	return cdev->ops->discard_range(master, count, offset + cdev->offset);
 }
 
 int cdev_memmap(struct cdev *cdev, void **map, int flags)
 {
+	struct cdev *master = cdev_get_master(cdev);
 	int ret = -ENOSYS;
 
 	if (!cdev->ops->memmap)
 		return -EINVAL;
 
-	ret = cdev->ops->memmap(cdev, map, flags);
+	ret = cdev->ops->memmap(master, map, flags);
 
 	if (!ret)
 		*map = (void *)((unsigned long)*map + (unsigned long)cdev->offset);
@@ -333,8 +427,10 @@ int cdev_memmap(struct cdev *cdev, void **map, int flags)
 
 int cdev_truncate(struct cdev *cdev, size_t size)
 {
+	struct cdev *master = cdev_get_master(cdev);
+
 	if (cdev->ops->truncate)
-		return cdev->ops->truncate(cdev, size);
+		return cdev->ops->truncate(master, size);
 
 	return -EPERM;
 }
@@ -347,6 +443,13 @@ static struct cdev *cdev_alloc(const char *name)
 	new->name = xstrdup(name);
 
 	return new;
+}
+
+static void cdev_free(struct cdev *cdev)
+{
+	free(cdev->name);
+	free(cdev->partname);
+	free(cdev);
 }
 
 int devfs_create(struct cdev *new)
@@ -367,15 +470,16 @@ int devfs_create(struct cdev *new)
 			new->device_node = new->dev->of_node;
 	}
 
+	if (new->link)
+		list_add_tail(&new->link_entry, &new->link->links);
+
 	return 0;
 }
 
 int devfs_create_link(struct cdev *cdev, const char *name)
 {
 	struct cdev *new;
-
-	if (cdev_by_name(name))
-		return -EEXIST;
+	int ret;
 
 	/*
 	 * Create a link to the real cdev instead of creating
@@ -385,6 +489,12 @@ int devfs_create_link(struct cdev *cdev, const char *name)
 
 	new = cdev_alloc(name);
 	new->link = cdev;
+
+	ret = devfs_create(new);
+	if (ret) {
+		cdev_free(new);
+		return ret;
+	}
 
 	if (cdev->partname) {
 		size_t partnameoff = 0;
@@ -398,11 +508,6 @@ int devfs_create_link(struct cdev *cdev, const char *name)
 
 		new->partname = xstrdup(name + partnameoff);
 	}
-
-	INIT_LIST_HEAD(&new->links);
-	INIT_LIST_HEAD(&new->partitions);
-	list_add_tail(&new->list, &cdev_list);
-	list_add_tail(&new->link_entry, &cdev->links);
 
 	return 0;
 }
@@ -429,7 +534,7 @@ int devfs_remove(struct cdev *cdev)
 		list_del(&cdev->partition_entry);
 
 	if (cdev->link)
-		free(cdev);
+		cdev_free(cdev);
 
 	return 0;
 }
@@ -437,7 +542,7 @@ int devfs_remove(struct cdev *cdev)
 /**
  * check_overlap() - check overlap with existing partitions
  * @cdev: parent cdev
- * @name: partition name for informational purposes on conflict
+ * @partinfo: partition information
  * @offset: offset of new partition to be added
  * @size: size of new partition to be added
  *
@@ -445,7 +550,9 @@ int devfs_remove(struct cdev *cdev)
  *         partition if and only if it's identical in offset and size
  *         to an existing partition. Otherwise, PTR_ERR(-EINVAL).
  */
-static struct cdev *check_overlap(struct cdev *cdev, const char *name, loff_t offset, loff_t size)
+static struct cdev *check_overlap(struct cdev *cdev,
+				  const struct devfs_partition *partinfo,
+				  loff_t offset, loff_t size)
 {
 	struct cdev *cpart;
 	loff_t cpart_offset;
@@ -468,6 +575,8 @@ static struct cdev *check_overlap(struct cdev *cdev, const char *name, loff_t of
 		}
 
 		if (region_overlap_size(cpart_offset, cpart->size, offset, size)) {
+			if (partinfo->flags & DEVFS_PARTITION_CAN_OVERLAP)
+				return NULL;
 			ret = -EINVAL;
 			goto conflict;
 		}
@@ -480,7 +589,7 @@ conflict:
 	__pr_printk(ret ? MSG_WARNING : MSG_DEBUG,
 		    "New partition %s (0x%08llx-0x%08llx) on %s "
 		    "%s with partition %s (0x%08llx-0x%08llx), not creating it\n",
-		    name, offset, offset + size - 1, cdev->name,
+		    partinfo->name, offset, offset + size - 1, cdev->name,
 		    ret ? "conflicts" : "identical",
 		    cpart->name, cpart_offset, cpart_offset + cpart->size - 1);
 
@@ -494,7 +603,7 @@ static struct cdev *__devfs_add_partition(struct cdev *cdev,
 	loff_t _end = end ? *end : 0;
 	static struct cdev *new;
 	struct cdev *overlap;
-	unsigned inherited_flags = 0;
+	unsigned inherited_flags;
 
 	if (cdev_by_name(partinfo->name))
 		return ERR_PTR(-EEXIST);
@@ -527,7 +636,7 @@ static struct cdev *__devfs_add_partition(struct cdev *cdev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	overlap = check_overlap(cdev, partinfo->name, offset, size);
+	overlap = check_overlap(cdev, partinfo, offset, size);
 	if (overlap) {
 		if (!IS_ERR(overlap)) {
 			/* only fails with -EEXIST, which is fine */
@@ -538,7 +647,7 @@ static struct cdev *__devfs_add_partition(struct cdev *cdev,
 	}
 
 	/* Filter flags that we want to pass along to children */
-	inherited_flags |= cdev->flags & DEVFS_WRITE_AUTOERASE;
+	inherited_flags = get_inheritable_devfs_flags(cdev);
 
 	if (IS_ENABLED(CONFIG_MTD) && cdev->mtd) {
 		struct mtd_info *mtd;
@@ -614,9 +723,7 @@ int cdevfs_del_partition(struct cdev *cdev)
 	if (ret)
 		return ret;
 
-	free(cdev->name);
-	free(cdev->partname);
-	free(cdev);
+	cdev_free(cdev);
 
 	return 0;
 }
@@ -742,8 +849,7 @@ void cdev_remove_loop(struct cdev *cdev)
 	devfs_remove(cdev);
 	close(priv->fd);
 	free(priv);
-	free(cdev->name);
-	free(cdev);
+	cdev_free(cdev);
 }
 
 ssize_t mem_copy(struct device *dev, void *dst, const void *src,

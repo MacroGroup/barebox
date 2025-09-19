@@ -28,16 +28,20 @@ Contents:
    booting-linux
    bootchooser
    remote-control
-   system-setup
+   security
    reset-reason
    system-reset
    state
+   versioning
    random
    optee
    debugging
    watchdog
    reboot-mode
    virtio
+   barebox-tlv
+
+   appendix-development-host-setup
 
 * :ref:`search`
 * :ref:`genindex`

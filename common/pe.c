@@ -61,7 +61,7 @@ static int pe_loader_relocate(const IMAGE_BASE_RELOCATION *rel,
 		return 0;
 
 	end = (const IMAGE_BASE_RELOCATION *)((const char *)rel + rel_size);
-	while (rel < end && rel->SizeOfBlock) {
+	while (rel + 1 < end && rel->SizeOfBlock) {
 		const uint16_t *relocs = (const uint16_t *)(rel + 1);
 		i = (rel->SizeOfBlock - sizeof(*rel)) / sizeof(uint16_t);
 		while (i--) {
@@ -248,7 +248,9 @@ static struct resource *pe_alloc(size_t virt_size)
 	if (start + virt_size > end)
 		return NULL;
 
-	return request_sdram_region("pe-code", start, virt_size);
+	return request_sdram_region("pe-code", start, virt_size,
+				    MEMTYPE_LOADER_CODE,
+				    MEMATTRS_RWX);
 }
 
 unsigned long pe_get_mem_size(struct pe_image *pe)
@@ -373,7 +375,8 @@ int pe_load(struct pe_image *pe)
 
 void pe_close(struct pe_image *pe)
 {
-	release_sdram_region(pe->code);
+	if (pe->code)
+		release_sdram_region(pe->code);
 	free(pe->bin);
 	free(pe);
 }

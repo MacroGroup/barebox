@@ -35,6 +35,7 @@
 #include <kfifo.h>
 #include <parseopt.h>
 #include <linux/sizes.h>
+#include <linux/netfs.h>
 
 #include "tftp-selftest.h"
 
@@ -130,6 +131,15 @@ struct tftp_priv {
 	IPaddr_t server;
 };
 
+struct tftp_inode {
+	struct netfs_inode netfs_node;
+};
+
+static struct tftp_inode *to_tftp_inode(struct inode *inode)
+{
+	return container_of(inode, struct tftp_inode, netfs_node.inode);
+}
+
 static inline bool is_block_before(uint16_t a, uint16_t b)
 {
 	return (int16_t)(b - a) > 0;
@@ -178,7 +188,7 @@ static int tftp_window_cache_insert(struct tftp_cache *cache, uint16_t id,
 	return 0;
 }
 
-static int tftp_truncate(struct device *dev, FILE *f, loff_t size)
+static int tftp_truncate(struct device *dev, struct file *f, loff_t size)
 {
 	return 0;
 }
@@ -755,15 +765,15 @@ out:
 	return ERR_PTR(ret);
 }
 
-static int tftp_open(struct device *dev, FILE *file, const char *filename)
+static int tftp_open(struct inode *inode, struct file *file)
 {
 	struct file_priv *priv;
 
-	priv = tftp_do_open(dev, file->flags, file->dentry, false);
+	priv = tftp_do_open(&file->fsdev->dev, file->f_flags, file->f_path.dentry, false);
 	if (IS_ERR(priv))
 		return PTR_ERR(priv);
 
-	file->priv = priv;
+	file->private_data = priv;
 
 	return 0;
 }
@@ -808,17 +818,17 @@ static int tftp_do_close(struct file_priv *priv)
 	return 0;
 }
 
-static int tftp_close(struct device *dev, FILE *f)
+static int tftp_close(struct inode *inode, struct file *f)
 {
-	struct file_priv *priv = f->priv;
+	struct file_priv *priv = f->private_data;
 
 	return tftp_do_close(priv);
 }
 
-static int tftp_write(struct device *_dev, FILE *f, const void *inbuf,
+static int tftp_write(struct device *_dev, struct file *f, const void *inbuf,
 		      size_t insize)
 {
-	struct file_priv *priv = f->priv;
+	struct file_priv *priv = f->private_data;
 	size_t size, now;
 	int ret;
 
@@ -851,9 +861,9 @@ static int tftp_write(struct device *_dev, FILE *f, const void *inbuf,
 	return insize;
 }
 
-static int tftp_read(struct device *dev, FILE *f, void *buf, size_t insize)
+static int tftp_read(struct device *dev, struct file *f, void *buf, size_t insize)
 {
-	struct file_priv *priv = f->priv;
+	struct file_priv *priv = f->private_data;
 	size_t outsize = 0, now;
 	int ret = 0;
 
@@ -891,10 +901,10 @@ static int tftp_read(struct device *dev, FILE *f, void *buf, size_t insize)
 	return outsize;
 }
 
-static int tftp_lseek(struct device *dev, FILE *f, loff_t pos)
+static int tftp_lseek(struct device *dev, struct file *f, loff_t pos)
 {
 	/* We cannot seek backwards without reloading or caching the file */
-	loff_t f_pos = f->pos;
+	loff_t f_pos = f->f_pos;
 
 	if (pos >= f_pos) {
 		int ret = 0;
@@ -921,7 +931,7 @@ out_free:
 			 * Update f->pos even if the overall request
 			 * failed since we can't move backwards
 			 */
-			f->pos = f_pos;
+			f->f_pos = f_pos;
 			return ret;
 		}
 
@@ -933,18 +943,25 @@ out_free:
 
 static const struct inode_operations tftp_file_inode_operations;
 static const struct inode_operations tftp_dir_inode_operations;
-static const struct file_operations tftp_file_operations;
+static const struct file_operations tftp_file_operations = {
+	.open = tftp_open,
+	.release = tftp_close,
+};
 
 static struct inode *tftp_get_inode(struct super_block *sb, const struct inode *dir,
                                      umode_t mode)
 {
 	struct inode *inode = new_inode(sb);
+	struct tftp_inode *node;
 
 	if (!inode)
 		return NULL;
 
 	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
+
+	node = to_tftp_inode(inode);
+	netfs_inode_init(&node->netfs_node);
 
 	switch (mode & S_IFMT) {
 	default:
@@ -1015,7 +1032,28 @@ static const struct inode_operations tftp_dir_inode_operations =
 	.create = tftp_create,
 };
 
-static const struct super_operations tftp_ops;
+static struct inode *tftp_alloc_inode(struct super_block *sb)
+{
+	struct tftp_inode *node;
+
+	node = xzalloc(sizeof(*node));
+	if (!node)
+		return NULL;
+
+	return &node->netfs_node.inode;
+}
+
+static void tftp_destroy_inode(struct inode *inode)
+{
+	struct tftp_inode *node = to_tftp_inode(inode);
+
+	free(node);
+}
+
+static const struct super_operations tftp_ops = {
+	.alloc_inode = tftp_alloc_inode,
+	.destroy_inode = tftp_destroy_inode,
+};
 
 static int tftp_probe(struct device *dev)
 {
@@ -1029,12 +1067,12 @@ static int tftp_probe(struct device *dev)
 
 	ret = resolv(fsdev->backingstore, &priv->server);
 	if (ret) {
-		pr_err("Cannot resolve \"%s\": %s\n", fsdev->backingstore, strerror(-ret));
+		pr_err("Cannot resolve \"%s\": %pe\n", fsdev->backingstore, ERR_PTR(ret));
 		goto err;
 	}
 
 	sb->s_op = &tftp_ops;
-	sb->s_d_op = &no_revalidate_d_ops;
+	sb->s_d_op = &netfs_dentry_operations_timed;
 
 	inode = tftp_get_inode(sb, NULL, S_IFDIR);
 	sb->s_root = d_make_root(inode);
@@ -1054,13 +1092,10 @@ static void tftp_remove(struct device *dev)
 }
 
 static struct fs_driver tftp_driver = {
-	.open      = tftp_open,
-	.close     = tftp_close,
 	.read      = tftp_read,
 	.lseek     = tftp_lseek,
 	.write     = tftp_write,
 	.truncate  = tftp_truncate,
-	.flags     = 0,
 	.drv = {
 		.probe  = tftp_probe,
 		.remove = tftp_remove,

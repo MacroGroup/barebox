@@ -43,14 +43,18 @@ void bbu_append_handlers_to_file_list(struct file_list *files)
 	struct bbu_handler *handler;
 
 	list_for_each_entry(handler, &bbu_image_handlers, list) {
-		const char *cdevname;
+		const char *cdevname, *devpath;
+		char *buf = NULL;
 		struct stat s;
-		char *devpath;
 
-		cdevname = devpath_to_name(handler->devicefile);
-		device_detect_by_name(cdevname);
+		devpath = handler->devicefile;
 
-		devpath = basprintf("/dev/%s", cdevname);
+		if (strstarts(devpath, "/dev/")) {
+			cdevname = devpath_to_name(devpath);
+			device_detect_by_name(cdevname);
+
+			devpath = buf = basprintf("/dev/%s", cdevname);
+		}
 
 		if (stat(devpath, &s) == 0) {
 			append_bbu_entry(handler->name, devpath, files);
@@ -59,7 +63,7 @@ void bbu_append_handlers_to_file_list(struct file_list *files)
 				handler->name, devpath);
 		}
 
-		free(devpath);
+		free(buf);
 	}
 }
 
@@ -448,15 +452,15 @@ int bbu_std_file_handler(struct bbu_handler *handler,
 
 	ret = protect(fd, data->len, 0, 0);
 	if (ret && (ret != -ENOSYS) && (ret != -ENOTSUPP)) {
-		printf("unprotecting %s failed with %s\n", data->devicefile,
-				strerror(-ret));
+		printf("unprotecting %s failed with %pe\n", data->devicefile,
+				ERR_PTR(ret));
 		goto err_close;
 	}
 
 	ret = erase(fd, data->len, 0, ERASE_TO_WRITE);
 	if (ret && ret != -ENOSYS) {
-		printf("erasing %s failed with %s\n", data->devicefile,
-				strerror(-ret));
+		printf("erasing %s failed with %pe\n", data->devicefile,
+				ERR_PTR(ret));
 		goto err_close;
 	}
 

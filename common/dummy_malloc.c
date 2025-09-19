@@ -11,8 +11,13 @@ void malloc_stats(void)
 
 void *memalign(size_t alignment, size_t bytes)
 {
-	void *mem = sbrk(bytes + alignment);
+	void *mem = NULL;
 
+	if (!bytes)
+		return ZERO_SIZE_PTR;
+
+	if (alignment <= MALLOC_MAX_SIZE && bytes <= MALLOC_MAX_SIZE)
+		mem = sbrk(bytes + alignment);
 	if (!mem) {
 		errno = ENOMEM;
 		return NULL;

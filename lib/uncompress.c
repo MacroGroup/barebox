@@ -45,6 +45,7 @@ static long uncompress_fill(void *buf, unsigned long len)
 		int now = min(len, uncompress_size);
 
 		memcpy(buf, uncompress_buf, now);
+		uncompress_buf += now;
 		uncompress_size -= now;
 		len -= now;
 		total = now;
@@ -77,24 +78,24 @@ int uncompress(unsigned char *inbuf, long len,
             void(*error)(char *x));
 	int ret;
 	char *err;
+	void *uncompress_buf_free = NULL;
 
 	if (inbuf) {
-		ft = file_detect_type(inbuf, len);
-		uncompress_buf = NULL;
+		ft = file_detect_compression_type(inbuf, len);
 		uncompress_size = 0;
 	} else {
 		if (!fill)
 			return -EINVAL;
 
 		uncompress_fill_fn = fill;
-		uncompress_buf = xzalloc(32);
+		uncompress_buf_free = uncompress_buf = xzalloc(32);
 		uncompress_size = 32;
 
 		ret = fill(uncompress_buf, 32);
 		if (ret < 0)
 			goto err;
 
-		ft = file_detect_type(uncompress_buf, 32);
+		ft = file_detect_compression_type(uncompress_buf, 32);
 	}
 
 	pr_debug("Filetype detected: %s\n", file_type_to_string(ft));
@@ -131,7 +132,7 @@ int uncompress(unsigned char *inbuf, long len,
 		break;
 #endif
 	default:
-		err = basprintf("cannot handle filetype %s",
+		err = basprintf("unsupported compression filetype \"%s\"",
 				  file_type_to_string(ft));
 		error_fn(err);
 		free(err);
@@ -142,7 +143,7 @@ int uncompress(unsigned char *inbuf, long len,
 	ret = compfn(inbuf, len, fill ? uncompress_fill : NULL,
 			flush, output, pos, error_fn);
 err:
-	free(uncompress_buf);
+	free(uncompress_buf_free);
 
 	return ret;
 }

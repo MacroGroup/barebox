@@ -35,15 +35,15 @@ static void free_context(struct env_context *c)
 	struct variable_d *v, *tmp;
 
 	list_for_each_entry_safe(v, tmp, &c->local, list) {
-		free(v->name);
-		free(v->data);
+		free_const(v->name);
+		free_const(v->data);
 		list_del(&v->list);
 		free(v);
 	}
 
 	list_for_each_entry_safe(v, tmp, &c->global, list) {
-		free(v->name);
-		free(v->data);
+		free_const(v->name);
+		free_const(v->data);
 		list_del(&v->list);
 		free(v);
 	}
@@ -96,7 +96,7 @@ int env_pop_context(void)
  * @param[in] var Variable of interest
  * @return Value as text
  */
-char *var_val(struct variable_d *var)
+const char *var_val(struct variable_d *var)
 {
 	return var->data;
 }
@@ -106,7 +106,7 @@ char *var_val(struct variable_d *var)
  * @param[in] var Variable of interest
  * @return Name as text
  */
-char *var_name(struct variable_d *var)
+const char *var_name(struct variable_d *var)
 {
 	return var->name;
 }
@@ -121,6 +121,21 @@ static const char *getenv_raw(struct list_head *l, const char *name)
 	}
 
 	return NULL;
+}
+
+static int getenv_raw_call(int (*fn)(struct variable_d *v, void *data),
+			   struct list_head *l, void *data)
+{
+	struct variable_d *v;
+	int ret;
+
+	list_for_each_entry(v, l, list) {
+		ret = fn(v, data);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static const char *dev_getenv(const char *name)
@@ -179,6 +194,28 @@ const char *getenv(const char *name)
 }
 EXPORT_SYMBOL(getenv);
 
+int envvar_for_each(int (*fn)(struct variable_d *v, void *data), void *data)
+{
+	struct env_context *c;
+	int ret;
+
+	c = context;
+
+	ret = getenv_raw_call(fn, &c->local, data);
+	if (ret)
+		return ret;
+
+	while (c) {
+		ret = getenv_raw_call(fn, &c->global, data);
+		if (ret)
+			return ret;
+		c = c->parent;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(envvar_for_each);
+
 static int setenv_raw(struct list_head *l, const char *name, const char *value)
 {
 	struct variable_d *v;
@@ -186,14 +223,14 @@ static int setenv_raw(struct list_head *l, const char *name, const char *value)
 	list_for_each_entry(v, l, list) {
 		if (!strcmp(v->name, name)) {
 			if (value) {
-				free(v->data);
-				v->data = xstrdup(value);
+				free_const(v->data);
+				v->data = xstrdup_const(value);
 
 				return 0;
 			} else {
 				list_del(&v->list);
-				free(v->name);
-				free(v->data);
+				free_const(v->name);
+				free_const(v->data);
 				free(v);
 
 				return 0;
@@ -203,8 +240,8 @@ static int setenv_raw(struct list_head *l, const char *name, const char *value)
 
 	if (value) {
 		v = xzalloc(sizeof(*v));
-		v->name = xstrdup(name);
-		v->data = xstrdup(value);
+		v->name = xstrdup_const(name);
+		v->data = xstrdup_const(value);
 		list_add_tail(&v->list, l);
 	}
 
@@ -252,7 +289,7 @@ static int dev_setenv(const char *name, const char *val)
  */
 int setenv(const char *_name, const char *value)
 {
-	char *name = strdup(_name);
+	const char *name = strdup_const(_name);
 	int ret = 0;
 	struct list_head *list;
 	const char *dot;
@@ -278,7 +315,7 @@ int setenv(const char *_name, const char *value)
 
 	ret = setenv_raw(list, name, value);
 out:
-	free(name);
+	free_const(name);
 
 	return ret;
 }

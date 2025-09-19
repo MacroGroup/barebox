@@ -35,9 +35,9 @@ static void atmci_info(struct device *mci_dev)
 {
 	struct atmel_mci *host = mci_dev->priv;
 
-	printf("  Bus data width: %d bit\n", host->mci.bus_width);
+	printf("  Bus data width: %d bit\n", host->mci.ios.bus_width);
 
-	printf("  Bus frequency: %u Hz\n", host->mci.clock);
+	printf("  Bus frequency: %u Hz\n", host->mci.ios.clock);
 	printf("  Frequency limits: ");
 	if (host->mci.f_min == 0)
 		printf("no lower limit ");
@@ -176,7 +176,7 @@ static int atmci_probe(struct device *hw_dev)
 		host->sdc_reg = ATMCI_SDCSEL_SLOT_A;
 
 	if (IS_ENABLED(CONFIG_MCI_INFO))
-		hw_dev->info = atmci_info;
+		devinfo_add(hw_dev, atmci_info);
 
 	mci_register(&host->mci);
 

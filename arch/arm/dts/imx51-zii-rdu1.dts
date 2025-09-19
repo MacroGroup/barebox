@@ -15,6 +15,7 @@
 
 / {
 	compatible = "zii,imx51-rdu1", "fsl,imx51-babbage-power", "fsl,imx51";
+	barebox,disable-deep-probe;
 
 	chosen {
 		stdout-path = &uart1;
@@ -83,7 +84,7 @@ spinor: &{ecspi1/flash@1} {
 
 &esdhc1 {
 	partitions {
-		compatible = "fixed-partitions";
+		compatible = "barebox,fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 

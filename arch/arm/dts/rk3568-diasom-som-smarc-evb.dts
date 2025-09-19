@@ -1,0 +1,324 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+
+#include <dt-bindings/soc/rockchip,vop2.h>
+
+#include "rk3568-diasom-som-smarc.dtsi"
+
+/ {
+	model = "Diasom DS-RK3568-SMARC-EVB";
+	compatible = "diasom,ds-rk3568-som-smarc-evb",
+		     "diasom,ds-rk3568-som-smarc",
+		     "diasom,ds-rk3568-som",
+		     "rockchip,rk3568";
+
+	aliases {
+		camera0 = &imx335;
+		camera1 = &imx415;
+		mmc1 = &sdmmc0;
+	};
+
+	chosen {
+		environment-sd {
+			compatible = "barebox,environment";
+			device-path = &sdmmc0, "partname:env";
+			status = "disabled";
+		};
+	};
+
+	clk37m125: clk37m125 {
+		compatible = "fixed-clock";
+		clock-frequency = <37125000>;
+		#clock-cells = <0>;
+	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "HDMI";
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_connector_out>;
+			};
+		};
+	};
+
+	vcc_cam1: vcc-cam1-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi1_pwr>;
+		compatible = "regulator-fixed";
+		/* Used by RAW probe for cameras connected via I2C */
+		regulator-boot-on;
+		/* Temporary until fixed in adapter */
+		enable-active-high;
+		gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_cam1";
+		startup-delay-us = <250000>;
+	};
+};
+
+&can0 {
+	status = "okay";
+};
+
+&can2 {
+	status = "okay";
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_in {
+	hdmi_in_vp0: endpoint {
+		remote-endpoint = <&vp0_out_hdmi>;
+	};
+};
+
+&hdmi_out {
+	hdmi_connector_out: endpoint {
+		remote-endpoint = <&hdmi_connector_in>;
+	};
+};
+
+&hdmi_sound {
+	status = "okay";
+};
+
+&i2c7 {
+	imx335: camera-0@1a {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi1_rst>;
+		compatible = "sony,imx335";
+		reg = <0x1a>;
+		clocks = <&xin24m>;
+		power-domains = <&power RK3568_PD_VI>;
+		reset-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
+		avdd-supply = <&vcc_cam1>;
+		dvdd-supply = <&vcc_cam1>;
+		ovdd-supply = <&vcc_cam1>;
+		status = "disabled";
+
+		port {
+			imx335_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx335_in>;
+				link-frequencies = /bits/ 64 <594000000>;
+			};
+		};
+	};
+
+	imx415: camera-1@1a {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi1_rst>;
+		compatible = "sony,imx415";
+		reg = <0x1a>;
+		clocks = <&clk37m125>;
+		clock-names = "inck";
+		power-domains = <&power RK3568_PD_VI>;
+		reset-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
+		avdd-supply = <&vcc_cam1>;
+		dvdd-supply = <&vcc_cam1>;
+		ovdd-supply = <&vcc_cam1>;
+		status = "disabled";
+
+		port {
+			imx415_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx415_in>;
+				link-frequencies = /bits/ 64 <891000000>;
+			};
+		};
+	};
+};
+
+&i2s0_8ch {
+	/* HDMI Sound */
+	status = "okay";
+};
+
+&i2s1_8ch {
+	status = "okay";
+};
+
+&isp {
+	status = "okay";
+};
+
+&isp_mmu {
+	status = "okay";
+};
+
+&isp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&csi_out>;
+		};
+	};
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			imx335_in: endpoint@0 {
+				reg = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx335_out>;
+			};
+
+			imx415_in: endpoint@1 {
+				reg = <1>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx415_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			csi_out: endpoint {
+				remote-endpoint = <&isp_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&csi2_dphy_hw {
+	status = "okay";
+};
+
+&pcie2x1 {
+	status = "okay";
+};
+
+&pcie30phy {
+	data-lanes = <1 2>;
+	status = "okay";
+};
+
+&pcie3x1 {
+	status = "okay";
+};
+
+&pcie3x2 {
+	num-lanes = <1>;
+	status = "okay";
+};
+
+&pwm4 {
+	status = "okay";
+};
+
+&pwm5 {
+	status = "okay";
+};
+
+&sdmmc0 {
+	status = "okay";
+};
+
+&spi2 {
+	status = "okay";
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+	};
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
+};
+
+&spi3 {
+	status = "okay";
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+	};
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&uart8 {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vp0 {
+	vp0_out_hdmi: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
+		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
+		remote-endpoint = <&hdmi_in_vp0>;
+	};
+};
+
+&pinctrl {
+	pinctrl-0 = <&gmac1m1_miim &rstout_pins &gpio_pins>;
+
+	csi {
+		csi1_pwr: csi1-pwr-pins {
+			rockchip,pins =
+				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;		/* GPIO1/CAM1_PWR# */
+		};
+
+		csi1_rst: csi1-rst-pins {
+			rockchip,pins =
+				<1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;		/* GPIO3/CAM1_RST# */
+		};
+	};
+
+	gpio {
+		gpio_pins: gpio-pins {
+			rockchip,pins =
+				<1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO0 */
+				<3 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO2 */
+				<2 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO4 */
+				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO5 */
+				<3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO6 */
+				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;	/* GPIO7 */
+		};
+	};
+};

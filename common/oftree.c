@@ -139,6 +139,27 @@ static int of_fixup_bootargs_bootsource(struct device_node *root,
 	return ret;
 }
 
+static int of_fixup_bootargs_reset_source(struct device_node *root,
+					  struct device_node *chosen)
+{
+	struct device_node *np;
+	struct device *dev;
+	char *name;
+
+	dev = reset_source_get_device();
+	if (!dev || !dev->of_node)
+		return 0;
+
+	name = of_get_reproducible_name(dev->of_node);
+	np = of_find_node_by_reproducible_name(root, name);
+	free(name);
+
+	if (!np)
+		return 0;
+
+	return of_property_write_string(chosen, "reset-source-device", np->full_name);
+}
+
 static void watchdog_build_bootargs(struct watchdog *watchdog, struct device_node *root)
 {
 	int alias_id;
@@ -151,9 +172,7 @@ static void watchdog_build_bootargs(struct watchdog *watchdog, struct device_nod
 	if (alias_id < 0)
 		return;
 
-	buf = basprintf("systemd.watchdog-device=/dev/watchdog%d", alias_id);
-	if (!buf)
-		return;
+	buf = xasprintf("systemd.watchdog_device=/dev/watchdog%d", alias_id);
 
 	globalvar_add_simple("linux.bootargs.dyn.watchdog", buf);
 	free(buf);
@@ -183,11 +202,8 @@ static int of_write_bootargs(struct device_node *node)
 		const char *oldstr;
 
 		ret = of_property_read_string(node, "bootargs", &oldstr);
-		if (!ret) {
-			str = buf = basprintf("%s %s", oldstr, str);
-			if (!buf)
-				return -ENOMEM;
-		}
+		if (!ret)
+			str = buf = xasprintf("%s %s", oldstr, str);
 	}
 
 	ret = of_property_write_string(node, "bootargs", str);
@@ -200,7 +216,6 @@ static int of_fixup_bootargs(struct device_node *root, void *unused)
 	struct device_node *node;
 	int err;
 	int instance = reset_source_get_instance();
-	struct device *dev;
 	const char *serialno;
 	const char *compat;
 
@@ -227,17 +242,9 @@ static int of_fixup_bootargs(struct device_node *root, void *unused)
 		of_property_write_u32(node, "reset-source-instance", instance);
 
 
-	dev = reset_source_get_device();
-	if (dev && dev->of_node) {
-		phandle phandle;
-
-		phandle = of_node_create_phandle(dev->of_node);
-
-		err = of_property_write_u32(node,
-					    "reset-source-device", phandle);
-		if (err)
-			return err;
-	}
+	err = of_fixup_bootargs_reset_source(root, node);
+	if (err)
+		return err;
 
 	err = of_fixup_bootargs_bootsource(root, node);
 	if (err)
@@ -297,7 +304,7 @@ int of_fixup_reserved_memory(struct device_node *root, void *_res)
 
 	child = of_get_child_by_name(node, res->name) ?: of_new_node(node, res->name);
 
-	if (res->flags & IORESOURCE_BUSY)
+	if (is_reserved_resource(res))
 		of_property_write_bool(child, "no-map", true);
 
 	of_write_number(reg, res->start, addr_n_cells);
@@ -400,21 +407,20 @@ void of_fix_tree(struct device_node *node)
 
 		ret = of_fixup->fixup(node, of_fixup->context);
 		if (ret)
-			pr_warn("Failed to fixup node in %pS: %s\n",
-					of_fixup->fixup, strerror(-ret));
+			pr_warn("Failed to fixup node in %pS: %pe\n",
+					of_fixup->fixup, ERR_PTR(ret));
 	}
 }
 
 /*
- * Get the fixed fdt. This function uses the fdt input pointer
+ * Get the fdt. This function uses the fdt input pointer
  * if provided or the barebox internal devicetree if not.
- * It increases the size of the tree and applies the registered
- * fixups.
  */
-struct fdt_header *of_get_fixed_tree(const struct device_node *node)
+struct fdt_header *of_get_flattened_tree(const struct device_node *node,
+					 bool fixup)
 {
 	struct fdt_header *fdt = NULL;
-	struct device_node *np;
+	struct device_node *np = NULL;
 
 	if (!node) {
 		node = of_get_root_node();
@@ -422,16 +428,19 @@ struct fdt_header *of_get_fixed_tree(const struct device_node *node)
 			return NULL;
 	}
 
-	np = of_dup(node);
+	if (fixup)
+		node = np = of_dup(node);
 
-	if (!np)
+	if (!node)
 		return NULL;
 
-	of_fix_tree(np);
+	if (fixup)
+		of_fix_tree(np);
 
-	fdt = of_flatten_dtb(np);
+	fdt = of_flatten_dtb((struct device_node *)node);
 
-	of_delete_node(np);
+	if (fixup)
+		of_delete_node(np);
 
 	return fdt;
 }

@@ -95,6 +95,17 @@ config DRIVER_SPI_DSPI
 	  This enables support for the Freescale DSPI controller in master
 	  mode. VF610 platform uses the controller.
 
+config SPI_BCM2835
+	tristate "BCM2835 SPI controller"
+	depends on ARCH_BCM283X || COMPILE_TEST
+	help
+	  This selects a driver for the Broadcom BCM2835 SPI master.
+
+	  The BCM2835 contains two types of SPI master controller; the
+	  "universal SPI master", and the regular SPI controller. This driver
+	  is for the regular SPI controller. Slave mode operation is not also
+	  not supported.
+
 config SPI_ZYNQ_QSPI
 	tristate "Xilinx Zynq QSPI controller"
 	depends on ARCH_ZYNQ
@@ -102,6 +113,14 @@ config SPI_ZYNQ_QSPI
 	help
 	  This enables support for the Zynq Quad SPI controller in master mode.
 	  This controller only supports SPI memory interface.
+
+config STM32_QSPI
+	bool "STM32F7 QSPI driver"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  Enable the STM32F7 Quad-SPI (QSPI) driver. This driver can be
+	  used to access the SPI NOR flash chips on platforms embedding
+	  this ST IP core.
 
 config DRIVER_SPI_STM32
 	bool "STM32 SPI driver"
@@ -125,6 +144,13 @@ config SPI_SIFIVE
 	depends on SOC_SIFIVE || COMPILE_TEST
 	help
 	  This exposes the SPI controller IP from SiFive.
+
+config SPI_ROCKCHIP
+	tristate "Rockchip SPI controller driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	help
+	  This selects a driver for Rockchip SPI controller found on many Rockchip
+	  SoCs.
 
 endif
 

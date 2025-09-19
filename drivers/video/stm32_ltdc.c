@@ -174,7 +174,8 @@ static int ltdc_activate_var(struct fb_info *info)
 {
 	info->line_length = info->xres * (info->bits_per_pixel >> 3);
 
-	info->screen_base = dma_alloc_writecombine(info->line_length * info->yres,
+	info->screen_base = dma_alloc_writecombine(DMA_DEVICE_BROKEN,
+						   info->line_length * info->yres,
 						   DMA_ADDRESS_BROKEN);
 	if (!info->screen_base)
 		return -ENOMEM;
@@ -268,10 +269,8 @@ static int ltdc_probe(struct device *dev)
 	hw->regs = IOMEM(iores->start);
 
 	hw->pclk = clk_get(dev, NULL);
-	if (IS_ERR(hw->pclk)) {
-		dev_err(dev, "peripheral clock get error %d\n", ret);
-		return PTR_ERR(hw->pclk);
-	}
+	if (IS_ERR(hw->pclk))
+		return dev_errp_probe(dev, hw->pclk, "peripheral clock get\n");
 
 	for_each_available_child_of_node(dev->of_node, np) {
 		struct ltdc_fb *priv;
@@ -311,7 +310,7 @@ static int ltdc_probe(struct device *dev)
 
 		ret = vpl_ioctl(&priv->vpl, priv->id, VPL_GET_VIDEOMODES, &info->modes);
 		if (ret)
-			dev_dbg(dev, "failed to get modes: %s\n", strerror(-ret));
+			dev_dbg(dev, "failed to get modes: %pe\n", ERR_PTR(ret));
 
 		ret = register_framebuffer(info);
 		if (ret < 0) {

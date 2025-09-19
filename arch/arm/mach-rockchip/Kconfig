@@ -27,24 +27,13 @@ config ARCH_ROCKCHIP_V8
 	select CPU_V8
 	select ARM_ATF
 
-config ARCH_RK3399
-	bool
-	select ARCH_ROCKCHIP_V8
-	select ARCH_HAS_RESET_CONTROLLER
-
-config ARCH_RK3399PRO
-	bool
-	select ARCH_RK3399
-
 config ARCH_RK3568
 	bool
 	select ARCH_ROCKCHIP_V8
-	select HW_HAS_PCI
 
 config ARCH_RK3588
 	bool
 	select ARCH_ROCKCHIP_V8
-	select HW_HAS_PCI
 
 comment "select Rockchip boards:"
 
@@ -67,15 +56,25 @@ endif
 
 if 64BIT
 
-config MACH_DIASOM_DS_RK3568_EVB
-	bool "Diasom DS-RK3568-EVB"
-	depends on $(success,test -e $(srctree)/arch/arm/boards/diasom-rk3568-evb/sdram-init.bin)
+config MACH_DIASOM_DS_RK3568
+	bool "Diasom DS-RK3568"
+	depends on $(success,test -e $(srctree)/arch/arm/boards/diasom-rk3568/sdram-init.bin)
 	select ARCH_RK3568
 	select AIODEV
 	select DEFAULT_ENVIRONMENT
 	select MACHINE_ID
 	help
-	  Say Y here if you are using a Diasom DS-RK3568-EVB board
+	  Say Y here if you are using a Diasom DS-RK3568 based boards
+
+config MACH_DIASOM_DS_RK3588
+	bool "Diasom DS-RK3588"
+	depends on $(success,test -e $(srctree)/arch/arm/boards/diasom-rk3588/sdram-init.bin)
+	select ARCH_RK3588
+	select AIODEV
+	select DEFAULT_ENVIRONMENT
+	select MACHINE_ID
+	help
+	  Say Y here if you are using a Diasom DS-RK3588 based boards
 
 config MACH_RK3568_EVB
 	select ARCH_RK3568
@@ -88,6 +87,21 @@ config MACH_RK3568_BPI_R2PRO
 	bool "RK3568 BPI R2PRO"
 	help
 	  Say Y here if you are using a RK3568 Bananpi R2 Pro
+
+config MACH_PINE64_PINETAB2
+	select ARCH_RK3568
+	bool "Pine64 PineTab 2"
+	help
+	  Say Y here if you are using a Pine64 PineTab 2
+
+	  This will build Barebox for two revisions of PineTab 2:
+
+	  - v0.1: distributed to several OS developers for early OS bring
+	          up. Not many of them are available and was superseded
+	          by rev 2.0.
+
+	  - v2.0: distributed to consumers. Use this if you intend to ship
+	          Barebox to the general public.
 
 config MACH_PINE64_QUARTZ64
 	select ARCH_RK3568
@@ -126,6 +140,12 @@ config MACH_WOLFVISION_PF5
 	help
 	  Say Y here if you are using a WolfVision PF5 mainboard
 
+config MACH_XUNLONG_ORANGEPI_5_PLUS
+       select ARCH_RK3588
+       bool "Xunlong Orange Pi 5 Plus"
+       help
+         Say Y here if you are using a Xunlong Orange Pi 5 Plus
+
 endif
 
 comment "select board features:"
@@ -139,18 +159,35 @@ config ARCH_ROCKCHIP_ATF
 	  useful for debugging early startup, but for all other cases,
 	  say y here.
 
-config ARCH_RK3399_OPTEE
-	bool "Build rk3399 OP-TEE binary into barebox"
-	depends on ARCH_ROCKCHIP_ATF && ARCH_RK3399
+config ARCH_ROCKCHIP_ATF_PASS_FDT
+	bool "Pass device tree to TF-A"
+	depends on ARCH_ROCKCHIP_ATF
 	help
-	  With this option enabled the RK3399 OP-TEE binary is compiled
-	  into barebox and started along with the BL31 trusted firmware.
+	  Enable this option if you are using an upstream OP-TEE that uses the
+	  device tree to initialize dynamic shared memory, which is passed
+	  through the upstream TF-A.
 
-config ARCH_RK3568_OPTEE
-	bool "Build rk3568 OP-TEE binary into barebox"
-	depends on ARCH_ROCKCHIP_ATF && ARCH_RK3568
+	  Disable the option if you are using a downstream TF-A since it
+	  doesn't always cope with device trees. Supposedly this happens if the
+	  device tree is too large, for example if CONFIG_OF_OVERLAY_LIVE is
+	  enabled.
+
+config ARCH_ROCKCHIP_ATF_FDT_SIZE
+	hex
+	default 0x0
+	default 0x60000 if ARCH_ROCKCHIP_ATF_PASS_FDT
+	prompt "Reserved size for the FDT blob passed to the TF-A"
 	help
-	  With this option enabled the RK3568 OP-TEE binary is compiled
+	  Set this size to CFG_DTB_MAX_SIZE in the OP-TEE configuration. OP-TEE
+	  may modify the passed device tree and increase it's size. This
+	  ensures that barebox reserves enough memory for the modifications.
+
+config ARCH_ROCKCHIP_OPTEE
+	bool "Build rockchip OP-TEE binary into barebox"
+	depends on ARCH_ROCKCHIP_ATF
+	select PBL_OPTEE
+	help
+	  With this option enabled the OP-TEE binary is compiled
 	  into barebox and started along with the BL31 trusted firmware.
 
 endmenu

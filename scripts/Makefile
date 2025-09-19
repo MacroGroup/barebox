@@ -10,6 +10,7 @@ hostprogs-always-y					+= bareboxenv
 hostprogs-always-y					+= bareboxcrc32
 hostprogs-always-y					+= kernel-install
 hostprogs-always-$(CONFIG_QOICONV)			+= qoiconv
+hostprogs-always-$(CONFIG_TLV)				+= bareboxtlv
 hostprogs-always-$(CONFIG_KEYTOC)			+= keytoc
 HOSTCFLAGS_keytoc.o = `$(PKG_CONFIG) --cflags openssl`
 HOSTLDLIBS_keytoc = `$(PKG_CONFIG) --libs openssl`
@@ -23,7 +24,6 @@ hostprogs-always-$(CONFIG_ZYNQ_MKIMAGE)			+= zynq_mkimage
 hostprogs-always-$(CONFIG_SOCFPGA_MKIMAGE)		+= socfpga_mkimage
 hostprogs-always-$(CONFIG_MXS_HOSTTOOLS)		+= mxsimage mxsboot
 hostprogs-always-$(CONFIG_LAYERSCAPE_PBLIMAGE)		+= pblimage
-hostprogs-always-$(CONFIG_STM32_IMAGE)			+= stm32image
 hostprogs-always-$(CONFIG_IMX9_IMAGE)			+= imx9image
 hostprogs-always-$(CONFIG_RISCV)			+= prelink-riscv
 hostprogs-always-$(CONFIG_RK_IMAGE)			+= rkimage
@@ -43,6 +43,7 @@ HOSTLDLIBS_rk-usb-loader  = `$(PKG_CONFIG) --libs libusb-1.0`
 hostprogs-always-$(CONFIG_RK_USB_LOADER)		+= rk-usb-loader
 
 userprogs-always-$(CONFIG_BAREBOXENV_TARGET)		+= bareboxenv-target
+userprogs-always-$(CONFIG_BAREBOXTLV_TARGET)		+= bareboxtlv-target
 userprogs-always-$(CONFIG_KERNEL_INSTALL_TARGET)	+= kernel-install-target
 userprogs-always-$(CONFIG_BAREBOXCRC32_TARGET)		+= bareboxcrc32-target
 userprogs-always-$(CONFIG_IMD_TARGET)			+= bareboximd-target
@@ -62,8 +63,7 @@ userccflags += -I $(srctree)/$(src)/include -isystem $(srctree)/scripts/include
 
 subdir-y			+= mod
 subdir-y			+= imx
-subdir-$(CONFIG_DTC)		+= dtc
 subdir-$(CONFIG_ARCH_TEGRA)	+= tegra
 
 # Let clean descend into subdirs
-subdir-	+= basic kconfig
+subdir-	+= basic dtc kconfig

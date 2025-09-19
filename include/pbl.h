@@ -6,12 +6,6 @@
 #ifndef __PBL_H__
 #define __PBL_H__
 
-#ifdef __PBL__
-#define IN_PBL	1
-#else
-#define IN_PBL	0
-#endif
-
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -23,6 +17,7 @@ extern unsigned long free_mem_end_ptr;
 void pbl_barebox_uncompress(void *dest, void *compressed_start, unsigned int len);
 
 void fdt_find_mem(const void *fdt, unsigned long *membase, unsigned long *memsize);
+int fdt_fixup_mem(void *fdt, unsigned long membase[], unsigned long memsize[], size_t num);
 
 struct fdt_device_id {
 	const char *compatible;

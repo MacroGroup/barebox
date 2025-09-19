@@ -58,7 +58,7 @@ static int pca9450_get_reset_source(struct device *dev, struct regmap *map)
 		type = RESET_UKWN;
 	}
 
-	reset_source_set_device(dev, type);
+	reset_source_set_device(dev, type, 200);
 
 	return 0;
 };
@@ -103,6 +103,16 @@ static int __init pca9450_probe(struct device *dev)
 	/* Chip ID defined in bits [7:4] */
 	dev_info(dev, "PMIC Chip ID: 0x%x\n", (reg >> 4));
 
+	/* Enable WDOG_B, for cold reset by default */
+	if (of_property_read_bool(dev->of_node, "nxp,wdog_b-warm-reset"))
+		regmap_update_bits(regmap, PCA9450_RESET_CTRL,
+				   PCA9450_PMIC_RESET_WDOG_B_CFG_MASK,
+				   PCA9450_PMIC_RESET_WDOG_B_CFG_WARM);
+	else
+		regmap_update_bits(regmap, PCA9450_RESET_CTRL,
+				   PCA9450_PMIC_RESET_WDOG_B_CFG_MASK,
+				   PCA9450_PMIC_RESET_WDOG_B_CFG_COLD_LDO12);
+
 	if (pca9450_init_callback)
 		pca9450_init_callback(regmap);
 	pca9450_map = regmap;
@@ -114,6 +124,7 @@ static int __init pca9450_probe(struct device *dev)
 
 static __maybe_unused struct of_device_id pca9450_dt_ids[] = {
 	{ .compatible = "nxp,pca9450a" },
+	{ .compatible = "nxp,pca9450b" },
 	{ .compatible = "nxp,pca9450c" },
 	{ .compatible = "nxp,pca9451a" },
 	{ /* sentinel */ }

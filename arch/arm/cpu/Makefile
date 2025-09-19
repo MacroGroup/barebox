@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-obj-y += cpu.o
+obj-pbl-y += cpu.o
 
 obj-$(CONFIG_ARM_EXCEPTIONS) += exceptions_$(S64_32).o interrupts_$(S64_32).o
+pbl-$(CONFIG_ARM_EXCEPTIONS_PBL) += exceptions_$(S64_32).o interrupts_$(S64_32).o
 obj-$(CONFIG_MMU) += mmu-common.o
 obj-pbl-$(CONFIG_MMU) += mmu_$(S64_32).o
 obj-$(CONFIG_MMU) += dma_$(S64_32).o
@@ -31,7 +32,8 @@ obj-$(CONFIG_ARM_SEMIHOSTING) += semihosting-trap_$(S64_32).o
 obj-$(CONFIG_CMD_ARM_CPUINFO) += cpuinfo.o
 obj-$(CONFIG_MMUINFO) += mmuinfo.o mmuinfo_$(S64_32).o
 obj-$(CONFIG_OFDEVICE) += dtb.o
-obj-$(CONFIG_BOOTM_ELF)	+= bootm-elf.o
+obj-$(CONFIG_ARM_BOOTM_ELF)	+= bootm-elf.o
+obj-$(CONFIG_ARM_BOOTM_FIP)	+= bootm-fip.o
 
 ifeq ($(CONFIG_MMU),)
 obj-$(CONFIG_CPU_32v7) += no-mmu.o
@@ -62,3 +64,4 @@ pbl-$(CONFIG_ARM_ATF) += atf.o
 
 obj-pbl-y += common.o sections.o
 KASAN_SANITIZE_common.o := n
+obj-pbl-$(CONFIG_ARMV7R_MPU) += armv7r-mpu.o

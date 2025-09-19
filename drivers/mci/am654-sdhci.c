@@ -83,14 +83,6 @@
 #define AM654_SDHCI_MIN_FREQ	400000
 #define CLOCK_TOO_SLOW_HZ	50000000
 
-#define MMC_CAP2_HS200 0
-#define MMC_CAP2_HS400 0
-#define MMC_CAP_UHS_SDR104 0
-#define MMC_CAP_UHS_SDR12 0
-#define MMC_CAP_UHS_DDR50 0
-#define MMC_CAP_UHS_SDR25 0
-#define MMC_CAP_UHS_SDR50 0
-
 struct timing_data {
 	const char *otap_binding;
 	const char *itap_binding;
@@ -490,13 +482,15 @@ static int am654_sdhci_send_cmd(struct mci_host *mci, struct mci_cmd *cmd,
 	sdhci_write16(&host->sdhci, SDHCI_COMMAND, command);
 
 	ret = sdhci_wait_for_done(&host->sdhci, SDHCI_INT_CMD_COMPLETE);
-	if (ret)
+	if (ret) {
+		sdhci_teardown_data(&host->sdhci, data, dma);
 		goto error;
+	}
 
 	sdhci_read_response(&host->sdhci, cmd);
 	sdhci_write32(&host->sdhci, SDHCI_INT_STATUS, SDHCI_INT_CMD_COMPLETE);
 
-	ret = sdhci_transfer_data_dma(&host->sdhci, data, dma);
+	ret = sdhci_transfer_data_dma(&host->sdhci, cmd, data, dma);
 
 error:
 	if (ret) {
@@ -522,10 +516,20 @@ static void am654_sdhci_set_ios(struct mci_host *mci, struct mci_ios *ios)
 
 	val = sdhci_read8(&plat->sdhci, SDHCI_HOST_CONTROL);
 
-	if (ios->clock > 26000000)
-		val |= SDHCI_CTRL_HISPD;
-	else
+	switch (ios->timing) {
+	/*
+	 * According to the data manual, HISPD bit
+	 * should not be set in these speed modes.
+	 */
+	case MMC_TIMING_SD_HS:
+	case MMC_TIMING_MMC_HS:
+	case MMC_TIMING_LEGACY:
 		val &= ~SDHCI_CTRL_HISPD;
+		break;
+	default:
+		val |= SDHCI_CTRL_HISPD;
+		break;
+	}
 
 	sdhci_write8(&plat->sdhci, SDHCI_HOST_CONTROL, val);
 
@@ -556,9 +560,9 @@ static int am654_sdhci_probe(struct device *dev)
 
 	plat = xzalloc(sizeof(*plat));
 
-	ret = dev_get_drvdata(dev, (const void **)&plat->soc_data);
-	if (ret)
-		return ret;
+	plat->soc_data = device_get_match_data(dev);
+	if (!plat->soc_data)
+		return -ENODEV;
 
 	iores = dev_request_mem_resource(dev, 0);
 	if (IS_ERR(iores))
@@ -577,25 +581,18 @@ static int am654_sdhci_probe(struct device *dev)
                 return PTR_ERR(plat->base);
         }
 
-	plat->clk = clk_get(dev, "clk_xin");
-	if (IS_ERR(plat->clk)) {
-		dev_err(dev, "failed to get clock\n");
-		return ret;
-	}
+	plat->clk = clk_get_enabled(dev, "clk_xin");
+	if (IS_ERR(plat->clk))
+		return dev_errp_probe(dev, plat->clk, "failed to get clock\n");
 
-	clk_enable(plat->clk);
-
-	plat->clk_ahb = clk_get(dev, "clk_ahb");
-	if (IS_ERR(plat->clk_ahb)) {
-		dev_err(dev, "failed to get ahb clock\n");
-		return ret;
-	}
-
-	clk_enable(plat->clk_ahb);
+	plat->clk_ahb = clk_get_enabled(dev, "clk_ahb");
+	if (IS_ERR(plat->clk_ahb))
+		return dev_errp_probe(dev, plat->clk, "failed to get ahb clock\n");
 
 	mci = &plat->mci;
 	mci->f_max = clk_get_rate(plat->clk);
 	mci->f_min = 50000000 / 256;
+	mci_of_parse_node(mci, np);
 
 	if (plat->soc_data->flags & DLL_PRESENT) {
 		ret = of_property_read_u32(np, "ti,trm-icp", &plat->trm_icp);
@@ -642,6 +639,9 @@ static int am654_sdhci_probe(struct device *dev)
 	ret = sdhci_am654_get_otap_delay(plat);
 	if (ret)
 		return ret;
+
+	/* HS200 not supported by this driver at the moment */
+	plat->sdhci.quirks2 = SDHCI_QUIRK2_BROKEN_HS200;
 
 	plat->sdhci.mci = mci;
 	sdhci_setup_host(&plat->sdhci);

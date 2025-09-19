@@ -1050,13 +1050,13 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(20), 8, GFLAGS),
 	GATE(HCLK_VOP, "hclk_vop", "hclk_vo", 0,
 			RK3568_CLKGATE_CON(20), 9, GFLAGS),
-	COMPOSITE(DCLK_VOP0, "dclk_vop0", hpll_vpll_gpll_cpll_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	COMPOSITE(DCLK_VOP0, "dclk_vop0", hpll_vpll_gpll_cpll_p, CLK_SET_RATE_NO_REPARENT,
 			RK3568_CLKSEL_CON(39), 10, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3568_CLKGATE_CON(20), 10, GFLAGS),
-	COMPOSITE(DCLK_VOP1, "dclk_vop1", hpll_vpll_gpll_cpll_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	COMPOSITE(DCLK_VOP1, "dclk_vop1", hpll_vpll_gpll_cpll_p, CLK_SET_RATE_NO_REPARENT,
 			RK3568_CLKSEL_CON(40), 10, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3568_CLKGATE_CON(20), 11, GFLAGS),
-	COMPOSITE(DCLK_VOP2, "dclk_vop2", hpll_vpll_gpll_cpll_p, 0,
+	COMPOSITE(DCLK_VOP2, "dclk_vop2", hpll_vpll_gpll_cpll_p, CLK_SET_RATE_NO_REPARENT,
 			RK3568_CLKSEL_CON(41), 10, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3568_CLKGATE_CON(20), 12, GFLAGS),
 	GATE(CLK_VOP_PWM, "clk_vop_pwm", "xin24m", 0,
@@ -1574,7 +1574,7 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 			RK3568_PMU_CLKGATE_CON(2), 14, GFLAGS),
 	GATE(XIN_OSC0_EDPPHY_G, "xin_osc0_edpphy_g", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 15, GFLAGS),
-	MUX(CLK_HDMI_REF, "clk_hdmi_ref", clk_hdmi_ref_p, 0,
+	MUX(CLK_HDMI_REF, "clk_hdmi_ref", clk_hdmi_ref_p, CLK_SET_RATE_PARENT,
 			RK3568_PMU_CLKSEL_CON(8), 7, 1, MFLAGS),
 };
 
@@ -1636,12 +1636,6 @@ static void __init rk3568_pmu_clk_init(struct device_node *np)
 				      ARRAY_SIZE(rk3568_pmucru_critical_clocks));
 
 	rockchip_clk_of_add_provider(np, ctx);
-
-	clk_name_set_parent("ppll", "pll_ppll");
-	clk_name_set_parent("clk_rtc_32k", "clk_rtc32k_frac");
-	clk_name_set_rate("clk_rtc_32k", 32768);
-	clk_name_set_rate("pclk_pmu", 100000000);
-	clk_name_set_rate("pll_ppll", 200000000);
 }
 
 static void __init rk3568_clk_init(struct device_node *np)
@@ -1682,28 +1676,6 @@ static void __init rk3568_clk_init(struct device_node *np)
 				      ARRAY_SIZE(rk3568_cru_critical_clocks));
 
 	rockchip_clk_of_add_provider(np, ctx);
-
-	clk_name_set_parent("npll", "pll_npll");
-	clk_name_set_parent("vpll", "pll_vpll");
-	clk_name_set_parent("pclk_bus", "gpll_100m");
-	clk_name_set_parent("clk_sdmmc0", "cpll_50m");
-	clk_name_set_parent("cclk_emmc", "gpll_200m");
-
-	clk_name_set_rate("pll_cpll", 1000000000);
-	clk_name_set_rate("pll_gpll", 1188000000);
-	clk_name_set_rate("armclk", 600000000);
-	clk_name_set_rate("aclk_bus", 150000000);
-	clk_name_set_rate("pclk_bus", 100000000);
-	clk_name_set_rate("aclk_top_high", 300000000);
-	clk_name_set_rate("aclk_top_low", 200000000);
-	clk_name_set_rate("hclk_top", 150000000);
-	clk_name_set_rate("pclk_top", 100000000);
-	clk_name_set_rate("aclk_perimid", 300000000);
-	clk_name_set_rate("hclk_perimid", 150000000);
-	clk_name_set_rate("pll_npll", 1200000000);
-	clk_name_set_rate("pll_apll", 816000000);
-
-	clk_name_set_parent("pclk_top", "gpll_100m");
 }
 
 struct clk_rk3568_inits {

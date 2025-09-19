@@ -78,7 +78,7 @@ static int setup_pmic_voltages(void)
 	pr_err("No PMIC found\n");
 out:
 	if (ret)
-		pr_err("PMIC setup failed with %s\n", strerror(-ret));
+		pr_err("PMIC setup failed with %pe\n", ERR_PTR(ret));
 
 	return ret;
 }
@@ -110,7 +110,8 @@ static int tx6x_devices_init(void)
 	 * this board has eMMC or NAND.
 	 */
 	if (sbmr1 & (1 << 7)) {
-		imx6_bbu_nand_register_handler("nand", BBU_HANDLER_FLAG_DEFAULT);
+		imx6_bbu_nand_register_handler("nand", "/dev/nand0.barebox",
+								BBU_HANDLER_FLAG_DEFAULT);
 		of_device_enable_and_register_by_name("environment-nand");
 		of_device_enable_and_register_by_alias("nand");
 	} else {

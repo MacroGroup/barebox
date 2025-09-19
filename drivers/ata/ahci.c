@@ -292,7 +292,8 @@ static int ahci_init_port(struct ahci_port *ahci_port)
 		mdelay(500);
 	}
 
-	mem = dma_alloc_coherent(AHCI_PORT_PRIV_DMA_SZ, &mem_dma);
+	mem = dma_alloc_coherent(DMA_DEVICE_BROKEN,
+				 AHCI_PORT_PRIV_DMA_SZ, &mem_dma);
 	if (!mem) {
 		return -ENOMEM;
 	}
@@ -414,7 +415,8 @@ static int ahci_init_port(struct ahci_port *ahci_port)
 	ret = -ENODEV;
 
 err_init:
-	dma_free_coherent(mem, mem_dma, AHCI_PORT_PRIV_DMA_SZ);
+	dma_free_coherent(DMA_DEVICE_BROKEN,
+			  mem, mem_dma, AHCI_PORT_PRIV_DMA_SZ);
 	return ret;
 }
 
@@ -654,7 +656,7 @@ static int ahci_probe(struct device *dev)
 	ahci->dev = dev;
 	ahci->mmio_base = regs;
 	dev->priv = ahci;
-	dev->info = ahci_info;
+	devinfo_add(dev, ahci_info);
 
 	ret = ahci_add_host(ahci);
 	if (ret)

@@ -6,6 +6,7 @@
 #ifndef __TEE_DRV_H
 #define __TEE_DRV_H
 
+#include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/kref.h>
@@ -193,6 +194,7 @@ struct tee_shm {
 	struct tee_context *ctx;
 	phys_addr_t paddr;
 	void *kaddr;
+	u64 *pages_list;
 	size_t size;
 	refcount_t refcount;
 	u32 flags;

@@ -62,6 +62,9 @@ static int stm32_iwdg_start(struct stm32_iwdg *wd, unsigned int timeout)
 
 	/* The prescaler is align on power of 2 and start at 2 ^ PR_SHIFT. */
 	presc = roundup_pow_of_two(presc);
+	if (!presc)
+		return -ERANGE;
+
 	iwdg_pr = presc <= 1 << PR_SHIFT ? 0 : ilog2(presc) - PR_SHIFT;
 	iwdg_rlr = ((timeout * wd->rate) / presc) - 1;
 
@@ -129,7 +132,7 @@ MODULE_DEVICE_TABLE(of, stm32_iwdg_of_match);
 
 static int stm32_iwdg_probe(struct device *dev)
 {
-	struct stm32_iwdg_data *data;
+	const struct stm32_iwdg_data *data;
 	struct stm32_iwdg *wd;
 	struct resource *res;
 	struct watchdog *wdd;
@@ -138,8 +141,8 @@ static int stm32_iwdg_probe(struct device *dev)
 
 	wd = xzalloc(sizeof(*wd));
 
-	ret = dev_get_drvdata(dev, (const void **)&data);
-	if (ret)
+	data = device_get_match_data(dev);
+	if (!data)
 		return -ENODEV;
 
 	res = dev_request_mem_resource(dev, 0);

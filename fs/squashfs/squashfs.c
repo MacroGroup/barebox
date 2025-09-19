@@ -33,8 +33,7 @@ char *squashfs_devread(struct squashfs_sb_info *fs, int byte_offset,
 
 	size = cdev_read(fs->cdev, buf, byte_len, byte_offset, 0);
 	if (size < 0) {
-		dev_err(fs->dev, "read error: %s\n",
-				strerror(-size));
+		dev_err(fs->dev, "read error: %pe\n", ERR_PTR(size));
 		return NULL;
 	}
 
@@ -131,9 +130,8 @@ static void squashfs_remove(struct device *dev)
 	squashfs_put_super(sb);
 }
 
-static int squashfs_open(struct device *dev, FILE *file, const char *filename)
+static int squashfs_open(struct inode *inode, struct file *file)
 {
-	struct inode *inode = file->f_inode;
 	struct squashfs_page *page;
 	int i;
 
@@ -142,7 +140,7 @@ static int squashfs_open(struct device *dev, FILE *file, const char *filename)
 	for (i = 0; i < 32; i++) {
 		page->buf[i] = malloc(PAGE_CACHE_SIZE);
 		if (page->buf[i] == NULL) {
-			dev_err(dev, "error allocation read buffer\n");
+			dev_err(&file->fsdev->dev, "error allocation read buffer\n");
 			goto error;
 		}
 	}
@@ -150,8 +148,7 @@ static int squashfs_open(struct device *dev, FILE *file, const char *filename)
 	page->data_block = 0;
 	page->idx = 0;
 	page->real_page.inode = inode;
-	file->size = inode->i_size;
-	file->priv = page;
+	file->private_data = page;
 
 	return 0;
 
@@ -165,9 +162,9 @@ error:
 	return -ENOMEM;
 }
 
-static int squashfs_close(struct device *dev, FILE *f)
+static int squashfs_close(struct inode *inode, struct file *f)
 {
-	struct squashfs_page *page = f->priv;
+	struct squashfs_page *page = f->private_data;
 	int i;
 
 	for (i = 0; i < 32; i++)
@@ -178,6 +175,11 @@ static int squashfs_close(struct device *dev, FILE *f)
 
 	return 0;
 }
+
+const struct file_operations squashfs_file_operations = {
+	.open = squashfs_open,
+	.release = squashfs_close,
+};
 
 static int squashfs_read_buf(struct squashfs_page *page, int pos, void **buf)
 {
@@ -197,15 +199,15 @@ static int squashfs_read_buf(struct squashfs_page *page, int pos, void **buf)
 	return 0;
 }
 
-static int squashfs_read(struct device *_dev, FILE *f, void *buf,
+static int squashfs_read(struct device *_dev, struct file *f, void *buf,
 			 size_t insize)
 {
 	unsigned int size = insize;
-	unsigned int pos = f->pos;
+	unsigned int pos = f->f_pos;
 	unsigned int ofs;
 	unsigned int now;
 	void *pagebuf;
-	struct squashfs_page *page = f->priv;
+	struct squashfs_page *page = f->private_data;
 
 	/* Read till end of current buffer page */
 	ofs = pos % PAGE_CACHE_SIZE;
@@ -240,20 +242,7 @@ static int squashfs_read(struct device *_dev, FILE *f, void *buf,
 	return insize;
 }
 
-struct squashfs_dir {
-	struct file file;
-	struct dentry dentry;
-	struct dentry root_dentry;
-	struct inode inode;
-	struct qstr nm;
-	DIR dir;
-	char d_name[256];
-	char root_d_name[256];
-};
-
 static struct fs_driver squashfs_driver = {
-	.open		= squashfs_open,
-	.close		= squashfs_close,
 	.read		= squashfs_read,
 	.type		= filetype_squashfs,
 	.drv = {

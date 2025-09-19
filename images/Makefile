@@ -56,30 +56,33 @@ extra-y += $(pbl-lds)
 $(pbl-lds): $(obj)/../arch/$(SRCARCH)/lib/pbl.lds.S FORCE
 	$(call if_changed_dep,cpp_lds_S)
 
+ifeq ($(CONFIG_PBL_IMAGE_NO_PIGGY),)
+BAREBOX_PIGGY_OBJS = $(obj)/piggy.o $(obj)/sha_sum.o
+endif
+
 quiet_cmd_elf__ ?= LD      $@
       cmd_elf__ ?= $(LD) $(LDFLAGS_$(patsubst .%,%,$(suffix $(@F)))) 	\
 		-e $(2) -Map $@.map $(LDFLAGS_$(@F)) -o $@		\
 		--gc-sections --defsym=__pbl_board_entry=$(2)  		\
 		-T $(pbl-lds)						\
-		--whole-archive $(BAREBOX_PBL_OBJS) $(obj)/piggy.o	\
-		$(obj)/sha_sum.o
+		--whole-archive $(BAREBOX_PBL_OBJS) $(BAREBOX_PIGGY_OBJS) \
 
 PBL_CPPFLAGS	+= -fdata-sections -ffunction-sections
 
-$(obj)/%.pbl: $(pbl-lds) $(BAREBOX_PBL_OBJS) $(obj)/piggy.o $(obj)/sha_sum.o FORCE
-	$(call if_changed,elf__,$(*F))
+define rule_elf
+	$(call cmd,elf__,$(*F))
 	$(call cmd,prelink__)
+endef
 
-$(obj)/%.elf: $(pbl-lds) $(BAREBOX_PBL_OBJS) $(obj)/piggy.o $(obj)/sha_sum.o FORCE
-	$(call if_changed,elf__,$(*F))
-	$(call cmd,prelink__)
+$(obj)/%.pbl: $(pbl-lds) $(BAREBOX_PBL_OBJS) $(BAREBOX_PIGGY_OBJS) FORCE
+	$(call if_changed_rule,elf)
 
-$(obj)/%.pblb: $(obj)/%.pbl FORCE
-	$(call if_changed,objcopy_bin,$(*F))
-	$(Q)$(OBJCOPY) -O binary --only-section=.missing_fw $< $@.missing-firmware
-	$(Q)[ -s $@.missing-firmware ] || rm -f $@.missing-firmware
-	$(call cmd,check_file_size,$@,$(CONFIG_BAREBOX_MAX_IMAGE_SIZE))
+$(obj)/%.elf: $(pbl-lds) $(BAREBOX_PBL_OBJS) $(BAREBOX_PIGGY_OBJS) FORCE
+	$(call if_changed_rule,elf)
 
+
+# Convert the ELF into a linear binary, check for missing firmware
+# and verify file sizes:
 #
 # For each start symbol create three variables containing the
 # relevant sizes in the image:
@@ -89,6 +92,27 @@ $(obj)/%.pblb: $(obj)/%.pbl FORCE
 # PBL_IMAGE_SIZE_$(symbol)  - contains the full image size including the
 #                             compressed payload
 #
+# if MAX_PBL_xxx_SIZE_$(symbol) is defined it contains the maximum size the
+# code/memory/image for this PBL may get. Check these values.
+define rule_pblb
+	$(call cmd,objcopy_bin,$(*F))
+	$(call cmd,check_missing_fw,$@,$<)
+	$(call cmd,check_file_size,$@,$(CONFIG_BAREBOX_MAX_IMAGE_SIZE))
+
+	$(if $(MAX_PBL_CODE_SIZE_$*), \
+		$(call cmd,check_size,$(PBL_CODE_SIZE_$*),$(MAX_PBL_CODE_SIZE_$*)) \
+	)
+
+	$(if $(MAX_PBL_MEMORY_SIZE_$*), \
+		$(call cmd,check_size,$(PBL_MEMORY_SIZE_$*),$(MAX_PBL_MEMORY_SIZE_$*)) \
+	)
+
+	$(if $(MAX_PBL_IMAGE_SIZE_$*), \
+		$(call cmd,check_size,$(PBL_IMAGE_SIZE_$*),$(MAX_PBL_IMAGE_SIZE_$*)) \
+	)
+endef
+
+$(obj)/%.pblb: $(obj)/%.pbl FORCE
 	$(eval PBL_CODE_SIZE_$* = \
 		$(shell $(srctree)/scripts/extract_symbol_offset pbl_code_size $^))
 	$(eval PBL_MEMORY_SIZE_$*= \
@@ -96,32 +120,22 @@ $(obj)/%.pblb: $(obj)/%.pbl FORCE
 	$(eval PBL_IMAGE_SIZE_$*= \
 		$(shell $(srctree)/scripts/extract_symbol_offset pbl_image_size $^))
 
-#
-# if MAX_PBL_xxx_SIZE_$(symbol) is defined it contains the maximum size the
-# code/memory/image for this PBL may get. Check these values.
-#
-	$(if $(MAX_PBL_CODE_SIZE_$*), \
-		$(call cmd,check_size, $(PBL_CODE_SIZE_$*), $(MAX_PBL_CODE_SIZE_$*)) \
-	)
-
-	$(if $(MAX_PBL_MEMORY_SIZE_$*), \
-		$(call cmd,check_size, $(PBL_MEMORY_SIZE_$*), $(MAX_PBL_MEMORY_SIZE_$*)) \
-	)
-
-	$(if $(MAX_PBL_IMAGE_SIZE_$*), \
-		$(call cmd,check_size, $(PBL_IMAGE_SIZE_$*), $(MAX_PBL_IMAGE_SIZE_$*)) \
-	)
+	$(call if_changed_rule,pblb)
 
 $(obj)/%.s: $(obj)/% FORCE
 	$(call if_changed,disasm)
 
-quiet_cmd_fit = FIT     $@
-cmd_fit = $(CPP) $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) \
+quiet_cmd_itb = FIT.ITS $@
+cmd_itb = $(CPP) $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) \
 	-D'$(subst -,_,$(*F))_dts=1' $(foreach f,$< $(2),-include '$(f)') /dev/null ; \
-	mkimage -f $(dtc-tmp) $@ -E \
+	$(MKIMAGE) -f $(dtc-tmp) $@ -E \
 	cat $(depfile).pre $(depfile).dtc > $(depfile)
 
-$(obj)/%.fit: $(obj)/%.its FORCE
+$(obj)/%.itb: $(obj)/%.its FORCE
+	$(call if_changed,itb)
+
+.SECONDEXPANSION:
+$(obj)/%.fit: $(obj)/$$(FILE_$$(@F)) $(dtstree)/dtbs-list FORCE
 	$(call if_changed,fit)
 
 $(obj)/piggy.o: $(obj)/barebox.z FORCE
@@ -137,7 +151,7 @@ $(obj)/barebox.sum: $(obj)/barebox.z FORCE
 
 # barebox.z - compressed barebox binary
 # ----------------------------------------------------------------
-$(obj)/barebox.z: $(obj)/../barebox.bin FORCE
+$(obj)/barebox.z: $(obj)/../$(BAREBOX_PROPER) FORCE
 	$(call if_changed,$(suffix_y))
 
 # %.img - create a copy from another file
@@ -145,11 +159,13 @@ $(obj)/barebox.z: $(obj)/../barebox.bin FORCE
 
 missing_fw = $(strip $(wildcard $(obj)/$(FILE_$(@F)).missing-firmware $(basename $(obj)/$(FILE_$(@F))).missing-firmware))
 
+quiet_cmd_report_missing_fw = # no message as we collect info for later
+      cmd_report_missing_fw = $(if $2,cat $2 >$@.missing-firmware;$(cmd_delete),rm -f $@.missing-firmware;$(cmd_shipped))
+
 .SECONDEXPANSION:
-$(obj)/%.img: $(obj)/$$(FILE_$$(@F))
+$(obj)/%.img: $(obj)/$$(FILE_$$(@F)) FORCE
 	$(Q)if [ -z $(FILE_$(@F)) ]; then echo "FILE_$(@F) empty!"; false; fi
-	$(Q)$(if $(missing_fw),cat $(missing_fw) >$@.missing-firmware,rm -f $@.missing-firmware)
-	$(call if_changed,$(if $(missing_fw),delete,shipped))
+	$(call if_changed,report_missing_fw,$(missing_fw))
 
 board = $(srctree)/arch/$(SRCARCH)/boards
 objboard = $(objtree)/arch/$(SRCARCH)/boards
@@ -168,6 +184,7 @@ include $(srctree)/images/Makefile.mvebu
 include $(srctree)/images/Makefile.mxs
 include $(srctree)/images/Makefile.omap3
 include $(srctree)/images/Makefile.rockchip
+include $(srctree)/images/Makefile.sandbox
 include $(srctree)/images/Makefile.socfpga
 include $(srctree)/images/Makefile.stm32mp
 include $(srctree)/images/Makefile.tegra
@@ -185,6 +202,11 @@ include $(srctree)/images/Makefile.k3
 pblb-$(CONFIG_BOARD_GENERIC_DT) += start_dt_2nd
 FILE_barebox-dt-2nd.img = start_dt_2nd.pblb
 image-$(CONFIG_BOARD_GENERIC_DT) += barebox-dt-2nd.img
+
+fit-image = barebox-$(call remove_quotes,$(CONFIG_ARCH_LINUX_NAME)).fit
+FILE_$(fit-image) = barebox-dt-2nd.img
+image-$(CONFIG_BOARD_GENERIC_FIT) += $(fit-image)
+targets += $(fit-name)
 
 ifdef CONFIG_ARM
 pblb-$(CONFIG_PBL_SINGLE_IMAGE) += start_pbl
@@ -210,9 +232,12 @@ flash-list := $(obj)/../barebox-flash-images
 # multiple images
 flash-link := $(obj)/../barebox-flash-image
 link-dest := $(if $(filter 1,$(words $(image-y))),$(image-y-path),multi-image-build)
+
+symlink-y-path := $(addprefix $(obj)/,$(symlink-y))
+
 multi-image-build:
 
-images: $(image-y-path) $(flash-link) $(flash-list) FORCE
+images: $(image-y-path) $(flash-link) $(flash-list) $(symlink-y-path) FORCE
 	@echo "images built:"
 	@for i in $(image-y); do \
 	  if [ -s $(obj)/$$i ]; then echo $$i; \
@@ -220,6 +245,7 @@ images: $(image-y-path) $(flash-link) $(flash-list) FORCE
 	  $(if $(CONFIG_MISSING_FIRMWARE_ERROR), >&2 sed 's/^/\t/' <$(obj)/$${i}.missing-firmware; missing=1;) \
 	  fi; done; if [ -n "$$missing" ]; then \
 	    echo >&2 "Firmware missing in CONFIG_MISSING_FIRMWARE_ERROR=y build"; exit 1; fi
+	@for i in $(symlink-y); do echo $$i; done
 
 __images_install: images
 	@for i in $(image-y-path); do if [ -s $$i ]; then install -t "$(INSTALL_PATH)" $$i; fi; done
@@ -227,10 +253,14 @@ __images_install: images
 PHONY += __images_install
 
 $(flash-link): $(link-dest) FORCE
-	$(call if_changed,ln)
+	$(call if_changed,symlink)
 
 $(flash-list): $(image-y-path)
 	@for i in $^; do if [ -s $$i ]; then echo $$i; fi; done > $@
+
+.SECONDEXPANSION:
+$(symlink-y-path): $(obj)/$$(SYMLINK_TARGET_$$(@F)) FORCE
+	$(call if_changed,symlink_quiet)
 
 clean-files := *.pbl *.pblb *.elf *.map start_*.imximg *.img barebox.z start_*.kwbimg \
 	start_*.kwbuartimg *.socfpgaimg *.mlo *.t20img *.t20img.cfg *.t30img \

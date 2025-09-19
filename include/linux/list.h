@@ -7,6 +7,7 @@
 #include <linux/stddef.h>
 #include <linux/poison.h>
 #include <linux/const.h>
+#include <asm/barrier.h>
 
 /*
  * Simple doubly linked list implementation.
@@ -36,7 +37,7 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 	list->prev = list;
 }
 
-#if defined(CONFIG_DEBUG_LIST) && !defined(__PBL__)
+#if defined(CONFIG_DEBUG_LIST) && IN_PROPER
 extern bool __list_add_valid_or_report(struct list_head *new,
 				       struct list_head *prev,
 				       struct list_head *next);

@@ -11,7 +11,8 @@
 #include <watchdog.h>
 #include <restart.h>
 
-#define for_each_watchdog(wd) list_for_each_entry(wd, &watchdog_class.devices, dev.class_list)
+#define for_each_watchdog(wd) \
+	class_for_each_container_of_device(&watchdog_class, wd, dev)
 
 DEFINE_DEV_CLASS(watchdog_class, "watchdog");
 
@@ -57,6 +58,29 @@ int watchdog_set_timeout(struct watchdog *wd, unsigned timeout)
 }
 EXPORT_SYMBOL(watchdog_set_timeout);
 
+int watchdog_ping(struct watchdog *wd)
+{
+	int ret;
+
+	if (!wd)
+		return -ENODEV;
+
+	if (!watchdog_hw_running(wd))
+		return 0;
+
+	if (wd->ping) {
+		ret = wd->ping(wd);
+		if (!ret)
+			wd->last_ping = get_time_ns();
+	} else {
+		if (!wd->timeout_cur)
+			wd->timeout_cur = wd->timeout_max;
+		ret = watchdog_set_timeout(wd, wd->timeout_cur);
+	}
+
+	return ret;
+}
+
 static int watchdog_set_priority(struct param_d *param, void *priv)
 {
 	struct watchdog *wd = priv;
@@ -71,17 +95,15 @@ static int watchdog_set_cur(struct param_d *param, void *priv)
 {
 	struct watchdog *wd = priv;
 
-	if (wd->poller_timeout_cur > wd->timeout_max)
-		return -EINVAL;
-
-	return 0;
+	return watchdog_set_timeout(wd, wd->timeout_cur);
 }
 
 static void watchdog_poller_cb(void *priv);
 
 static void watchdog_poller_start(struct watchdog *wd)
 {
-	watchdog_set_timeout(wd, wd->poller_timeout_cur);
+	watchdog_ping(wd);
+
 	poller_call_async(&wd->poller, 500 * MSECOND,
 			watchdog_poller_cb, wd);
 
@@ -155,7 +177,8 @@ static int seconds_to_expire_get(struct param_d *p, void *priv)
 	return 0;
 }
 
-static void __noreturn watchdog_restart_handle(struct restart_handler *this)
+static void __noreturn watchdog_restart_handle(struct restart_handler *this,
+					       unsigned long flags)
 {
 	struct watchdog *wd = watchdog_get_default();
 	int ret = -ENODEV;
@@ -201,16 +224,14 @@ int watchdog_register(struct watchdog *wd)
 	dev_add_param_uint32_ro(&wd->dev, "timeout_max",
 			&wd->timeout_max, "%u");
 
-	if (IS_ENABLED(CONFIG_WATCHDOG_POLLER)) {
-		if (!wd->poller_timeout_cur ||
-		    wd->poller_timeout_cur > wd->timeout_max)
-			wd->poller_timeout_cur = wd->timeout_max;
+	if (wd->timeout_cur > wd->timeout_max)
+		wd->timeout_cur = wd->timeout_max;
 
-		dev_add_param_uint32(&wd->dev, "timeout_cur", watchdog_set_cur,
-				NULL, &wd->poller_timeout_cur, "%u", wd);
+	dev_add_param_uint32(&wd->dev, "timeout_cur", watchdog_set_cur,
+			NULL, &wd->timeout_cur, "%u", wd);
 
+	if (IS_ENABLED(CONFIG_WATCHDOG_POLLER))
 		watchdog_register_poller(wd);
-	}
 
 	dev_add_param_uint32(&wd->dev, "seconds_to_expire", param_set_readonly,
 			seconds_to_expire_get, &wd->seconds_to_expire, "%d", wd);
@@ -236,7 +257,7 @@ int watchdog_deregister(struct watchdog *wd)
 		poller_async_unregister(&wd->poller);
 	}
 
-	class_remove_device(&watchdog_class, &wd->dev);
+	list_del_init(&wd->dev.class_list);
 
 	return 0;
 }

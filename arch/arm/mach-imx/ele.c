@@ -200,9 +200,11 @@ int imx93_ele_load_fw(void *bl33)
 	rev = FIELD_GET(ELE_INFO_SOC_REV, info.soc);
 
 	switch (rev) {
+#ifdef CONFIG_FIRMWARE_IMX93_OPTEE_A0
 	case 0xa0:
 		get_builtin_firmware_ext(mx93a0_ahab_container_img, bl33, &firmware, &size);
 		break;
+#endif
 	case 0xa1:
 		get_builtin_firmware_ext(mx93a1_ahab_container_img, bl33, &firmware, &size);
 		break;
@@ -370,7 +372,7 @@ int ele_write_shadow_fuse(u16 fuse_id, u32 fuse_val, u32 *response)
  *
  * Return: 0 when the ELE call succeeds, negative error code otherwise
  */
-int ele_forward_lifecycle(enum ele_lifecycle lc, u32 *response)
+int ele_forward_lifecycle(u32 lc, u32 *response)
 {
 	struct ele_msg msg;
 	int ret;

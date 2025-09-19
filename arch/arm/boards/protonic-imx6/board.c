@@ -13,6 +13,7 @@
 #include <globalvar.h>
 #include <gpio.h>
 #include <i2c/i2c.h>
+#include <input/input.h>
 #include <mach/imx/bbu.h>
 #include <mach/imx/imx6.h>
 #include <mach/imx/ocotp-fusemap.h>
@@ -373,7 +374,7 @@ static int prt_imx6_usb_boot(struct bootentry *entry, int verbose, int dryrun)
 
 	*second_word = 0;
 
-	if (strcmp(buf, priv->name)) {
+	if (strcmp(buf, priv->name) && strcmp(buf, "generic-imx6")) {
 		dev_err(dev, "Boot target for a different board! (got: %s expected: %s)\n",
 			buf, priv->name);
 		ret = -EINVAL;
@@ -412,7 +413,7 @@ static int prt_imx6_usb_boot(struct bootentry *entry, int verbose, int dryrun)
 	return 0;
 
 exit_usb_boot:
-	dev_err(dev, "Failed to run usb boot: %s\n", strerror(-ret));
+	dev_err(dev, "Failed to run usb boot: %pe\n", ERR_PTR(ret));
 
 	return ret;
 }
@@ -440,8 +441,8 @@ static int prt_imx6_bootentry_create(struct bootentries *bootentries, const char
 	return 0;
 }
 
-static int prt_imx6_bootentry_provider(struct bootentries *bootentries,
-				     const char *name)
+static int prt_imx6_bootentry_generate(struct bootentries *bootentries,
+				       const char *name)
 {
 	int found = 0;
 	unsigned int v;
@@ -458,6 +459,10 @@ static int prt_imx6_bootentry_provider(struct bootentries *bootentries,
 
 	return found;
 }
+
+static struct bootentry_provider prt_imx6_bootentry_provider = {
+	.generate = prt_imx6_bootentry_generate,
+};
 
 static int prt_imx6_env_init(struct prt_imx6_priv *priv)
 {
@@ -495,7 +500,7 @@ static int prt_imx6_env_init(struct prt_imx6_priv *priv)
 	if (!priv->no_usb_check)
 		boot_targets = xasprintf("prt-usb %s", bootsrc);
 	else
-		boot_targets = xstrdup(bootsrc);
+		boot_targets = xasprintf("%s prt-usb", bootsrc);
 
 	ret = setenv("global.boot.default", boot_targets);
 	free(boot_targets);
@@ -527,21 +532,13 @@ static int prt_imx6_bbu(struct prt_imx6_priv *priv)
 		emmc_flags = BBU_HANDLER_FLAG_DEFAULT;
 	}
 
-	devicefile = basprintf("/dev/mmc%d", dcfg->emmc_usdhc);
-	if (!devicefile) {
-		ret = -ENOMEM;
-		goto exit_bbu;
-	}
+	devicefile = xasprintf("/dev/mmc%d", dcfg->emmc_usdhc);
 	ret = imx6_bbu_internal_mmcboot_register_handler("eMMC", devicefile,
 						   emmc_flags);
 	if (ret)
 		goto exit_bbu;
 
-	devicefile = basprintf("/dev/mmc%d", dcfg->sd_usdhc);
-	if (!devicefile) {
-		ret = -ENOMEM;
-		goto exit_bbu;
-	}
+	devicefile = xasprintf("/dev/mmc%d", dcfg->sd_usdhc);
 
 	ret = imx6_bbu_internal_mmc_register_handler("SD", devicefile, 0);
 	if (ret)
@@ -576,7 +573,7 @@ static int prt_imx6_devices_init(void)
 	if (prt_imx6_read_ocotp_serial(priv) != 0)
 		prt_imx6_read_i2c_mac_serial(priv);
 
-	bootentry_register_provider(prt_imx6_bootentry_provider);
+	bootentry_register_provider(&prt_imx6_bootentry_provider);
 
 	prt_imx6_env_init(priv);
 
@@ -740,19 +737,23 @@ static int prt_imx6_init_kvg_yaco(struct prt_imx6_priv *priv)
 	return prt_imx6_init_kvg_power(priv, PW_MODE_KVG_WITH_YACO);
 }
 
-#define GPIO_KEY_F6     (0xe0 + 5)
-#define GPIO_KEY_CYCLE  (0xe0 + 2)
-
 static int prt_imx6_init_prtvt7(struct prt_imx6_priv *priv)
 {
-	/* This function relies heavely on the gpio-pca9539 driver */
+	unsigned long *keys;
 
-	gpio_direction_input(GPIO_KEY_F6);
-	gpio_direction_input(GPIO_KEY_CYCLE);
+	of_devices_ensure_probed_by_compatible("gpio-keys");
 
-	if (gpio_get_value(GPIO_KEY_CYCLE) && gpio_get_value(GPIO_KEY_F6))
+	/*
+	 * Prefer USB-boot and enable autoboot with timeout when CYCLE-F6 key
+	 * combination is pressed.
+	 */
+	keys = xzalloc((KEY_CYCLEWINDOWS / 8) + 1);
+	input_key_get_status(keys, KEY_CYCLEWINDOWS);
+
+	if (!(test_bit(KEY_CYCLEWINDOWS, keys) && test_bit(KEY_F6, keys)))
 		priv->no_usb_check = 1;
 
+	free(keys);
 	return 0;
 }
 
@@ -778,11 +779,7 @@ static int prt_imx6_rfid_fixup(struct prt_imx6_priv *priv,
 	int ret;
 	u8 *tmp;
 
-	alias = basprintf("i2c%d", dcfg->i2c_adapter);
-	if (!alias) {
-		ret = -ENOMEM;
-		goto exit_error;
-	}
+	alias = xasprintf("i2c%d", dcfg->i2c_adapter);
 
 	i2c_node = of_find_node_by_alias(root, alias);
 	kfree(alias);
@@ -791,10 +788,7 @@ static int prt_imx6_rfid_fixup(struct prt_imx6_priv *priv,
 		return -ENODEV;
 	}
 
-	eeprom_node_name = basprintf("/eeprom@%x", dcfg->i2c_addr);
-	if (!eeprom_node_name) {
-		return -ENOMEM;
-	}
+	eeprom_node_name = xasprintf("/eeprom@%x", dcfg->i2c_addr);
 
 	node = of_create_node(i2c_node, eeprom_node_name);
 	if (!node) {
@@ -824,7 +818,6 @@ static int prt_imx6_rfid_fixup(struct prt_imx6_priv *priv,
 	return 0;
 free_eeprom:
 	kfree(eeprom_node_name);
-exit_error:
 	dev_err(priv->dev, "Failed to apply fixup: %pe\n", ERR_PTR(ret));
 	return ret;
 }

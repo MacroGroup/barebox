@@ -15,8 +15,8 @@
  */
 struct variable_d {
 	struct list_head list;
-	char *name;
-	char *data;
+	const char *name;
+	const char *data;
 };
 
 struct env_context {
@@ -26,13 +26,14 @@ struct env_context {
 };
 
 struct env_context *get_current_context(void);
-char *var_val(struct variable_d *);
-char *var_name(struct variable_d *);
+const char *var_val(struct variable_d *);
+const char *var_name(struct variable_d *);
 
-#ifdef CONFIG_ENVIRONMENT_VARIABLES
+#if IS_ENABLED(CONFIG_ENVIRONMENT_VARIABLES) && IN_PROPER
 const char *getenv(const char *);
+int envvar_for_each(int (*fn)(struct variable_d *v, void *data), void *data);
 int setenv(const char *, const char *);
-int pr_setenv(const char *, const char *fmt, ...)  __attribute__ ((format(__printf__, 2, 3)));
+int pr_setenv(const char *, const char *fmt, ...) __printf(2, 3);
 void export_env_ull(const char *name, unsigned long long val);
 int getenv_ull(const char *name, unsigned long long *val);
 int getenv_ullx(const char *name, unsigned long long *val);
@@ -46,13 +47,18 @@ static inline char *getenv(const char *var)
 	return NULL;
 }
 
+static inline int envvar_for_each(int (*fn)(struct list_head *l, void *data),
+				  void *data)
+{
+	return 0;
+}
+
 static inline int setenv(const char *var, const char *val)
 {
 	return 0;
 }
 
-static inline __attribute__ ((format(__printf__, 2, 3))) int pr_setenv(
-	const char *var, const char *fmt, ...)
+static inline __printf(2, 3) int pr_setenv(const char *var, const char *fmt, ...)
 {
 	return 0;
 }

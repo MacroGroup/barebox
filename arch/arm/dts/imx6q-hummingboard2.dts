@@ -50,6 +50,7 @@
 / {
 	model = "SolidRun HummingBoard2 Dual/Quad";
 	compatible = "solidrun,hummingboard2/q", "fsl,imx6q";
+	barebox,disable-deep-probe;
 
 	chosen {
 		environment {
@@ -65,10 +66,6 @@
 	fsl,transmit-boost-mdB = <0>;
 	fsl,transmit-atten-16ths = <9>;
 	fsl,no-spread-spectrum;
-};
-
-&ocotp {
-	barebox,provide-mac-address = <&fec 0x620>;
 };
 
 &usdhc3 {

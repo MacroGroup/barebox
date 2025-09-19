@@ -18,6 +18,7 @@
 #include <image-sparse.h>
 #include <elf.h>
 #include <linux/zstd.h>
+#include <fuzz.h>
 
 #include <mach/imx/imx-header.h>
 
@@ -28,6 +29,7 @@ struct filetype_str {
 
 static const struct filetype_str filetype_str[] = {
 	[filetype_unknown] = { "unknown", "unknown" },
+	[filetype_empty] = { "empty", "empty" },
 	[filetype_arm_zimage] = { "ARM Linux zImage", "arm-zimage" },
 	[filetype_lzo_compressed] = { "LZO compressed", "lzo" },
 	[filetype_lz4_compressed] = { "LZ4 compressed", "lz4" },
@@ -70,6 +72,7 @@ static const struct filetype_str filetype_str[] = {
 	[filetype_elf] = { "ELF", "elf" },
 	[filetype_imx_image_v1] = { "i.MX image (v1)", "imx-image-v1" },
 	[filetype_imx_image_v2] = { "i.MX image (v2)", "imx-image-v2" },
+	[filetype_imx_image_v3] = { "i.MX image (v3)", "imx-image-v3" },
 	[filetype_layerscape_image] = { "Layerscape image", "layerscape-PBL" },
 	[filetype_layerscape_qspi_image] = { "Layerscape QSPI image", "layerscape-qspi-PBL" },
 	[filetype_nxp_fspi_image] = { "NXP FlexSPI image", "nxp-fspi-image" },
@@ -84,8 +87,20 @@ static const struct filetype_str filetype_str[] = {
 	[filetype_zstd_compressed] = { "ZSTD compressed", "zstd" },
 };
 
+static const char *file_type_to_nr_string(enum filetype f)
+{
+	static char str[sizeof("4294967295")];
+
+	sprintf(str, "%u", (unsigned int)f);
+
+	return str;
+}
+
 const char *file_type_to_string(enum filetype f)
 {
+	if (!IS_ENABLED(CONFIG_FILETYPE_STRINGS))
+		return file_type_to_nr_string(f);
+
 	if (f < ARRAY_SIZE(filetype_str))
 		return filetype_str[f].name;
 
@@ -94,6 +109,9 @@ const char *file_type_to_string(enum filetype f)
 
 const char *file_type_to_short_string(enum filetype f)
 {
+	if (!IS_ENABLED(CONFIG_FILETYPE_STRINGS))
+		return file_type_to_nr_string(f);
+
 	if (f < ARRAY_SIZE(filetype_str))
 		return filetype_str[f].shortname;
 
@@ -197,6 +215,27 @@ int is_fat_boot_sector(const void *sect)
 	return 0;
 }
 
+static enum filetype file_detect_fs_fat(const void *_buf, size_t bufsize)
+{
+	const u8 *buf8 = _buf;
+
+	/*
+	 * Check record signature (always placed at offset 510 even if the
+	 * sector size is > 512)
+	 */
+	if (get_unaligned_le16(&buf8[BS_55AA]) != 0xAA55)
+		return filetype_unknown;
+
+	/* Check "FAT" string */
+	if ((get_unaligned_le32(&buf8[BS_FilSysType]) & 0xFFFFFF) == 0x544146)
+		return filetype_fat;
+
+	if ((get_unaligned_le32(&buf8[BS_FilSysType32]) & 0xFFFFFF) == 0x544146)
+		return filetype_fat;
+
+	return filetype_unknown;
+}
+
 enum filetype is_fat_or_mbr(const unsigned char *sector, unsigned long *bootsec)
 {
 	/*
@@ -206,18 +245,10 @@ enum filetype is_fat_or_mbr(const unsigned char *sector, unsigned long *bootsec)
 	if (bootsec)
 		*bootsec = 0;
 
-	/*
-	 * Check record signature (always placed at offset 510 even if the
-	 * sector size is > 512)
-	 */
 	if (get_unaligned_le16(&sector[BS_55AA]) != 0xAA55)
 		return filetype_unknown;
 
-	/* Check "FAT" string */
-	if ((get_unaligned_le32(&sector[BS_FilSysType]) & 0xFFFFFF) == 0x544146)
-		return filetype_fat;
-
-	if ((get_unaligned_le32(&sector[BS_FilSysType32]) & 0xFFFFFF) == 0x544146)
+	if (file_detect_fs_fat(sector, 512) == filetype_fat)
 		return filetype_fat;
 
 	if (bootsec)
@@ -260,12 +291,59 @@ static bool is_dos_exe(const u8 *buf8)
 
 #define CH_TOC_section_name     0x14
 
+enum filetype file_detect_compression_type(const void *_buf, size_t bufsize)
+{
+	const u32 *buf = _buf;
+	const u8 *buf8 = _buf;
+
+	if (bufsize < 16)
+		return filetype_unknown;
+
+	if (buf8[0] == 0x89 && buf8[1] == 0x4c && buf8[2] == 0x5a &&
+			buf8[3] == 0x4f)
+		return filetype_lzo_compressed;
+	if (buf8[0] == 0x02 && buf8[1] == 0x21 && buf8[2] == 0x4c &&
+			buf8[3] == 0x18)
+		return filetype_lz4_compressed;
+	if (buf8[0] == 0x1f && buf8[1] == 0x8b && buf8[2] == 0x08)
+		return filetype_gzip;
+	if (buf8[0] == 'B' && buf8[1] == 'Z' && buf8[2] == 'h' &&
+			buf8[3] > '0' && buf8[3] <= '9')
+                return filetype_bzip2;
+	if (buf8[0] == 0xfd && buf8[1] == 0x37 && buf8[2] == 0x7a &&
+			buf8[3] == 0x58 && buf8[4] == 0x5a && buf8[5] == 0x00)
+		return filetype_xz_compressed;
+	if (le32_to_cpu(buf[0]) == le32_to_cpu(ZSTD_MAGICNUMBER))
+		return filetype_zstd_compressed;
+
+	return filetype_unknown;
+}
+
+enum filetype file_detect_fs_type(const void *_buf, size_t bufsize)
+{
+	const u32 *buf = _buf;
+	const u16 *buf16 = _buf;
+	const u8 *buf8 = _buf;
+
+	if (bufsize < 16)
+		return filetype_unknown;
+
+	if (buf8[0] == 'h' && buf8[1] == 's' && buf8[2] == 'q' &&
+			buf8[3] == 's')
+		return filetype_squashfs;
+	if (bufsize >= 1536 && buf16[512 + 28] == le16_to_cpu(0xef53))
+		return filetype_ext;
+	if (buf[0] == le32_to_cpu(0x06101831))
+		return filetype_ubifs;
+
+	return file_detect_fs_fat(_buf, bufsize);
+}
+
 enum filetype file_detect_type(const void *_buf, size_t bufsize)
 {
 	const u32 *buf = _buf;
 	const u64 *buf64 = _buf;
 	const u8 *buf8 = _buf;
-	const u16 *buf16 = _buf;
 	const struct imx_flash_header *imx_flash_header = _buf;
 	enum filetype type;
 
@@ -277,36 +355,21 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 	if (buf[0] == ENVFS_32(ENVFS_MAGIC))
 		return filetype_barebox_env;
 
+	type = file_detect_compression_type(_buf, bufsize);
+	if (type != filetype_unknown)
+		return type;
+
 	if (bufsize < 32)
 		return filetype_unknown;
 
 	if (strncmp(buf8, "BM", 2) == 0)
 		return filetype_bmp;
-	if (buf8[0] == 0x89 && buf8[1] == 0x4c && buf8[2] == 0x5a &&
-			buf8[3] == 0x4f)
-		return filetype_lzo_compressed;
-	if (buf8[0] == 0x02 && buf8[1] == 0x21 && buf8[2] == 0x4c &&
-			buf8[3] == 0x18)
-		return filetype_lz4_compressed;
 	if (buf[0] == be32_to_cpu(0x27051956))
 		return filetype_uimage;
 	if (buf[0] == 0x23494255)
 		return filetype_ubi;
-	if (buf[0] == le32_to_cpu(0x06101831))
-		return filetype_ubifs;
 	if (buf[0] == 0x20031985)
 		return filetype_jffs2;
-	if (buf8[0] == 0x1f && buf8[1] == 0x8b && buf8[2] == 0x08)
-		return filetype_gzip;
-	if (buf8[0] == 'B' && buf8[1] == 'Z' && buf8[2] == 'h' &&
-			buf8[3] > '0' && buf8[3] <= '9')
-                return filetype_bzip2;
-	if (buf8[0] == 0xfd && buf8[1] == 0x37 && buf8[2] == 0x7a &&
-			buf8[3] == 0x58 && buf8[4] == 0x5a && buf8[5] == 0x00)
-		return filetype_xz_compressed;
-	if (buf8[0] == 'h' && buf8[1] == 's' && buf8[2] == 'q' &&
-			buf8[3] == 's')
-		return filetype_squashfs;
 	if (buf[0] == be32_to_cpu(0xd00dfeed))
 		return filetype_oftree;
 	if (strncmp(buf8, "ANDROID!", 8) == 0)
@@ -324,8 +387,6 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 		return filetype_rockchip_rkns_image;
 	if (le32_to_cpu(buf[0]) == le32_to_cpu(0xaa640001))
 		return filetype_fip;
-	if (le32_to_cpu(buf[0]) == le32_to_cpu(ZSTD_MAGICNUMBER))
-		return filetype_zstd_compressed;
 
 	if ((buf8[0] == 0x5a || buf8[0] == 0x69 || buf8[0] == 0x78 ||
 	     buf8[0] == 0x8b || buf8[0] == 0x9c) &&
@@ -364,18 +425,15 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 	if (bufsize < 64)
 		return filetype_unknown;
 
-	if (le32_to_cpu(buf[14]) == 0x644d5241)
+	if (is_arm64_linux_bootimage(buf))
 		return is_dos_exe(buf8) ? filetype_arm64_efi_linux_image : filetype_arm64_linux_image;
-	if (le32_to_cpu(buf[14]) == 0x05435352)
+	if (is_riscv_linux_bootimage(buf))
 		return is_dos_exe(buf8) ? filetype_riscv_efi_linux_image : filetype_riscv_linux_image;
-	if (le32_to_cpu(buf[14]) == 0x56435352 && !memcmp(&buf[12], "barebox", 8))
+	if (is_riscv_linux_bootimage(buf) && !memcmp(&buf[12], "barebox", 8))
 		return filetype_riscv_barebox_image;
 
 	if (le32_to_cpu(buf[5]) == 0x504d5453)
 		return filetype_mxs_bootstream;
-
-	if (buf[16] == 0x31305341)
-		return filetype_socfpga_xload;
 
 	if (is_barebox_arm_head(_buf))
 		return filetype_arm_barebox;
@@ -387,6 +445,9 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 
 	if (bufsize < 256)
 		return filetype_unknown;
+
+	if (buf[16] == 0x31305341)
+		return filetype_socfpga_xload;
 
 	if (strncmp(buf8, "STM\x32", 4) == 0) {
 		if (buf8[74] == 0x01) {
@@ -405,9 +466,6 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 	type = file_detect_partition_table(_buf, bufsize);
 	if (type != filetype_unknown)
 		return type;
-
-	if (bufsize >= 1536 && buf16[512 + 28] == le16_to_cpu(0xef53))
-		return filetype_ext;
 
 	if (strncmp(buf8 + CH_TOC_section_name, "CHSETTINGS", 10) == 0)
 		return filetype_ch_image;
@@ -432,10 +490,25 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 	if (buf[8] == 0xAA995566 && buf[9] == 0x584C4E58)
 		return filetype_zynq_image;
 
+	if (buf8[0] == 0x0 && buf8[3] == 0x87)
+		return filetype_imx_image_v3;
+
 	return filetype_unknown;
 }
 
-int file_name_detect_type_offset(const char *filename, loff_t pos, enum filetype *type)
+static int fuzz_filetype(const u8 *data, size_t size)
+{
+	if (!PTR_IS_ALIGNED(data, sizeof(u64)))
+	    return -EINVAL;
+
+	file_detect_type(data, size);
+
+	return 0;
+}
+fuzz_test("filetype", fuzz_filetype);
+
+int file_name_detect_type_offset(const char *filename, loff_t pos, enum filetype *type,
+				 enum filetype (*detect)(const void *buf, size_t bufsize))
 {
 	int fd, ret;
 	void *buf;
@@ -450,7 +523,7 @@ int file_name_detect_type_offset(const char *filename, loff_t pos, enum filetype
 	if (ret < 0)
 		goto err_out;
 
-	*type = file_detect_type(buf, ret);
+	*type = ret ? detect(buf, ret) : filetype_empty;
 
 	ret = 0;
 err_out:
@@ -462,7 +535,8 @@ err_out:
 
 int file_name_detect_type(const char *filename, enum filetype *type)
 {
-	return file_name_detect_type_offset(filename, 0, type);
+	return file_name_detect_type_offset(filename, 0, type,
+					    file_detect_type);
 }
 
 int cdev_detect_type(struct cdev *cdev, enum filetype *type)
@@ -480,7 +554,7 @@ int cdev_detect_type(struct cdev *cdev, enum filetype *type)
 	if (ret < 0)
 		goto err_out;
 
-	*type = file_detect_type(buf, ret);
+	*type = file_detect_fs_type(buf, ret);
 	ret = 0;
 
 err_out:

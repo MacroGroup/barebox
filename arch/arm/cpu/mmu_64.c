@@ -29,12 +29,14 @@ static uint64_t *get_ttb(void)
 	return (uint64_t *)get_ttbr(current_el());
 }
 
+static void set_pte(uint64_t *pt, uint64_t val)
+{
+	WRITE_ONCE(*pt, val);
+}
+
 static void set_table(uint64_t *pt, uint64_t *table_addr)
 {
-	uint64_t val;
-
-	val = PTE_TYPE_TABLE | (uint64_t)table_addr;
-	*pt = val;
+	set_pte(pt, PTE_TYPE_TABLE | (uint64_t)table_addr);
 }
 
 #ifdef __PBL__
@@ -61,14 +63,12 @@ static uint64_t *alloc_pte(void)
 }
 #endif
 
-static __maybe_unused uint64_t *find_pte(uint64_t addr)
+static uint64_t *__find_pte(uint64_t *ttb, uint64_t addr, int *level)
 {
-	uint64_t *pte;
+	uint64_t *pte = ttb;
 	uint64_t block_shift;
 	uint64_t idx;
 	int i;
-
-	pte = get_ttb();
 
 	for (i = 0; i < 4; i++) {
 		block_shift = level2shift(i);
@@ -81,7 +81,15 @@ static __maybe_unused uint64_t *find_pte(uint64_t addr)
 			pte = (uint64_t *)(*pte & XLAT_ADDR_MASK);
 	}
 
+	if (level)
+		*level = i;
 	return pte;
+}
+
+/* This is currently unused, but useful for debugging */
+static __maybe_unused uint64_t *find_pte(uint64_t addr)
+{
+	return __find_pte(get_ttb(), addr, NULL);
 }
 
 #define MAX_PTE_ENTRIES 512
@@ -106,19 +114,21 @@ static void split_block(uint64_t *pte, int level)
 
 
 	for (i = 0; i < MAX_PTE_ENTRIES; i++) {
-		new_table[i] = old_pte | (i << levelshift);
+		set_pte(&new_table[i], old_pte | (i << levelshift));
 
 		/* Level 3 block PTEs have the table type */
 		if ((level + 1) == 3)
 			new_table[i] |= PTE_TYPE_TABLE;
 	}
 
-	/* Set the new table into effect */
+	/* Set the new table into effect
+	 * TODO: break-before-make missing
+	 */
 	set_table(pte, new_table);
 }
 
 static void create_sections(uint64_t virt, uint64_t phys, uint64_t size,
-			    uint64_t attr)
+			    uint64_t attr, bool force_pages)
 {
 	uint64_t *ttb = get_ttb();
 	uint64_t block_size;
@@ -135,21 +145,29 @@ static void create_sections(uint64_t virt, uint64_t phys, uint64_t size,
 	attr &= ~PTE_TYPE_MASK;
 
 	size = PAGE_ALIGN(size);
+	if (!size)
+		return;
 
 	while (size) {
 		table = ttb;
 		for (level = 0; level < 4; level++) {
+			bool block_aligned;
 			block_shift = level2shift(level);
 			idx = (addr & level2mask(level)) >> block_shift;
 			block_size = (1ULL << block_shift);
 
 			pte = table + idx;
 
-			if (size >= block_size && IS_ALIGNED(addr, block_size) &&
-			    IS_ALIGNED(phys, block_size)) {
+			block_aligned = size >= block_size &&
+				        IS_ALIGNED(addr, block_size) &&
+				        IS_ALIGNED(phys, block_size);
+
+			if ((force_pages && level == 3) || (!force_pages && block_aligned)) {
 				type = (level == 3) ?
 					PTE_TYPE_PAGE : PTE_TYPE_BLOCK;
-				*pte = phys | attr | type;
+
+				/* TODO: break-before-make missing */
+				set_pte(pte, phys | attr | type);
 				addr += block_size;
 				phys += block_size;
 				size -= block_size;
@@ -166,41 +184,156 @@ static void create_sections(uint64_t virt, uint64_t phys, uint64_t size,
 	tlb_invalidate();
 }
 
+static size_t granule_size(int level)
+{
+	/*
+	 *  With 4k page granule, a virtual address is split into 4 lookup parts
+	 *  spanning 9 bits each:
+	 *
+	 *    _______________________________________________
+	 *   |       |       |       |       |       |       |
+	 *   |   0   |  Lv0  |  Lv1  |  Lv2  |  Lv3  |  off  |
+	 *   |_______|_______|_______|_______|_______|_______|
+	 *     63-48   47-39   38-30   29-21   20-12   11-00
+	 *
+	 *             mask        page size
+	 *
+	 *    Lv0: FF8000000000       --
+	 *    Lv1:   7FC0000000       1G
+	 *    Lv2:     3FE00000       2M
+	 *    Lv3:       1FF000       4K
+	 *    off:          FFF
+	 */
+	switch (level) {
+	default:
+	case 0:
+		return L0_XLAT_SIZE;
+	case 1:
+		return L1_XLAT_SIZE;
+	case 2:
+		return L2_XLAT_SIZE;
+	case 3:
+		return L3_XLAT_SIZE;
+	}
+}
+
+static bool pte_is_cacheable(uint64_t pte)
+{
+	return (pte & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL);
+}
+
+/**
+ * flush_cacheable_pages - Flush only the cacheable pages in a region
+ * @start: Starting virtual address of the range.
+ * @end:   Ending virtual address of the range.
+ *
+ * This function walks the page table and flushes the data caches for the
+ * specified range only if the memory is marked as normal cacheable in the
+ * page tables. If a non-cacheable or non-normal page is encountered,
+ * it's skipped.
+ */
+static void flush_cacheable_pages(void *start, size_t size)
+{
+	u64 flush_start = ~0ULL, flush_end = ~0ULL;
+	u64 region_start, region_end;
+	size_t block_size;
+	u64 *ttb;
+
+	region_start = PAGE_ALIGN_DOWN((ulong)start);
+	region_end = PAGE_ALIGN(region_start + size);
+
+	ttb = get_ttb();
+
+	/*
+	 * TODO: This loop could be made more optimal by inlining the page walk,
+	 * so we need not restart address translation from the top every time.
+	 *
+	 * The hope is that with the page tables being cached and the
+	 * windows being remapped being small, the overhead compared to
+	 * actually flushing the ranges isn't too significant.
+	 */
+	for (u64 addr = region_start; addr < region_end; addr += block_size) {
+		int level;
+		u64 *pte = __find_pte(ttb, addr, &level);
+
+		block_size = granule_size(level);
+		
+		if (!pte || !pte_is_cacheable(*pte))
+			continue;
+
+		if (flush_end == addr) {
+			/*
+			 * While it's safe to flush the whole block_size,
+			 * it's unnecessary time waste to go beyond region_end.
+			 */
+			flush_end = min(flush_end + block_size, region_end);
+			continue;
+		}
+
+		/*
+		 * We don't have a previous contiguous flush area to append to.
+		 * If we recorded any area before, let's flush it now
+		 */
+		if (flush_start != ~0ULL)
+			v8_flush_dcache_range(flush_start, flush_end);
+
+		/* and start the new contiguous flush area with this page */
+		flush_start = addr;
+		flush_end = min(flush_start + block_size, region_end);
+	}
+
+	/* The previous loop won't flush the last cached range, so do it here */
+	if (flush_start != ~0ULL)
+		v8_flush_dcache_range(flush_start, flush_end);
+}
+
 static unsigned long get_pte_attrs(unsigned flags)
 {
 	switch (flags) {
 	case MAP_CACHED:
-		return CACHED_MEM;
+		return attrs_xn() | CACHED_MEM;
 	case MAP_UNCACHED:
-		return attrs_uncached_mem();
+		return attrs_xn() | UNCACHED_MEM;
 	case MAP_FAULT:
 		return 0x0;
+	case ARCH_MAP_WRITECOMBINE:
+		return attrs_xn() | MEM_ALLOC_WRITECOMBINE;
+	case MAP_CODE:
+		return CACHED_MEM | PTE_BLOCK_RO;
+	case ARCH_MAP_CACHED_RO:
+		return attrs_xn() | CACHED_MEM | PTE_BLOCK_RO;
+	case ARCH_MAP_CACHED_RWX:
+		return CACHED_MEM;
 	default:
 		return ~0UL;
 	}
 }
 
-static void early_remap_range(uint64_t addr, size_t size, unsigned flags)
+static void early_remap_range(uint64_t addr, size_t size, unsigned flags, bool force_pages)
 {
 	unsigned long attrs = get_pte_attrs(flags);
 
 	if (WARN_ON(attrs == ~0UL))
 		return;
 
-	create_sections(addr, addr, size, attrs);
+	create_sections(addr, addr, size, attrs, force_pages);
 }
 
 int arch_remap_range(void *virt_addr, phys_addr_t phys_addr, size_t size, unsigned flags)
 {
-	unsigned long attrs = get_pte_attrs(flags);
+	unsigned long attrs;
+
+	flags = arm_mmu_maybe_skip_permissions(flags);
+
+	attrs = get_pte_attrs(flags);
 
 	if (attrs == ~0UL)
 		return -EINVAL;
 
-	create_sections((uint64_t)virt_addr, phys_addr, (uint64_t)size, attrs);
+	if (flags != MAP_CACHED)
+		flush_cacheable_pages(virt_addr, size);
 
-	if (flags == MAP_UNCACHED)
-		dma_inv_range(virt_addr, size);
+	create_sections((uint64_t)virt_addr, phys_addr, (uint64_t)size, attrs, false);
 
 	return 0;
 }
@@ -219,10 +352,19 @@ static void create_guard_page(void)
 		return;
 
 	guard_page = arm_mem_guard_page_get();
-	request_barebox_region("guard page", guard_page, PAGE_SIZE);
+	request_barebox_region("guard page", guard_page, PAGE_SIZE,
+			       MEMATTRS_FAULT);
 	remap_range((void *)guard_page, PAGE_SIZE, MAP_FAULT);
 
 	pr_debug("Created guard page\n");
+}
+
+void setup_trap_pages(void)
+{
+	/* Vectors are already registered by aarch64_init_vectors */
+	/* Make zero page faulting to catch NULL pointer derefs */
+	zero_page_faulting();
+	create_guard_page();
 }
 
 /*
@@ -231,10 +373,11 @@ static void create_guard_page(void)
 void __mmu_init(bool mmu_on)
 {
 	uint64_t *ttb = get_ttb();
-	struct memory_bank *bank;
 
+	// TODO: remap writable only while remapping?
+	// TODO: What memtype for ttb when barebox is EFI loader?
 	if (!request_barebox_region("ttb", (unsigned long)ttb,
-				  ARM_EARLY_PAGETABLE_SIZE))
+				  ARM_EARLY_PAGETABLE_SIZE, MEMATTRS_RW))
 		/*
 		 * This can mean that:
 		 * - the early MMU code has put the ttb into a place
@@ -243,25 +386,6 @@ void __mmu_init(bool mmu_on)
 		 *   the ttb will get corrupted.
 		 */
 		pr_crit("Can't request SDRAM region for ttb at %p\n", ttb);
-
-	for_each_memory_bank(bank) {
-		struct resource *rsv;
-		resource_size_t pos;
-
-		pos = bank->start;
-
-		/* Skip reserved regions */
-		for_each_reserved_region(bank, rsv) {
-			remap_range((void *)pos, rsv->start - pos, MAP_CACHED);
-			pos = rsv->end + 1;
-		}
-
-		remap_range((void *)pos, bank->start + bank->size - pos, MAP_CACHED);
-	}
-
-	/* Make zero page faulting to catch NULL pointer derefs */
-	zero_page_faulting();
-	create_guard_page();
 }
 
 void mmu_disable(void)
@@ -295,23 +419,29 @@ void dma_flush_range(void *ptr, size_t size)
 	v8_flush_dcache_range(start, end);
 }
 
+void *dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *dma_handle)
+{
+	return dma_alloc_map(dev, size, dma_handle, ARCH_MAP_WRITECOMBINE);
+}
+
 static void init_range(size_t total_level0_tables)
 {
 	uint64_t *ttb = get_ttb();
 	uint64_t addr = 0;
 
 	while (total_level0_tables--) {
-		early_remap_range(addr, L0_XLAT_SIZE, MAP_UNCACHED);
+		early_remap_range(addr, L0_XLAT_SIZE, MAP_UNCACHED, false);
 		split_block(ttb, 0);
 		addr += L0_XLAT_SIZE;
 		ttb++;
 	}
 }
 
-void mmu_early_enable(unsigned long membase, unsigned long memsize)
+void mmu_early_enable(unsigned long membase, unsigned long memsize, unsigned long barebox_start)
 {
 	int el;
 	u64 optee_membase;
+	unsigned long barebox_size;
 	unsigned long ttb = arm_mem_ttb(membase + memsize);
 
 	if (get_cr() & CR_M)
@@ -332,14 +462,26 @@ void mmu_early_enable(unsigned long membase, unsigned long memsize)
 	 */
 	init_range(2);
 
-	early_remap_range(membase, memsize, MAP_CACHED);
+	early_remap_range(membase, memsize, ARCH_MAP_CACHED_RWX, false);
 
-	if (optee_get_membase(&optee_membase))
+	if (optee_get_membase(&optee_membase)) {
                 optee_membase = membase + memsize - OPTEE_SIZE;
 
-	early_remap_range(optee_membase, OPTEE_SIZE, MAP_FAULT);
+		barebox_size = optee_membase - barebox_start;
 
-	early_remap_range(PAGE_ALIGN_DOWN((uintptr_t)_stext), PAGE_ALIGN(_etext - _stext), MAP_CACHED);
+		early_remap_range(optee_membase - barebox_size, barebox_size,
+			     ARCH_MAP_CACHED_RWX, true);
+	} else {
+		barebox_size = membase + memsize - barebox_start;
+
+		early_remap_range(membase + memsize - barebox_size, barebox_size,
+			     ARCH_MAP_CACHED_RWX, true);
+	}
+
+	early_remap_range(optee_membase, OPTEE_SIZE, MAP_FAULT, false);
+
+	early_remap_range(PAGE_ALIGN_DOWN((uintptr_t)_stext), PAGE_ALIGN(_etext - _stext),
+			  ARCH_MAP_CACHED_RWX, false);
 
 	mmu_enable();
 }

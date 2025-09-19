@@ -453,7 +453,7 @@ static bool nxp_fspi_supports_op(struct spi_mem *mem,
 	    op->data.nbytes > f->devtype_data->txfifo)
 		return false;
 
-	return true;
+	return spi_mem_default_supports_op(mem, op);
 }
 
 /* Instead of busy looping invoke readl_poll_timeout functionality. */
@@ -938,21 +938,13 @@ static int nxp_fspi_setup(struct spi_device *spi)
 static const char *nxp_fspi_get_name(struct spi_mem *mem)
 {
 	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->master);
-	struct device *dev = (struct device *)&mem->spi->dev;
-	const char *name;
 
 	/* Set custom name derived from the platform_device of the controller.
 	 */
 	if (of_get_available_child_count(f->dev->of_node) == 1)
 		return dev_name(f->dev);
 
-	name = basprintf("%s-%d", dev_name(f->dev), mem->spi->chip_select);
-	if (!name) {
-		dev_err(dev, "failed to get memory for custom flash name\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	return name;
+	return xasprintf("%s-%d", dev_name(f->dev), mem->spi->chip_select);
 }
 
 static const struct spi_controller_mem_ops nxp_fspi_mem_ops = {

@@ -41,8 +41,7 @@
 #include <i2c/i2c.h>
 #include <i2c/i2c-algo-bit.h>
 #include <i2c/i2c-mux.h>
-#include <gpio.h>
-#include <of_gpio.h>
+#include <linux/gpio/consumer.h>
 
 #define PCA954X_MAX_NCHANS 8
 
@@ -186,9 +185,8 @@ static int pca954x_probe(struct device *dev)
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
 	int num;
 	struct pca954x *data;
-	uintptr_t tmp;
 	int ret = -ENODEV;
-	int gpio;
+	struct gpio_desc *gpio;
 	bool idle_disconnect;
 
 	data = kzalloc(sizeof(struct pca954x), GFP_KERNEL);
@@ -199,9 +197,11 @@ static int pca954x_probe(struct device *dev)
 
 	i2c_set_clientdata(client, data);
 
-	gpio = of_get_named_gpio(dev->of_node, "reset-gpios", 0);
-	if (gpio_is_valid(gpio))
-		gpio_direction_output(gpio, 1);
+	gpio = gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
+	gpiod_set_value(gpio, 0);
 
 	/* Write the mux register at addr to verify
 	 * that the mux is in fact present. This also
@@ -210,10 +210,7 @@ static int pca954x_probe(struct device *dev)
 	if (i2c_smbus_write_byte(client, 0) < 0)
 		goto exit_free;
 
-	ret = dev_get_drvdata(dev, (const void **)&tmp);
-	data->type = tmp;
-	if (ret)
-		goto exit_free;
+	data->type = (uintptr_t)device_get_match_data(dev);
 
 	idle_disconnect = of_property_read_bool(dev->of_node,
 						"i2c-mux-idle-disconnect");

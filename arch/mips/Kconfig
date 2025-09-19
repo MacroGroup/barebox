@@ -12,7 +12,17 @@ config MIPS
 	select ARCH_HAS_DATA_ABORT_MASK
 	select ARCH_HAS_SJLJ
 	select ELF
+	select HAVE_ARCH_BOOTM_OFTREE
 	default y
+
+config ARCH_LINUX_NAME
+	string
+	default "mips64" if CPU_SUPPORTS_64BIT_KERNEL
+	default "mips"
+
+config ARCH_MKIMAGE_NAME
+	string
+	default ARCH_LINUX_NAME
 
 config SYS_SUPPORTS_BIG_ENDIAN
 	bool
@@ -26,9 +36,6 @@ config CSRC_R4K_LIB
 config GENERIC_LINKER_SCRIPT
 	bool
 	default y
-
-config PHYS_ADDR_T_64BIT
-	bool
 
 config ARCH_TEXT_BASE
 	hex

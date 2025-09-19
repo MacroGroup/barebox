@@ -226,7 +226,7 @@ static int match(struct driver *drv, struct device *dev)
 
 	dev->driver = drv;
 
-	if (dev->bus->match && dev->bus->match(dev, drv))
+	if (!driver_match_device(drv, dev))
 		goto err_out;
 	ret = device_probe(dev);
 	if (ret)
@@ -265,10 +265,11 @@ int register_device(struct device *new_device)
 	INIT_LIST_HEAD(&new_device->parameters);
 	INIT_LIST_HEAD(&new_device->active);
 	INIT_LIST_HEAD(&new_device->bus_list);
+	INIT_LIST_HEAD(&new_device->class_list);
 
 	if (new_device->bus) {
 		if (!new_device->parent)
-			new_device->parent = new_device->bus->dev;
+			new_device->parent = &new_device->bus->dev;
 
 		list_add_tail(&new_device->bus_list, &new_device->bus->device_list);
 
@@ -318,6 +319,7 @@ int unregister_device(struct device *old_dev)
 
 	list_del(&old_dev->list);
 	list_del(&old_dev->bus_list);
+	list_del(&old_dev->class_list);
 	list_del(&old_dev->active);
 
 	/* remove device from parents child list */
@@ -547,7 +549,14 @@ void __iomem *dev_platform_get_and_ioremap_resource(struct device *dev,
 	res = dev_request_mem_resource(dev, num);
 	if (IS_ERR(res))
 		return IOMEM_ERR_PTR(PTR_ERR(res));
-	else if (WARN_ON(IS_ERR_VALUE(res->start)))
+
+	/* As everything is mapped 1:1 by default, drivers on unlucky
+	 * platforms can end up successfully requesting memory, but
+	 * getting a base address that looks like an error pointer.
+	 * Let's warn loudly about this case, as these drivers
+	 * should be using dev_request_mem_resource instead.
+	 */
+	if (WARN_ON(IS_ERR_VALUE(res->start)))
 		return IOMEM_ERR_PTR(-EINVAL);
 
 	if (out_res)
@@ -585,6 +594,8 @@ void __iomem *dev_request_mem_region(struct device *dev, int num)
 	struct resource *res;
 
 	res = dev_request_mem_resource(dev, num);
+	if (!IS_ERR(res) && WARN_ON(IS_ERR_VALUE(res->start)))
+		return IOMEM_ERR_PTR(res->start);
 	if (IS_ERR(res))
 		return ERR_CAST(res);
 
@@ -698,21 +709,6 @@ static void devices_shutdown(void)
 }
 devshutdown_exitcall(devices_shutdown);
 
-int dev_get_drvdata(struct device *dev, const void **data)
-{
-	if (dev->of_id_entry) {
-		*data = dev->of_id_entry->data;
-		return 0;
-	}
-
-	if (dev->id_entry) {
-		*data = (const void **)dev->id_entry->driver_data;
-		return 0;
-	}
-
-	return -ENODEV;
-}
-
 const void *device_get_match_data(struct device *dev)
 {
 	if (dev->of_id_entry)
@@ -723,6 +719,7 @@ const void *device_get_match_data(struct device *dev)
 
 	return NULL;
 }
+EXPORT_SYMBOL(device_get_match_data);
 
 static void device_set_deferred_probe_reason(struct device *dev,
 					     const struct va_format *vaf)
@@ -824,3 +821,53 @@ struct device *device_find_child(struct device *parent, void *data,
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(device_find_child);
+
+#ifdef CONFIG_CMD_DEVINFO
+struct device_info_cb {
+	void  (*info) (struct device *);
+	struct list_head list;
+};
+
+static void devinfo_init(struct device *dev)
+{
+	/* We initialize on demand, because devinfo_add should be
+	 * callable even before device registration
+	 */
+	if (!dev->info_list.prev && !dev->info_list.next)
+		INIT_LIST_HEAD(&dev->info_list);
+}
+
+void devinfo_add(struct device *dev, void (*info)(struct device *))
+{
+	struct device_info_cb *cb = xmalloc(sizeof(*cb));
+
+	devinfo_init(dev);
+
+	cb->info = info;
+	list_add_tail(&cb->list, &dev->info_list);
+}
+
+void devinfo_del(struct device *dev, void (*info)(struct device *))
+{
+	struct device_info_cb *cb, *tmp;
+
+	devinfo_init(dev);
+
+	list_for_each_entry_safe(cb, tmp, &dev->info_list, list) {
+		if (cb->info == info) {
+			list_del(&cb->list);
+			free(cb);
+		}
+	}
+}
+
+void devinfo(struct device *dev)
+{
+	struct device_info_cb *cb;
+
+	devinfo_init(dev);
+
+	list_for_each_entry(cb, &dev->info_list, list)
+		cb->info(dev);
+}
+#endif

@@ -31,21 +31,6 @@ unsigned long free_mem_end_ptr;
 extern unsigned char input_data[];
 extern unsigned char input_data_end[];
 
-static void add_handoff_data(void *boarddata)
-{
-	if (!boarddata)
-		return;
-	if (blob_is_fdt(boarddata)) {
-		handoff_data_add(HANDOFF_DATA_INTERNAL_DT, boarddata,
-				 get_unaligned_be32(boarddata + 4));
-	} else if (blob_is_compressed_fdt(boarddata)) {
-		struct barebox_boarddata_compressed_dtb *bd = boarddata;
-
-		handoff_data_add(HANDOFF_DATA_INTERNAL_DT_Z, boarddata,
-				 bd->datalen + sizeof(*bd));
-	}
-}
-
 void __noreturn barebox_pbl_start(unsigned long membase, unsigned long memsize,
 				  void *boarddata)
 {
@@ -78,11 +63,11 @@ void __noreturn barebox_pbl_start(unsigned long membase, unsigned long memsize,
 
 	pr_debug("memory at 0x%08lx, size 0x%08lx\n", membase, memsize);
 
-	if (IS_ENABLED(CONFIG_MMU))
-		mmu_early_enable(membase, memsize);
+	arm_pbl_init_exceptions();
 
 	/* Add handoff data now, so arm_mem_barebox_image takes it into account */
-	add_handoff_data(boarddata);
+	if (boarddata)
+		handoff_data_add_dt(boarddata);
 
 	barebox_base = arm_mem_barebox_image(membase, endmem,
 					     uncompressed_len, NULL);
@@ -95,6 +80,10 @@ void __noreturn barebox_pbl_start(unsigned long membase, unsigned long memsize,
 #ifdef DEBUG
 	print_pbl_mem_layout(membase, endmem, barebox_base);
 #endif
+	if (IS_ENABLED(CONFIG_MMU))
+		mmu_early_enable(membase, memsize, barebox_base);
+	else if (IS_ENABLED(CONFIG_ARMV7R_MPU))
+		set_cr(get_cr() | CR_C);
 
 	pr_debug("uncompressing barebox binary at 0x%p (size 0x%08x) to 0x%08lx (uncompressed size: 0x%08x)\n",
 			pg_start, pg_len, barebox_base, uncompressed_len);

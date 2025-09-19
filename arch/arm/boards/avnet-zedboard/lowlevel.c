@@ -223,12 +223,13 @@ static void avnet_zedboard_ps7_init(void)
 	writel(0x00000081, 0XF8006000);
 
 	/* poor mans pinctrl */
+	/* UART1 pinmux TxD: MIO_PIN 48, RxD: MIO_PIN 49 */
 	writel(0x000002E0, ZYNQ_MIO_BASE + 0xC0);
 	writel(0x000002E1, ZYNQ_MIO_BASE + 0xC4);
-	/* UART1 pinmux */
+	/* UART0 pinmux TxD: MIO_PIN 50, RxD: MIO_PIN 51 */
 	writel(0x000002E1, ZYNQ_MIO_BASE + 0xC8);
 	writel(0x000002E0, ZYNQ_MIO_BASE + 0xCC);
-	/* QSPI pinmux */
+	/* QSPI pinmux MIO_PIN 01 - 08 */
 	writel(0x00001602, ZYNQ_MIO_BASE + 0x04);
 	writel(0x00000702, ZYNQ_MIO_BASE + 0x08);
 	writel(0x00000702, ZYNQ_MIO_BASE + 0x0c);
@@ -276,21 +277,14 @@ static void avnet_zedboard_ps7_init(void)
 
 static void avnet_zedboard_pbl_console_init(void)
 {
-	relocate_to_current_adr();
-	setup_c();
-	barrier();
-
 	cadence_uart_init((void *)ZYNQ_UART1_BASE_ADDR);
 	pbl_set_putc(cadence_uart_putc, (void *)ZYNQ_UART1_BASE_ADDR);
 
 	pr_debug("\nAvnet ZedBoard PBL\n");
 }
 
-ENTRY_FUNCTION(start_avnet_zedboard, r0, r1, r2)
+ENTRY_FUNCTION_WITHSTACK(start_avnet_zedboard, 0xfffff000, r0, r1, r2)
 {
-
-	void *fdt = __dtb_z_zynq_zed_start + get_runtime_offset();
-
 	/* MIO_07 in GPIO Mode 3.3V VIO, can be uncomented because it is the default value */
 	writel(0x0000DF0D, ZYNQ_SLCR_UNLOCK);
 	writel(0x00000600, 0xF800071C );
@@ -301,13 +295,16 @@ ENTRY_FUNCTION(start_avnet_zedboard, r0, r1, r2)
 	writel((1<<7), 0xe000a208 );    // Output enable
 	writel((1<<7), 0xe000a040 );    // DATA Register
 
-	arm_cpu_lowlevel_init();
 	zynq_cpu_lowlevel_init();
 
 	avnet_zedboard_ps7_init();
 
+	relocate_to_current_adr();
+	setup_c();
+	barrier();
+
 	if (IS_ENABLED(CONFIG_PBL_CONSOLE))
 		avnet_zedboard_pbl_console_init();
 
-	barebox_arm_entry(0, SZ_512M, fdt);
+	barebox_arm_entry(0, SZ_512M, __dtb_z_zynq_zed_start);
 }

@@ -20,7 +20,7 @@
 typedef u32 phandle;
 
 struct property {
-	char *name;
+	const char *name;
 	int length;
 	void *value;
 	const void *value_const;
@@ -28,7 +28,7 @@ struct property {
 };
 
 struct device_node {
-	char *name;
+	const char *name;
 	char *full_name;
 
 	struct list_head properties;
@@ -73,14 +73,10 @@ struct resource;
 
 void of_fix_tree(struct device_node *);
 
-int of_match(struct device *dev, struct driver *drv);
+bool of_match(struct device *dev, const struct driver *drv);
 
 int of_add_initrd(struct device_node *root, resource_size_t start,
 		resource_size_t end);
-
-struct fdt_header *fdt_get_tree(void);
-
-struct fdt_header *of_get_fixed_tree(const struct device_node *node);
 
 /* Helper to read a big number; size is in cells (not bytes) */
 static inline u64 of_read_number(const __be32 *cell, int size)
@@ -131,7 +127,7 @@ struct cdev;
 /* Maximum score returned by of_device_is_compatible() */
 #define OF_DEVICE_COMPATIBLE_MAX_SCORE	(INT_MAX / 2)
 
-#ifdef CONFIG_OFTREE
+#if IS_ENABLED(CONFIG_OFTREE) && IN_PROPER
 extern struct device_node *of_read_file(const char *filename);
 extern struct of_reserve_map *of_get_reserve_map(void);
 extern int of_bus_n_addr_cells(struct device_node *np);
@@ -200,10 +196,12 @@ extern struct device_node *of_copy_node(struct device_node *parent,
 extern struct device_node *of_dup(const struct device_node *root);
 extern void of_delete_node(struct device_node *node);
 
+extern int of_alias_from_compatible(const struct device_node *node, char *alias, int len);
 extern const char *of_get_machine_compatible(void);
 extern int of_machine_is_compatible(const char *compat);
 extern int of_device_is_compatible(const struct device_node *device,
 		const char *compat);
+extern bool of_node_is_fixed_partitions(const struct device_node *np);
 extern int of_device_is_available(const struct device_node *device);
 extern bool of_device_is_big_endian(const struct device_node *device);
 
@@ -217,6 +215,8 @@ extern int of_get_available_child_count(const struct device_node *parent);
 extern struct device_node *of_get_compatible_child(const struct device_node *parent,
 					const char *compatible);
 extern struct device_node *of_get_child_by_name(const struct device_node *node,
+					const char *name);
+extern struct device_node *of_get_child_by_name_stem(const struct device_node *node,
 					const char *name);
 extern char *of_get_reproducible_name(struct device_node *node);
 extern struct device_node *of_get_node_by_reproducible_name(struct device_node *dstroot,
@@ -290,7 +290,7 @@ extern int of_property_write_string(struct device_node *np, const char *propname
 extern int of_property_write_strings(struct device_node *np, const char *propname,
 				    ...) __attribute__((__sentinel__));
 int of_property_sprintf(struct device_node *np, const char *propname, const char *fmt, ...)
-	__attribute__ ((format(__printf__, 3, 4)));
+	__printf(3, 4);
 
 extern struct device_node *of_parse_phandle(const struct device_node *np,
 					    const char *phandle_name,
@@ -309,10 +309,20 @@ extern void of_alias_scan(void);
 extern int of_alias_get_id(struct device_node *np, const char *stem);
 extern int of_alias_get_id_from(struct device_node *root, struct device_node *np,
 				const char *stem);
+extern int of_alias_get_highest_id(const char *stem);
 extern const char *of_alias_get(struct device_node *np);
 extern int of_modalias_node(struct device_node *node, char *modalias, int len);
 
+extern const char *of_property_get_alias_from(struct device_node *root,
+					      const char *np_name, const char *propname,
+					      int index);
+
+extern const char *of_parse_phandle_and_get_alias_from(struct device_node *root,
+						       const char *np_name, const char *phandle_name,
+						       int index);
+
 extern struct device_node *of_get_root_node(void);
+extern struct fdt_header *of_get_flattened_tree(const struct device_node *node, bool fixup);
 extern int of_set_root_node(struct device_node *node);
 extern int barebox_register_of(struct device_node *root);
 extern int barebox_register_fdt(const void *dtb);
@@ -455,6 +465,11 @@ static inline struct device_node *of_get_root_node(void)
 	return NULL;
 }
 
+static inline struct fdt_header *of_get_flattened_tree(const struct device_node *node, bool fixup)
+{
+	return NULL;
+}
+
 static inline int of_set_root_node(struct device_node *node)
 {
 	return -ENOSYS;
@@ -555,6 +570,12 @@ static inline struct device_node *of_get_compatible_child(const struct device_no
 }
 
 static inline struct device_node *of_get_child_by_name(
+			const struct device_node *node, const char *name)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_get_child_by_name_stem(
 			const struct device_node *node, const char *name)
 {
 	return NULL;
@@ -899,6 +920,11 @@ static inline int of_device_is_compatible(const struct device_node *device,
 	return 0;
 }
 
+static inline bool of_node_is_fixed_partitions(const struct device_node *device)
+{
+	return false;
+}
+
 static inline int of_device_is_available(const struct device_node *device)
 {
 	return 0;
@@ -924,6 +950,11 @@ static inline int of_alias_get_id_from(struct device_node *root, struct device_n
 	return -ENOSYS;
 }
 
+static inline int of_alias_get_highest_id(const char *stem)
+{
+	return -ENOSYS;
+}
+
 static inline const char *of_alias_get(struct device_node *np)
 {
 	return NULL;
@@ -933,6 +964,20 @@ static inline int of_modalias_node(struct device_node *node, char *modalias,
 				int len)
 {
 	return -ENOSYS;
+}
+
+static inline const char *of_property_get_alias_from(struct device_node *root,
+						     const char *np_name, const char *propname,
+						     int index)
+{
+	return NULL;
+}
+
+static inline const char *of_parse_phandle_and_get_alias_from(struct device_node *root,
+							      const char *np_name, const char *phandle_name,
+							      int index)
+{
+	return NULL;
 }
 
 static inline int of_platform_populate(struct device_node *root,
@@ -963,6 +1008,11 @@ static inline struct device *of_device_enable_and_register_by_alias(
 				const char *alias)
 {
 	return NULL;
+}
+
+static inline struct cdev *of_cdev_find(struct device_node *node)
+{
+	return ERR_PTR(-ENOSYS);
 }
 
 static inline int of_register_fixup(int (*fixup)(struct device_node *, void *),
@@ -1266,6 +1316,16 @@ static inline void of_delete_property_by_name(struct device_node *np, const char
 	of_delete_property(of_find_property(np, name, NULL));
 }
 
+static inline const char *of_property_get_alias(const char *np_name, const char *propname)
+{
+	return of_property_get_alias_from(NULL, np_name, propname, 0);
+}
+
+static inline const char *of_parse_phandle_and_get_alias(const char *np_name, const char *phandle_name)
+{
+	return of_parse_phandle_and_get_alias_from(NULL, np_name, phandle_name, 0);
+}
+
 extern const struct of_device_id of_default_bus_match_table[];
 
 int of_device_enable(struct device_node *node);
@@ -1297,10 +1357,37 @@ static inline struct device_node *of_find_root_node(struct device_node *node)
 	return node;
 }
 
+/*
+ * Get the fixed fdt. This function uses the fdt input pointer
+ * if provided or the barebox internal devicetree if not.
+ * It increases the size of the tree and applies the registered
+ * fixups.
+ */
+static inline struct fdt_header *of_get_fixed_tree(const struct device_node *node)
+{
+	return of_get_flattened_tree(node, true);
+}
+
+static inline struct fdt_header *of_get_fixed_tree_for_boot(const struct device_node *node)
+{
+	if (!IS_ENABLED(CONFIG_BOOTM_OFTREE_FALLBACK) && !node)
+		return NULL;
+
+	return of_get_fixed_tree(node);
+}
+
+static inline struct device_node *of_dup_root_node_for_boot(void)
+{
+	if (!IS_ENABLED(CONFIG_BOOTM_OFTREE_FALLBACK))
+		return NULL;
+
+	return of_dup(of_get_root_node());
+}
+
 struct of_overlay_filter {
 	bool (*filter_filename)(struct of_overlay_filter *, const char *filename);
 	bool (*filter_content)(struct of_overlay_filter *, struct device_node *);
-	char *name;
+	const char *name;
 	struct list_head list;
 };
 

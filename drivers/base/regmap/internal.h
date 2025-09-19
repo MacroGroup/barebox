@@ -39,6 +39,19 @@ struct regmap {
 			unsigned int *val);
 	int (*reg_write)(void *context, unsigned int reg,
 			 unsigned int val);
+	int (*reg_seal)(void *context, unsigned int reg,
+			unsigned int flags);
+};
+
+struct regmap_field {
+	struct regmap *regmap;
+	unsigned int mask;
+	/* lsb */
+	unsigned int shift;
+	unsigned int reg;
+
+	unsigned int id_size;
+	unsigned int id_offset;
 };
 
 enum regmap_endian regmap_get_val_endian(struct device *dev,

@@ -4,12 +4,14 @@
 
 #include <linux/string.h>
 #include <linux/types.h>
+#include <asm/byteorder.h>
 
 /*
  * List of file types we know
  */
 enum filetype {
 	filetype_unknown,
+	filetype_empty,
 	filetype_arm_zimage,
 	filetype_lzo_compressed,
 	filetype_lz4_compressed,
@@ -51,6 +53,7 @@ enum filetype {
 	filetype_elf,
 	filetype_imx_image_v1,
 	filetype_imx_image_v2,
+	filetype_imx_image_v3,
 	filetype_layerscape_image,
 	filetype_layerscape_qspi_image,
 	filetype_ubootvar,
@@ -73,9 +76,12 @@ struct cdev;
 const char *file_type_to_string(enum filetype f);
 const char *file_type_to_short_string(enum filetype f);
 enum filetype file_detect_partition_table(const void *_buf, size_t bufsize);
+enum filetype file_detect_compression_type(const void *_buf, size_t bufsize);
+enum filetype file_detect_fs_type(const void *_buf, size_t bufsize);
 enum filetype file_detect_type(const void *_buf, size_t bufsize);
 int file_name_detect_type(const char *filename, enum filetype *type);
-int file_name_detect_type_offset(const char *filename, loff_t pos, enum filetype *type);
+int file_name_detect_type_offset(const char *filename, loff_t pos, enum filetype *type,
+				 enum filetype (*detect)(const void *buf, size_t bufsize));
 int cdev_detect_type(struct cdev *cdev, enum filetype *type);
 enum filetype is_fat_or_mbr(const unsigned char *sector, unsigned long *bootsec);
 int is_fat_boot_sector(const void *_buf);
@@ -100,7 +106,7 @@ static inline bool file_is_compressed_file(enum filetype ft)
 #define ARM_HEAD_MAGICWORD_OFFSET	0x20
 #define ARM_HEAD_SIZE_OFFSET		0x2C
 
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARM) || defined(CONFIG_FUZZ)
 static inline int is_barebox_arm_head(const char *head)
 {
 	return !strcmp(head + ARM_HEAD_MAGICWORD_OFFSET, "barebox");
@@ -116,7 +122,7 @@ static inline int is_barebox_arm_head(const char *head)
 #define MIPS_HEAD_MAGICWORD_OFFSET	0x10
 #define MIPS_HEAD_SIZE_OFFSET		0x1C
 
-#ifdef CONFIG_MIPS
+#if defined(CONFIG_MIPS) || defined(CONFIG_FUZZ)
 static inline int is_barebox_mips_head(const char *head)
 {
 	return !strncmp(head + MIPS_HEAD_MAGICWORD_OFFSET, "barebox", 7);
@@ -131,6 +137,16 @@ static inline int is_barebox_mips_head(const char *head)
 static inline int is_barebox_head(const char *head)
 {
 	return is_barebox_arm_head(head) || is_barebox_mips_head(head);
+}
+
+static inline bool is_arm64_linux_bootimage(const void *header)
+{
+	return le32_to_cpup(header + 56) == 0x644d5241;
+}
+
+static inline bool is_riscv_linux_bootimage(const void *header)
+{
+	return le32_to_cpup(header + 56) == 0x05435352;
 }
 
 #endif /* __FILE_TYPE_H */

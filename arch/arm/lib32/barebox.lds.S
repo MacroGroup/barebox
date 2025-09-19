@@ -30,7 +30,8 @@ SECTIONS
 	}
 	BAREBOX_BARE_INIT_SIZE
 
-	. = ALIGN(4);
+	. = ALIGN(4096);
+	__start_rodata = .;
 	.rodata : {
 		*(.rodata*)
 		RO_DATA_SECTION
@@ -52,7 +53,9 @@ SECTIONS
 		__stop_unwind_tab = .;
 	}
 #endif
-	_etext = .;			/* End of text and rodata section */
+	. = ALIGN(4096);
+	__end_rodata = .;
+	_etext = .;
 	_sdata = .;
 
 	. = ALIGN(4);

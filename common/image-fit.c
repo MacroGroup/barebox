@@ -20,9 +20,10 @@
 #include <errno.h>
 #include <linux/err.h>
 #include <stringlist.h>
-#include <rsa.h>
+#include <crypto/public_key.h>
 #include <uncompress.h>
 #include <image-fit.h>
+#include <fuzz.h>
 
 #define FDT_MAX_DEPTH 32
 #define FDT_MAX_PATH_LEN 200
@@ -253,10 +254,10 @@ static struct digest *fit_alloc_digest(struct device_node *sig_node,
 	return digest;
 }
 
-static int fit_check_rsa_signature(struct device_node *sig_node,
-				   enum hash_algo algo, void *hash)
+static int fit_check_signature(struct device_node *sig_node,
+			       enum hash_algo algo, void *hash)
 {
-	const struct rsa_public_key *key;
+	const struct public_key *key;
 	const char *key_name = NULL;
 	int sig_len;
 	const char *sig_value;
@@ -270,19 +271,19 @@ static int fit_check_rsa_signature(struct device_node *sig_node,
 
 	of_property_read_string(sig_node, "key-name-hint", &key_name);
 	if (key_name) {
-		key = rsa_get_key(key_name);
+		key = public_key_get(key_name);
 		if (key) {
-			ret = rsa_verify(key, sig_value, sig_len, hash, algo);
+			ret = public_key_verify(key, sig_value, sig_len, hash, algo);
 			if (!ret)
 				goto ok;
 		}
 	}
 
-	for_each_rsa_key(key) {
+	for_each_public_key(key) {
 		if (key_name && !strcmp(key->key_name_hint, key_name))
 			continue;
 
-		ret = rsa_verify(key, sig_value, sig_len, hash, algo);
+		ret = public_key_verify(key, sig_value, sig_len, hash, algo);
 		if (!ret)
 			goto ok;
 	}
@@ -338,10 +339,13 @@ static int fit_verify_signature(struct device_node *sig_node, const void *fit)
 
 	ret = fit_digest(fit, digest, &inc_nodes, &exc_props, hashed_strings_start,
 			 hashed_strings_size);
+	if (ret)
+		goto out_sl;
+
 	hash = xzalloc(digest_length(digest));
 	digest_final(digest, hash);
 
-	ret = fit_check_rsa_signature(sig_node, algo, hash);
+	ret = fit_check_signature(sig_node, algo, hash);
 	if (ret)
 		goto out_free_hash;
 
@@ -464,7 +468,7 @@ static int fit_image_verify_signature(struct fit_handle *handle,
 	hash = xzalloc(digest_length(digest));
 	digest_final(digest, hash);
 
-	ret = fit_check_rsa_signature(sig_node, algo, hash);
+	ret = fit_check_signature(sig_node, algo, hash);
 
 	free(hash);
 
@@ -570,17 +574,29 @@ static void fit_uncompress_error_fn(char *x)
 	pr_err("%s\n", x);
 }
 
+static const char *get_compression_type(struct device_node *image)
+{
+	const char *compression = NULL;
+
+	of_property_read_string(image, "compression", &compression);
+	if (!compression || !strcmp(compression, "none"))
+		return NULL;
+
+	return compression;
+}
+
 static int fit_handle_decompression(struct device_node *image,
 				    const char *type,
 				    const void **data,
 				    int *data_len)
 {
-	const char *compression = NULL;
+	const char *compression;
+	struct property *pp;
 	void *uc_data;
 	int ret;
 
-	of_property_read_string(image, "compression", &compression);
-	if (!compression || !strcmp(compression, "none"))
+	compression = get_compression_type(image);
+	if (!compression)
 		return 0;
 
 	if (!strcmp(type, "ramdisk")) {
@@ -595,18 +611,21 @@ static int fit_handle_decompression(struct device_node *image,
 		return -ENOSYS;
 	}
 
-	ret = uncompress_buf_to_buf(*data, *data_len, &uc_data,
-				    fit_uncompress_error_fn);
-	if (ret < 0) {
-		pr_err("data couldn't be decompressed\n");
-		return ret;
+	pp = of_find_property(image, "$uncompressed-data", NULL);
+	if (!pp) {
+		ret = uncompress_buf_to_buf(*data, *data_len, &uc_data,
+					    fit_uncompress_error_fn);
+		if (ret < 0) {
+			pr_err("%s data couldn't be decompressed\n", compression);
+			return ret;
+		}
+
+		/* associate buffer with FIT, so it's not leaked */
+		pp = __of_new_property(image, "$uncompressed-data", uc_data, ret);
 	}
 
-	*data = uc_data;
-	*data_len = ret;
-
-	/* associate buffer with FIT, so it's not leaked */
-	__of_new_property(image, "uncompressed-data", uc_data, *data_len);
+	*data = of_property_get_value(pp);
+	*data_len = pp->length;
 
 	return 0;
 }
@@ -715,6 +734,52 @@ static int fit_config_verify_signature(struct fit_handle *handle, struct device_
 	return ret;
 }
 
+static int fit_fdt_is_compatible(struct fit_handle *handle,
+				 struct device_node *child,
+				 const char *machine)
+{
+	const char *reason = "malformed";
+	struct device_node *image;
+	const char *unit = "fdt";
+	int data_len;
+	const void *data;
+	int ret;
+
+	if (of_property_present(child, "compatible"))
+		return 0;
+	if (!of_property_present(child, "fdt"))
+		return 0;
+
+	ret = fit_get_image(handle, child, &unit, &image);
+	if (ret)
+		goto err;
+
+	data = of_get_property(image, "data", &data_len);
+	if (!data)
+		goto err;
+
+	/* We have three options here:
+	 *
+	 * 1) Increase our attack surface by all supported compression algos
+	 * 2) Verify all configurations in the image as we search for best
+	 *    OF match score
+	 * 3) Blame the user and expect them to supply a compatible property
+	 *    in the configuration node if they want to compress their FDTs
+	 *
+	 * We go for option 3.
+	 */
+	if (get_compression_type(image)) {
+		reason = "compressed";
+		goto err;
+	}
+
+	return fdt_machine_is_compatible(data, data_len, machine);
+err:
+	pr_warn("skipping %s configuration \"%pOF\"\n",
+		reason, child);
+	return 0;
+}
+
 static int fit_find_compatible_unit(struct fit_handle *handle,
 				    struct device_node *conf_node,
 				    const char **unit)
@@ -736,38 +801,8 @@ static int fit_find_compatible_unit(struct fit_handle *handle,
 	for_each_child_of_node(conf_node, child) {
 		int score = of_device_is_compatible(child, machine);
 
-		if (!score && !of_property_present(child, "compatible") &&
-		    of_property_present(child, "fdt")) {
-			struct device_node *image;
-			const char *unit = "fdt";
-			int data_len;
-			const void *data;
-			int ret;
-
-			ret = fit_get_image(handle, child, &unit, &image);
-			if (ret)
-				goto next;
-
-			data = of_get_property(image, "data", &data_len);
-			if (!data) {
-				ret = -EINVAL;
-				goto next;
-			}
-
-			ret = fit_handle_decompression(image, "fdt", &data, &data_len);
-			if (ret) {
-				ret = -EILSEQ;
-				goto next;
-			}
-
-			score = fdt_machine_is_compatible(data, data_len, machine);
-
-			of_delete_property_by_name(image, "uncompressed-data");
-next:
-			if (ret)
-				pr_warn("skipping malformed configuration: %pOF (%pe)\n",
-					child, ERR_PTR(ret));
-		}
+		if (!score)
+			score = fit_fdt_is_compatible(handle, child, machine);
 
 		if (score > best_score) {
 			best_score = score;
@@ -789,6 +824,26 @@ default_unit:
 		return 0;
 
 	return -ENOENT;
+}
+
+static int fit_find_last_unit(struct fit_handle *handle,
+			      const char **out_unit)
+{
+	struct device_node *conf_node = handle->configurations;
+	struct device_node *child;
+	const char *unit = NULL;
+
+	if (!conf_node)
+		return 0;
+
+	for_each_child_of_node(conf_node, child)
+		unit = child->name;
+
+	if (!unit)
+		return -ENOENT;
+
+	*out_unit = unit;
+	return 0;
 }
 
 /**
@@ -921,7 +976,7 @@ struct fit_handle *fit_open(const char *filename, bool verbose,
 	ret = read_file_2(filename, &handle->size, &handle->fit_alloc,
 			  max_size);
 	if (ret && ret != -EFBIG) {
-		pr_err("unable to read %s: %s\n", filename, strerror(-ret));
+		pr_err("unable to read %s: %pe\n", filename, ERR_PTR(ret));
 		return ERR_PTR(ret);
 	}
 
@@ -936,49 +991,81 @@ struct fit_handle *fit_open(const char *filename, bool verbose,
 	return handle;
 }
 
-void fit_close(struct fit_handle *handle)
+static void __fit_close(struct fit_handle *handle)
 {
 	if (handle->root)
 		of_delete_node(handle->root);
-
 	free(handle->fit_alloc);
+}
+
+void fit_close(struct fit_handle *handle)
+{
+	__fit_close(handle);
 	free(handle);
 }
 
-static int do_bootm_sandbox_fit(struct image_data *data)
+static int do_bootm_fit(struct image_data *data)
 {
-	struct fit_handle *handle;
-	void *config;
+	pr_err("Cannot boot device tree binary blob\n");
+
+	return -EINVAL;
+}
+
+static struct image_handler fit_handler = {
+	.name = "FIT image",
+	.bootm = do_bootm_fit,
+	.filetype = filetype_oftree,
+};
+
+static int bootm_fit_register(void)
+{
+	return register_image_handler(&fit_handler);
+}
+late_initcall(bootm_fit_register);
+
+static int fuzz_fit(const u8 *data, size_t size)
+{
+	const char *unit, *imgname = "kernel";
+	struct fit_handle handle = {};
+	const void *outdata;
+	unsigned long outsize, addr;
 	int ret;
+	void *config;
 
-	handle = fit_open(data->os_file, data->verbose, BOOTM_VERIFY_NONE,
-			  FILESIZE_MAX);
-	if (IS_ERR(handle))
-		return PTR_ERR(handle);
+	handle.verbose = false;
+	handle.verify = BOOTM_VERIFY_AVAILABLE;
 
-	config = fit_open_configuration(handle, data->os_part);
+	handle.size = size;
+	handle.fit = data;
+	handle.fit_alloc = NULL;
+
+	ret = fit_do_open(&handle);
+	if (ret)
+		goto out;
+
+	config = fit_open_configuration(&handle, NULL);
+	if (IS_ERR(config)) {
+		ret = fit_find_last_unit(&handle, &unit);
+		if (ret)
+			goto out;
+		config = fit_open_configuration(&handle, unit);
+	}
 	if (IS_ERR(config)) {
 		ret = PTR_ERR(config);
 		goto out;
 	}
 
-	ret = 0;
+	ret = fit_open_image(&handle, config, imgname, &outdata, &outsize);
+	if (ret)
+		goto out;
+
+	fit_get_image_address(&handle, config, imgname, "load", &addr);
+	fit_get_image_address(&handle, config, imgname, "entry", &addr);
+
+	ret = fit_open_image(&handle, NULL, imgname, &outdata, &outsize);
 out:
-	fit_close(handle);
+	__fit_close(&handle);
 
-	return ret;
+	return 0;
 }
-
-static struct image_handler sandbox_fit_handler = {
-	.name = "FIT image",
-	.bootm = do_bootm_sandbox_fit,
-	.filetype = filetype_oftree,
-};
-
-static __maybe_unused int sandbox_fit_register(void)
-{
-	return register_image_handler(&sandbox_fit_handler);
-}
-#ifdef CONFIG_SANDBOX
-late_initcall(sandbox_fit_register);
-#endif
+fuzz_test("fit", fuzz_fit);

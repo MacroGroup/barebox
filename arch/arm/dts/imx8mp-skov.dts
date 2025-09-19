@@ -4,12 +4,14 @@
 
 #include <arm64/freescale/imx8mp.dtsi>
 #include "imx8mp.dtsi"
+#include <arm64/freescale/imx8mp-nominal.dtsi>
 
 #include <dt-bindings/leds/common.h>
 
 / {
 	model = "Skov i.MX8MP";
 	compatible = "skov,imx8mp", "fsl,imx8mp";
+	barebox,deep-probe;
 
 	chosen {
 		stdout-path = &uart2;
@@ -425,6 +427,8 @@
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	bus-width = <8>;
+	no-sd;
+	no-sdio;
 	non-removable;
 	status = "okay";
 };

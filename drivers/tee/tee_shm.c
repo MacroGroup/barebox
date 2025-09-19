@@ -11,6 +11,7 @@
 #include <linux/uaccess.h>
 #include <linux/sizes.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include "tee_private.h"
 
 static void tee_shm_release(struct tee_device *teedev, struct tee_shm *shm)
@@ -31,6 +32,7 @@ static void tee_shm_release(struct tee_device *teedev, struct tee_shm *shm)
 
 	teedev_ctx_put(shm->ctx);
 
+	kfree(shm->pages_list);
 	kfree(shm);
 
 	tee_device_put(teedev);
@@ -241,9 +243,7 @@ int tee_shm_get_fd(struct tee_shm *shm)
 	if (shm->fd < 0) {
 		char *tmp;
 
-		tmp = basprintf("/dev/%s", shm->cdev.name);
-		if (!tmp)
-			return -ENOMEM;
+		tmp = xasprintf("/dev/%s", shm->cdev.name);
 
 		shm->fd = open(tmp, O_RDONLY);
 		free(tmp);

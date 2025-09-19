@@ -298,6 +298,9 @@ $(call build_imx_habv4img, CONFIG_MACH_EMBEST_MARSBOARD, start_imx6q_marsboard, 
 
 $(call build_imx_habv4img, CONFIG_MACH_EMBEST_RIOTBOARD, start_imx6s_riotboard, embest-riotboard/flash-header-embest-riotboard, embest-imx6s-riotboard)
 
+$(call build_imx_habv4img, CONFIG_MACH_TORADEX_COLIBRI_IMX6, start_imx6dl_colibri_iris, toradex-colibri-imx6/flash-header-colibri-imx6dl, toradex-imx6dl-colibri-iris)
+$(call build_imx_habv4img, CONFIG_MACH_TORADEX_COLIBRI_IMX6,  start_imx6s_colibri_iris,  toradex-colibri-imx6/flash-header-colibri-imx6s,  toradex-imx6s-colibri-iris)
+
 $(call build_imx_habv4img, CONFIG_MACH_PHYTEC_SOM_IMX6, start_phytec_phycard_imx6q_1gib, phytec-som-imx6/flash-header-phytec-pcaaxl3-1gib, phytec-phycard-imx6q-1gib)
 
 $(call build_imx_habv4img, CONFIG_MACH_PHYTEC_SOM_IMX6, start_phytec_phycard_imx6q_1gib_1bank, phytec-som-imx6/flash-header-phytec-pcaaxl3-1gib-1bank, phytec-phycard-imx6q-1gib-1bank)
@@ -452,7 +455,7 @@ FILE_barebox-gome-e143_01.img = start_gome_e143_01.pblb.imximg
 image-$(CONFIG_MACH_VARISCITE_SOM_MX7) += barebox-gome-e143_01.img
 
 # ----------------------- i.MX8mm based boards --------------------------
-$(call build_imx8m_habv4img, CONFIG_MACH_DIASOM_DS_IMX8M_EVB, start_diasom_imx8m_evb, diasom-imx8m-evb/flash-header-diasom-imx8m-evb, diasom-imx8m-evb)
+$(call build_imx8m_habv4img, CONFIG_MACH_DIASOM_DS_IMX8M, start_diasom_imx8m_som_evb, diasom-imx8m/flash-header-diasom-imx8m, diasom-imx8m-evb)
 
 $(call build_imx8m_habv4img, CONFIG_MACH_NXP_IMX8MM_EVK, start_nxp_imx8mm_evk, nxp-imx8mm-evk/flash-header-imx8mm-evk, nxp-imx8mm-evk)
 
@@ -520,3 +523,7 @@ $(obj)/%.imx9img: $(obj)/% FORCE
 pblb-$(CONFIG_MACH_TQMA93XX) += start_imx93_tqma93xx
 FILE_barebox-tqma93xx.img = start_imx93_tqma93xx.pblb.imx9img
 image-$(CONFIG_MACH_TQMA93XX) += barebox-tqma93xx.img
+
+pblb-$(CONFIG_MACH_PHYTEC_PHYCORE_IMX93) += start_imx93_phyboard_segin
+FILE_barebox-phyboard_segin.img = start_imx93_phyboard_segin.pblb.imx9img
+image-$(CONFIG_MACH_PHYTEC_PHYCORE_IMX93) += barebox-phyboard_segin.img

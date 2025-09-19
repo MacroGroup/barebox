@@ -12,11 +12,12 @@
 
 / {
 	model = "Diasom DS-RK3568-SOM";
-	compatible = "diasom,ds-rk3568-som", "rockchip,rk3568";
+	compatible = "diasom,ds-rk3568-som",
+		     "rockchip,rk3568";
 	chassis-type = "embedded";
 
 	aliases {
-		mmc1 = &sdhci;
+		mmc0 = &sdhci;
 	};
 
 	chosen: chosen {
@@ -29,6 +30,11 @@
 		};
 	};
 
+	cpu-info {
+		nvmem-cells = <&otp_cpu_version>;
+		nvmem-cell-names = "cpu-version";
+	};
+
 	adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;
@@ -36,37 +42,11 @@
 		keyup-threshold-microvolt = <1300000>;
 		poll-interval = <100>;
 
-		button-recovery {
+		recovery {
 			label = "Recovery";
 			linux,code = <KEY_VENDOR>;
 			press-threshold-microvolt = <18000>;
 		};
-	};
-
-	can1: can@fe580000 {
-		compatible = "rockchip,rk3568-can-2.0";
-		reg = <0x0 0xfe580000 0x0 0x1000>;
-		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_CAN1>, <&cru PCLK_CAN1>;
-		clock-names = "baudclk", "apb_pclk";
-		resets = <&cru SRST_CAN1>, <&cru SRST_P_CAN1>;
-		reset-names = "can", "can-apb";
-		tx-fifo-depth = <1>;
-		rx-fifo-depth = <6>;
-		status = "disabled";
-	};
-
-	can2: can@fe590000 {
-		compatible = "rockchip,rk3568-can-2.0";
-		reg = <0x0 0xfe590000 0x0 0x1000>;
-		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_CAN2>, <&cru PCLK_CAN2>;
-		clock-names = "baudclk", "apb_pclk";
-		resets = <&cru SRST_CAN2>, <&cru SRST_P_CAN2>;
-		reset-names = "can", "can-apb";
-		tx-fifo-depth = <1>;
-		rx-fifo-depth = <6>;
-		status = "disabled";
 	};
 
 	csi2_dphy0: csi2-dphy0 {
@@ -88,8 +68,8 @@
 		compatible = "rockchip,rk3568-rkisp";
 		reg = <0x0 0xfdff0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
-		<GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
-		<GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "mipi_irq", "mi_irq", "isp_irq";
 		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru CLK_ISP>;
 		clock-names = "aclk_isp", "hclk_isp", "clk_isp";
@@ -110,6 +90,7 @@
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3568_PD_VI>;
 		rockchip,disable-mmu-reset;
+		rockchip,disable-device-link-resume;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -145,16 +126,6 @@
 		};
 	};
 
-	vcc0v9_cpu: vcc0v9-cpu-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "0v9_cpu";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <900000>;
-		regulator-max-microvolt = <900000>;
-		vin-supply = <&vcc3v3_pmu>;
-	};
-
 	vcc3v3_sys: vcc3v3-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "3v3_sys";
@@ -180,22 +151,6 @@
 &combphy0 {
 	/* USB3.0 OTG0 */
 	status = "okay";
-};
-
-&cpu0 {
-	cpu-supply = <&vcc0v9_cpu>;
-};
-
-&cpu1 {
-	cpu-supply = <&vcc0v9_cpu>;
-};
-
-&cpu2 {
-	cpu-supply = <&vcc0v9_cpu>;
-};
-
-&cpu3 {
-	cpu-supply = <&vcc0v9_cpu>;
 };
 
 &cpu0_opp_table {
@@ -279,6 +234,8 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-initial-mode = <0x2>;
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
 
 				regulator-state-mem {
 					regulator-on-in-suspend;
@@ -341,6 +298,13 @@
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <900000>;
+				};
+			};
+
+			LDO_REG4 {
+				/* Unused */
+				regulator-state-mem {
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -407,6 +371,8 @@
 				regulator-name = "vcc_3v3_sw1";
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-coupled-with = <&vcc_3v3_sw2>;
 				regulator-coupled-max-spread = <10000>;
 
@@ -419,6 +385,8 @@
 				regulator-name = "vcc_3v3_sw2";
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-coupled-with = <&vcc_3v3_sw1>;
 				regulator-coupled-max-spread = <10000>;
 
@@ -427,6 +395,13 @@
 				};
 			};
 		};
+	};
+};
+
+&otp {
+	otp_cpu_version: cpu-version@8 {
+		reg = <0x08 0x01>;
+		bits = <0x03 0x03>;
 	};
 };
 
@@ -458,6 +433,7 @@
 	bus-width = <8>;
 	cap-mmc-hw-reset;
 	max-frequency = <200000000>;
+	mmc-hs200-1_8v;
 	non-removable;
 	no-mmc-hs400;
 	no-sd;
@@ -468,13 +444,21 @@
 };
 
 &tsadc {
-	rockchip,hw-tshut-temp = <95000>;
 	rockchip,hw-tshut-mode = <0>;
 	rockchip,hw-tshut-polarity = <0>;
 	status = "okay";
 };
 
 &uart2 {
+	/delete-property/ dmas;
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
 	status = "okay";
 };
 
@@ -488,12 +472,30 @@
 	status = "okay";
 };
 
-&usb2phy0_host {
+&usb2phy0_otg {
 	status = "okay";
 };
 
-&usb2phy0_otg {
+&usb2phy1 {
 	status = "okay";
+};
+
+&usb2phy1_otg {
+	status = "okay";
+};
+
+&vdda0v9_image {
+	/* Temporary hack regulator-always-on and regulator-boot-on */
+	/* properties until we have regulator handling for dsi & lvds nodes */
+	regulator-always-on;
+	regulator-boot-on;
+};
+
+&vcca1v8_image {
+	/* Temporary hack regulator-always-on and regulator-boot-on */
+	/* properties until we have regulator handling for dsi & lvds nodes */
+	regulator-always-on;
+	regulator-boot-on;
 };
 
 &vpu {
@@ -510,6 +512,11 @@
 
 &vepu_mmu {
 	status = "disabled";
+};
+
+&vop {
+	assigned-clocks = <&cru DCLK_VOP0>, <&cru DCLK_VOP1>;
+	assigned-clock-parents = <&pmucru PLL_HPLL>, <&cru PLL_VPLL>;
 };
 
 &pinctrl {

@@ -12,15 +12,16 @@
 #include <linux/printk.h>
 #include <linux/module.h>
 #include <device.h>
+#include <linux/device/bus.h>
 #include <of.h>
 #include <init.h>
+#include <errno.h>
 #include <filetype.h>
 
 #define FORMAT_DRIVER_NAME_ID	"%s%d"
 
 #include <param.h>
 
-struct filep;
 struct bus_type;
 struct generic_pm_domain;
 
@@ -153,8 +154,8 @@ static inline const char *dev_name(const struct device *dev)
 	return dev_id(dev) ?: dev->name;
 }
 
-int dev_set_name(struct device *dev, const char *fmt, ...);
-int dev_add_alias(struct device *dev, const char *fmt, ...);
+int dev_set_name(struct device *dev, const char *fmt, ...) __printf(2, 3);
+int dev_add_alias(struct device *dev, const char *fmt, ...) __printf(2, 3);
 
 /*
  * get resource 'num' for a device
@@ -226,6 +227,17 @@ struct device *add_child_device(struct device *parent,
 				const char* devname, int id, const char *resname,
 				resource_size_t start, resource_size_t size, unsigned int flags,
 				void *pdata);
+
+#ifdef CONFIG_OFTREE
+struct device *of_add_child_device(struct device *parent,
+		const char* devname, int id, struct device_node *np);
+#else
+static inline struct device *of_add_child_device(struct device *parent,
+		const char* devname, int id, struct device_node *np)
+{
+	return NULL;
+}
+#endif
 
 /*
  * register a generic device
@@ -352,47 +364,11 @@ ssize_t mem_copy(struct device *dev, void *dst, const void *src,
 int generic_memmap_ro(struct cdev *dev, void **map, int flags);
 int generic_memmap_rw(struct cdev *dev, void **map, int flags);
 
-static inline int dev_open_default(struct device *dev, struct filep *f)
+static inline int driver_match_device(const struct driver *drv,
+				      struct device *dev)
 {
-	return 0;
+	return drv->bus->match ? drv->bus->match(dev, drv) : true;
 }
-
-static inline int dev_close_default(struct device *dev, struct filep *f)
-{
-	return 0;
-}
-
-struct bus_type {
-	char *name;
-	int (*match)(struct device *dev, struct driver *drv);
-	int (*probe)(struct device *dev);
-	void (*remove)(struct device *dev);
-
-	struct device *dev;
-
-	struct list_head list;
-	struct list_head device_list;
-	struct list_head driver_list;
-};
-
-int bus_register(struct bus_type *bus);
-int device_match(struct device *dev, struct driver *drv);
-
-extern struct list_head bus_list;
-
-/* Iterate over all buses
- */
-#define for_each_bus(bus) list_for_each_entry(bus, &bus_list, list)
-
-/* Iterate over all devices of a bus
- */
-#define bus_for_each_device(bus, dev) list_for_each_entry(dev, &(bus)->device_list, bus_list)
-
-/* Iterate over all drivers of a bus
- */
-#define bus_for_each_driver(bus, drv) list_for_each_entry(drv, &(bus)->driver_list, bus_list)
-
-extern struct bus_type platform_bus;
 
 int platform_driver_register(struct driver *drv);
 
@@ -434,6 +410,9 @@ int platform_driver_register(struct driver *drv);
 	mem_initcall(drv##_init);
 
 int platform_device_register(struct device *new_device);
+
+#define PROTECT_ENABLE_WRITE		0
+#define PROTECT_DISABLE_WRITE		1
 
 struct cdev_operations {
 	/*! Called in response of reading from this device. Required */
@@ -513,22 +492,60 @@ int devfs_create(struct cdev *);
 int devfs_create_link(struct cdev *, const char *name);
 int devfs_remove(struct cdev *);
 int cdev_find_free_index(const char *);
+struct cdev *cdev_find_partition(struct cdev *cdevm, const char *name);
 struct cdev *device_find_partition(struct device *dev, const char *name);
-struct cdev *cdev_by_name(const char *filename);
 struct cdev *lcdev_by_name(const char *filename);
-struct cdev *cdev_readlink(struct cdev *cdev);
+struct cdev *cdev_readlink(const struct cdev *cdev);
 struct cdev *cdev_by_device_node(struct device_node *node);
 struct cdev *cdev_by_partuuid(const char *partuuid);
 struct cdev *cdev_by_diskuuid(const char *partuuid);
-struct cdev *cdev_open_by_name(const char *name, unsigned long flags);
 struct cdev *cdev_create_loop(const char *path, ulong flags, loff_t offset);
 void cdev_remove_loop(struct cdev *cdev);
 int cdev_open(struct cdev *, unsigned long flags);
 int cdev_fdopen(struct cdev *cdev, unsigned long flags);
 int cdev_close(struct cdev *cdev);
 int cdev_flush(struct cdev *cdev);
+
+typedef int (*cdev_alias_processor_t)(struct cdev *, void *data);
+
+#ifdef CONFIG_CDEV_ALIAS
+int cdev_alias_resolve_for_each(const char *name,
+				cdev_alias_processor_t, void *data);
+#else
+static inline int cdev_alias_resolve_for_each(const char *name,
+				cdev_alias_processor_t fn, void *data)
+{
+	return 0;
+}
+#endif
+#if IN_PROPER
 ssize_t cdev_read(struct cdev *cdev, void *buf, size_t count, loff_t offset, ulong flags);
 ssize_t cdev_write(struct cdev *cdev, const void *buf, size_t count, loff_t offset, ulong flags);
+struct cdev *cdev_by_name(const char *filename);
+struct cdev *cdev_open_by_name(const char *name, unsigned long flags);
+struct cdev *cdev_open_by_path_name(const char *name, unsigned long flags);
+#else
+static inline ssize_t cdev_read(struct cdev *cdev, void *buf, size_t count, loff_t offset, ulong flags)
+{
+	return -ENOSYS;
+}
+static inline ssize_t cdev_write(struct cdev *cdev, const void *buf, size_t count, loff_t offset, ulong flags)
+{
+	return -ENOSYS;
+}
+static inline struct cdev *cdev_by_name(const char *filename)
+{
+	return NULL;
+}
+static inline struct cdev *cdev_open_by_name(const char *name, unsigned long flags)
+{
+	return NULL;
+}
+static inline struct cdev *cdev_open_by_path_name(const char *name, unsigned long flags)
+{
+	return NULL;
+}
+#endif
 int cdev_ioctl(struct cdev *cdev, unsigned int cmd, void *buf);
 int cdev_erase(struct cdev *cdev, loff_t count, loff_t offset);
 int cdev_lseek(struct cdev*, loff_t);
@@ -552,7 +569,7 @@ extern struct list_head cdev_list;
 #define DEVFS_PARTITION_FIXED		(1U << 0)
 #define DEVFS_PARTITION_READONLY	(1U << 1)
 #define DEVFS_IS_CHARACTER_DEV		(1U << 3)
-#define DEVFS_IS_MCI_MAIN_PART_DEV	(1U << 4)
+#define DEVFS_IS_BLOCK_DEV		(1U << 4)
 #define DEVFS_PARTITION_FROM_OF		(1U << 5)
 #define DEVFS_PARTITION_FROM_TABLE	(1U << 6)
 #define DEVFS_IS_MBR_PARTITIONED	(1U << 7)
@@ -563,6 +580,7 @@ extern struct list_head cdev_list;
 #define DEVFS_PARTITION_BOOTABLE_ESP	(1U << 12)
 #define DEVFS_PARTITION_FOR_FIXUP	(1U << 13)
 #define DEVFS_WRITE_AUTOERASE		(1U << 14)
+#define DEVFS_PARTITION_CAN_OVERLAP	(1U << 15)
 
 /**
  * cdev_write_requires_erase - Check whether writes must be done to erased blocks
@@ -586,21 +604,18 @@ static inline bool cdev_is_gpt_partitioned(const struct cdev *master)
 	return master && (master->flags & DEVFS_IS_GPT_PARTITIONED);
 }
 
-static inline struct cdev *
-cdev_find_child_by_gpt_typeuuid(struct cdev *cdev, guid_t *typeuuid)
+#define DEVFS_INHERITABLE_FLAGS (DEVFS_WRITE_AUTOERASE | DEVFS_IS_BLOCK_DEV)
+
+static inline unsigned int
+get_inheritable_devfs_flags(const struct cdev *parent_cdev)
 {
-	struct cdev *partcdev;
-
-	if (!cdev_is_gpt_partitioned(cdev))
-		return ERR_PTR(-EINVAL);
-
-	for_each_cdev_partition(partcdev, cdev) {
-		if (guid_equal(&partcdev->typeuuid, typeuuid))
-			return partcdev;
-	}
-
-	return ERR_PTR(-ENOENT);
+	if (!parent_cdev)
+		return 0;
+	return parent_cdev->flags & DEVFS_INHERITABLE_FLAGS;
 }
+
+struct cdev *
+cdev_find_child_by_gpt_typeuuid(struct cdev *cdev, const guid_t *typeuuid);
 
 #ifdef CONFIG_FS_AUTOMOUNT
 void cdev_create_default_automount(struct cdev *cdev);
@@ -609,11 +624,6 @@ static inline void cdev_create_default_automount(struct cdev *cdev)
 {
 }
 #endif
-
-static inline bool cdev_is_mci_main_part_dev(struct cdev *cdev)
-{
-	return cdev->flags & DEVFS_IS_MCI_MAIN_PART_DEV;
-}
 
 #define DEVFS_PARTITION_APPEND		0
 
@@ -662,18 +672,6 @@ int cdevfs_del_partition(struct cdev *cdev);
 #define DRV_OF_COMPAT(compat) of_match_ptr(compat)
 
 /**
- * dev_get_drvdata - get driver match data associated with device
- * @dev: device instance
- * @data: pointer to void *, where match data is stored
- *
- * Returns 0 on success and error code otherwise.
- *
- * DEPRECATED: use device_get_match_data instead, which avoids
- * common pitfalls due to explicit pointer casts
- */
-int dev_get_drvdata(struct device *dev, const void **data);
-
-/**
  * device_get_match_data - get driver match data associated with device
  * @dev: device instance
  *
@@ -681,7 +679,7 @@ int dev_get_drvdata(struct device *dev, const void **data);
  */
 const void *device_get_match_data(struct device *dev);
 
-int device_match_of_modalias(struct device *dev, struct driver *drv);
+int device_match_of_modalias(struct device *dev, const struct driver *drv);
 
 struct device *device_find_child(struct device *parent, void *data,
 				 int (*match)(struct device *dev, void *data));

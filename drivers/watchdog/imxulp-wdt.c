@@ -13,7 +13,6 @@
 #include <watchdog.h>
 #include <reset_source.h>
 #include <linux/clk.h>
-#include <asm/system.h>
 
 struct imxulp_socdata {
 	bool prescaler_enable;
@@ -108,12 +107,12 @@ static int imxulp_wd_probe(struct device *dev)
 {
 	struct imxulp_wd *imxwd;
 	struct resource *iores;
-	struct imxulp_socdata *socdata;
+	const struct imxulp_socdata *socdata;
 	int ret;
 
-	ret = dev_get_drvdata(dev, (const void **)&socdata);
-	if (ret)
-		return ret;
+	socdata = device_get_match_data(dev);
+	if (!socdata)
+		return -ENODEV;
 
 	imxwd = xzalloc(sizeof(*imxwd));
 	iores = dev_request_mem_resource(dev, 0);

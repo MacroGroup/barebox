@@ -16,36 +16,17 @@
 #include <mach/socfpga/generic.h>
 #include <linux/sizes.h>
 
-#define __wait_on_timeout(timeout, condition) \
-({								\
-	int __ret = 0;						\
-	int __timeout = timeout;				\
-								\
-	while ((condition)) {					\
-		if (__timeout-- < 0) {				\
-			__ret = -ETIMEDOUT;			\
-			break;					\
-		}						\
-		arria10_kick_l4wd0();                           \
-                __udelay(1);                                    \
-	}							\
-	__ret;							\
-})
-
-int a10_update_bits(unsigned int reg, unsigned int mask,
+void a10_update_bits(unsigned int reg, unsigned int mask,
 		    unsigned int val)
 {
 	unsigned int tmp, orig;
-	int ret = 0;
 
 	orig = readl(ARRIA10_FPGAMGRREGS_ADDR + reg);
 	tmp = orig & ~mask;
 	tmp |= val & mask;
 
 	if (tmp != orig)
-		ret = writel(tmp, ARRIA10_FPGAMGRREGS_ADDR + reg);
-
-	return ret;
+		writel(tmp, ARRIA10_FPGAMGRREGS_ADDR + reg);
 }
 
 static uint32_t socfpga_a10_fpga_read_stat(void)

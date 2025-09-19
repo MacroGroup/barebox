@@ -30,6 +30,8 @@ struct nvmem_device {
 					     const void *val, size_t val_size);
 	int			(*reg_read)(void *ctx, unsigned int reg,
 					    void *val, size_t val_size);
+	int			(*reg_protect)(void *ctx, unsigned int reg,
+					       size_t bytes, int prot);
 };
 
 struct nvmem_cell {
@@ -61,10 +63,7 @@ static ssize_t nvmem_cdev_read(struct cdev *cdev, void *buf, size_t count,
 	struct nvmem_device *nvmem;
 	ssize_t retlen;
 
-	if (cdev->master)
-		nvmem = container_of(cdev->master, struct nvmem_device, cdev);
-	else
-		nvmem = container_of(cdev, struct nvmem_device, cdev);
+	nvmem = container_of(cdev, struct nvmem_device, cdev);
 
 	dev_dbg(cdev->dev, "read ofs: 0x%08llx count: 0x%08zx\n",
 		offset, count);
@@ -80,10 +79,7 @@ static ssize_t nvmem_cdev_write(struct cdev *cdev, const void *buf, size_t count
 	struct nvmem_device *nvmem;
 	ssize_t retlen;
 
-	if (cdev->master)
-		nvmem = container_of(cdev->master, struct nvmem_device, cdev);
-	else
-		nvmem = container_of(cdev, struct nvmem_device, cdev);
+	nvmem = container_of(cdev, struct nvmem_device, cdev);
 
 	dev_dbg(cdev->dev, "write ofs: 0x%08llx count: 0x%08zx\n",
 		offset, count);
@@ -93,9 +89,38 @@ static ssize_t nvmem_cdev_write(struct cdev *cdev, const void *buf, size_t count
 	return retlen;
 }
 
+static int nvmem_cdev_protect(struct cdev *cdev, size_t count, loff_t offset,
+			      int prot)
+{
+	struct nvmem_device *nvmem;
+
+	nvmem = container_of(cdev, struct nvmem_device, cdev);
+
+	dev_dbg(cdev->dev, "protect ofs: 0x%08llx count: 0x%08zx prot: %d\n",
+		offset, count, prot);
+
+	if (!nvmem->reg_protect) {
+		dev_warn(cdev->dev, "NVMEM device %s does not support protect operation\n",
+			 nvmem->name);
+		return -EOPNOTSUPP;
+	}
+
+	if (!count)
+		return 0;
+
+	if (offset + count > nvmem->size) {
+		dev_err(cdev->dev, "protect range out of bounds (ofs: 0x%08llx, count 0x%08zx, size 0x%08zx)\n",
+			offset, count, nvmem->size);
+		return -EINVAL;
+	}
+
+	return nvmem->reg_protect(nvmem->priv, offset, count, prot);
+}
+
 static struct cdev_operations nvmem_chrdev_ops = {
 	.read  = nvmem_cdev_read,
 	.write  = nvmem_cdev_write,
+	.protect = nvmem_cdev_protect,
 };
 
 static int nvmem_register_cdev(struct nvmem_device *nvmem, const char *name)
@@ -150,7 +175,7 @@ static struct nvmem_cell *nvmem_find_cell(const char *cell_id)
 static void nvmem_cell_drop(struct nvmem_cell *cell)
 {
 	list_del(&cell->node);
-	kfree(cell->id);
+	kfree_const(cell->id);
 	kfree(cell);
 }
 
@@ -213,6 +238,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->dev.parent = config->dev;
 	nvmem->reg_read = config->reg_read;
 	nvmem->reg_write = config->reg_write;
+	nvmem->reg_protect = config->reg_protect;
 	np = config->cdev ? cdev_of_node(config->cdev) : config->dev->of_node;
 	nvmem->dev.of_node = np;
 	nvmem->priv = config->priv;
@@ -221,7 +247,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	if (config->read_only || !config->reg_write || of_property_read_bool(np, "read-only"))
 		nvmem->read_only = true;
 
-	dev_set_name(&nvmem->dev, config->name);
+	dev_set_name(&nvmem->dev, "%s", config->name);
 	nvmem->dev.id = DEVICE_ID_DYNAMIC;
 
 	dev_dbg(nvmem->dev.parent, "Registering nvmem device %s\n", config->name);
@@ -692,7 +718,7 @@ ssize_t nvmem_device_cell_read(struct nvmem_device *nvmem,
 {
 	struct nvmem_cell cell;
 	int rc;
-	ssize_t len;
+	ssize_t len = 0;
 
 	if (!nvmem)
 		return -EINVAL;
@@ -841,7 +867,7 @@ int nvmem_cell_read_variable_le_u32(struct device *dev, const char *cell_id,
 				    u32 *val)
 {
 	size_t len;
-	const u8 *buf;
+	u8 *buf;
 	int i;
 
 	len = sizeof(*val);

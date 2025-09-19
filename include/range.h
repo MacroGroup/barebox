@@ -5,15 +5,15 @@
 #include <linux/types.h>
 
 /**
- * region_overlap_end - check whether a pair of [start, end] ranges overlap
+ * region_overlap_end_inclusive - check whether a pair of [start, end] ranges overlap
  *
  * @starta: start of the first range
  * @enda:   end of the first range (inclusive)
  * @startb: start of the second range
  * @endb:   end of the second range (inclusive)
  */
-static inline bool region_overlap_end(u64 starta, u64 enda,
-				      u64 startb, u64 endb)
+static inline bool region_overlap_end_inclusive(u64 starta, u64 enda,
+						u64 startb, u64 endb)
 {
 	if (enda < startb)
 		return false;
@@ -21,6 +21,26 @@ static inline bool region_overlap_end(u64 starta, u64 enda,
 		return false;
 	return true;
 }
+
+/**
+ * region_overlap_end_exclusive - check whether a pair of [start, end) ranges overlap
+ *
+ * @starta: start of the first range
+ * @enda:   end of the first range (exclusive)
+ * @startb: start of the second range
+ * @endb:   end of the second range (exclusive)
+ */
+static inline bool region_overlap_end_exclusive(u64 starta, u64 enda,
+						u64 startb, u64 endb)
+{
+	/* Empty ranges don't overlap */
+	if (starta >= enda || startb >= endb)
+		return false;
+
+	return region_overlap_end_inclusive(starta, enda - 1,
+					    startb, endb - 1);
+}
+
 
 /**
  * region_overlap_end - check whether a pair of [start, end] ranges overlap
@@ -36,12 +56,12 @@ static inline bool region_overlap_size(u64 starta, u64 lena,
 	if (!lena || !lenb)
 		return false;
 
-	return region_overlap_end(starta, starta + lena - 1,
-				  startb, startb + lenb - 1);
+	return region_overlap_end_exclusive(starta, starta + lena,
+					    startb, startb + lenb);
 }
 
 /**
- * region_overlap_end - check whether a pair of [start, end] ranges overlap
+ * region_identical - check whether a pair of [start, extend] ranges are identical
  *
  * @starta:  start of the first range
  * @extenta: end or length of the first range

@@ -28,8 +28,10 @@
 #include <linux/stat.h>
 #include <envfs.h>
 #include <magicvar.h>
+#include <readkey.h>
 #include <linux/reboot-mode.h>
 #include <asm/sections.h>
+#include <libfile.h>
 #include <uncompress.h>
 #include <globalvar.h>
 #include <console_countdown.h>
@@ -40,12 +42,16 @@
 #include <net.h>
 #include <efi/efi-mode.h>
 #include <bselftest.h>
+#include <pbl/handoff-data.h>
+#include <libfile.h>
+#include <fuzz.h>
 
 extern initcall_t __barebox_initcalls_start[], __barebox_early_initcalls_end[],
 		  __barebox_initcalls_end[];
 
 extern exitcall_t __barebox_exitcalls_start[], __barebox_exitcalls_end[];
 
+enum system_states barebox_system_state;
 
 #if defined CONFIG_FS_RAMFS && defined CONFIG_FS_DEVFS
 static int mount_root(void)
@@ -53,6 +59,7 @@ static int mount_root(void)
 	mount("none", "ramfs", "/", NULL);
 	mkdir("/dev", 0);
 	mkdir("/tmp", 0);
+	mkdir("/mnt", 0);
 	mount("none", "devfs", "/dev", NULL);
 
 	if (IS_ENABLED(CONFIG_FS_EFIVARFS) && efi_is_payload()) {
@@ -63,6 +70,14 @@ static int mount_root(void)
 	if (IS_ENABLED(CONFIG_FS_PSTORE)) {
 		mkdir("/pstore", 0);
 		mount("none", "pstore", "/pstore", NULL);
+	}
+
+	if (IS_ENABLED(CONFIG_9P_FS))
+		mkdir("/mnt/9p", 0);
+
+	if (IS_ENABLED(CONFIG_FS_SMHFS)) {
+		mkdir("/mnt/smhfs", 0);
+		automount_add("/mnt/smhfs", "mount -t smhfs /dev/null /mnt/smhfs");
 	}
 
 	return 0;
@@ -93,16 +108,13 @@ static int load_environment(void)
 }
 environment_initcall(load_environment);
 
-static int global_autoboot_abort_key;
-static const char * const global_autoboot_abort_keys[] = {
-	"any",
-	"ctrl-c",
-};
+static char *global_autoboot_abort_key;
 static int global_autoboot_timeout = 3;
 
 static const char * const global_autoboot_states[] = {
 	[AUTOBOOT_COUNTDOWN] = "countdown",
 	[AUTOBOOT_ABORT] = "abort",
+	[AUTOBOOT_HALT] = "halt",
 	[AUTOBOOT_MENU] = "menu",
 	[AUTOBOOT_BOOT] = "boot",
 };
@@ -169,14 +181,15 @@ enum autoboot_state do_autoboot_countdown(void)
 	int ret;
 	struct stat s;
 	bool menu_exists;
-	char *abortkeys = NULL;
+	char abortkeys[3] = {};
 	unsigned char outkey;
 
 	if (autoboot_state != AUTOBOOT_UNKNOWN)
 		return autoboot_state;
 
 	if (!console_get_first_active() &&
-	    global_autoboot_state != AUTOBOOT_ABORT) {
+	    global_autoboot_state != AUTOBOOT_ABORT &&
+	    global_autoboot_state != AUTOBOOT_HALT) {
 		printf("\nNon-interactive console, booting system\n");
 		return autoboot_state = AUTOBOOT_BOOT;
 	}
@@ -186,25 +199,20 @@ enum autoboot_state do_autoboot_countdown(void)
 
 	menu_exists = stat(MENUFILE, &s) == 0;
 
-	if (menu_exists) {
-		printf("\nHit m for menu or %s to stop autoboot: ",
-		       global_autoboot_abort_keys[global_autoboot_abort_key]);
-		abortkeys = "m";
-	} else {
-		printf("\nHit %s to stop autoboot: ",
-		       global_autoboot_abort_keys[global_autoboot_abort_key]);
-	}
+	if (menu_exists)
+		strcat(abortkeys, "m");
 
-	switch (global_autoboot_abort_key) {
-	case 0:
+	if (!global_autoboot_abort_key ||
+	    !strcmp(global_autoboot_abort_key, "any"))
 		flags |= CONSOLE_COUNTDOWN_ANYKEY;
-		break;
-	case 1:
+	else if (!strcmp(global_autoboot_abort_key, "ctrl-c"))
 		flags |= CONSOLE_COUNTDOWN_CTRLC;
-		break;
-	default:
-		break;
-	}
+	else
+		strcat(abortkeys, global_autoboot_abort_key);
+
+	printf("\nHit %s%s to stop autoboot: ",
+	       menu_exists ? "m for menu or " : "",
+	       global_autoboot_abort_key ? global_autoboot_abort_key : "any");
 
 	command_slice_release();
 	ret = console_countdown(global_autoboot_timeout, flags, abortkeys,
@@ -215,18 +223,34 @@ enum autoboot_state do_autoboot_countdown(void)
 		autoboot_state = AUTOBOOT_BOOT;
 	else if (menu_exists && outkey == 'm')
 		autoboot_state = AUTOBOOT_MENU;
+	else if (outkey == CTL_CH('d'))
+		autoboot_state = AUTOBOOT_HALT;
 	else
 		autoboot_state = AUTOBOOT_ABORT;
 
 	return autoboot_state;
 }
 
+static int autoboot_abort_key_set(struct param_d *p, void *priv)
+{
+	if (!strcmp(global_autoboot_abort_key, "any"))
+		return 0;
+	if (!strcmp(global_autoboot_abort_key, "ctrl-c"))
+		return 0;
+
+	if (strlen(global_autoboot_abort_key) != 1)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int register_autoboot_vars(void)
 {
-	globalvar_add_simple_enum("autoboot_abort_key",
-				  &global_autoboot_abort_key,
-                                  global_autoboot_abort_keys,
-				  ARRAY_SIZE(global_autoboot_abort_keys));
+	globalvar_add_param_string("autoboot_abort_key",
+				   autoboot_abort_key_set,
+				   NULL,
+				   &global_autoboot_abort_key,
+				   NULL);
 	globalvar_add_simple_int("autoboot_timeout",
 				 &global_autoboot_timeout, "%u");
 	globalvar_add_simple_enum("autoboot",
@@ -240,12 +264,14 @@ postcore_initcall(register_autoboot_vars);
 
 static int run_init(void)
 {
-	const char *bmode;
+	const char *bmode, *cmdline;
 	bool env_bin_init_exists;
 	enum autoboot_state autoboot;
 	struct stat s;
 	glob_t g;
 	int i, ret;
+	size_t size;
+	void *ext_dtb;
 
 	setenv("PATH", "/env/bin");
 	export("PATH");
@@ -289,6 +315,20 @@ static int run_init(void)
 		globfree(&g);
 	}
 
+	cmdline = barebox_cmdline_get();
+	if (cmdline) {
+		ret = write_file("/cmdline", cmdline, strlen(cmdline));
+		if (ret)
+			return ret;
+
+		console_ctrlc_allow();
+		run_command("source /cmdline");
+	}
+
+	ext_dtb = handoff_data_get_entry(HANDOFF_DATA_EXTERNAL_DT, &size);
+	if (ext_dtb)
+		write_file("/external-devicetree", ext_dtb, size);
+
 	/* source matching script in /env/bmode/ */
 	bmode = reboot_mode_get();
 	if (bmode) {
@@ -310,19 +350,26 @@ static int run_init(void)
 	if (autoboot == AUTOBOOT_BOOT)
 		run_command("boot");
 
-	if (IS_ENABLED(CONFIG_NET))
+	if (IS_ENABLED(CONFIG_NET) && !IS_ENABLED(CONFIG_CONSOLE_DISABLE_INPUT) &&
+	    autoboot != AUTOBOOT_HALT)
 		eth_open_all();
 
-	if (autoboot == AUTOBOOT_MENU)
+	if (autoboot != AUTOBOOT_MENU) {
+		if (autoboot == AUTOBOOT_ABORT && autoboot == global_autoboot_state)
+			watchdog_inhibit_all();
+
+		run_shell();
+	}
+
+	do {
+		/*
+		 * Let's run the command once at least, so an error
+		 * message is printed if the file doesn't exist
+		 */
 		run_command(MENUFILE);
+	} while (stat(MENUFILE, &s) == 0);
 
-	if (autoboot == AUTOBOOT_ABORT && autoboot == global_autoboot_state)
-		watchdog_inhibit_all();
-
-	run_shell();
-	run_command(MENUFILE);
-
-	return 0;
+	hang();
 }
 
 typedef void (*ctor_fn_t)(void);
@@ -338,15 +385,14 @@ static void do_ctors(void)
 #endif
 }
 
-int (*barebox_main)(void);
+int (*barebox_main)(void)
+	= !IS_ENABLED(CONFIG_SHELL_NONE) &&
+           IS_ENABLED(CONFIG_COMMAND_SUPPORT) ? run_init : NULL;
 
 void __noreturn start_barebox(void)
 {
 	initcall_t *initcall;
 	int result;
-
-	if (!IS_ENABLED(CONFIG_SHELL_NONE) && IS_ENABLED(CONFIG_COMMAND_SUPPORT))
-		barebox_main = run_init;
 
 	do_ctors();
 
@@ -355,11 +401,13 @@ void __noreturn start_barebox(void)
 		pr_debug("initcall-> %pS\n", *initcall);
 		result = (*initcall)();
 		if (result)
-			pr_err("initcall %pS failed: %s\n", *initcall,
-					strerror(-result));
+			pr_err("initcall %pS failed: %pe\n", *initcall,
+					ERR_PTR(result));
 	}
 
+	barebox_system_state = BAREBOX_RUNNING;
 	pr_debug("initcalls done\n");
+
 
 	if (IS_ENABLED(CONFIG_SELFTEST_AUTORUN))
 		selftests_run();
@@ -390,6 +438,8 @@ void shutdown_barebox(void)
 {
 	exitcall_t *exitcall;
 
+	barebox_system_state = BAREBOX_EXITING;
+
 	for (exitcall = __barebox_exitcalls_start;
 			exitcall < __barebox_exitcalls_end; exitcall++) {
 		pr_debug("exitcall-> %pS\n", *exitcall);
@@ -400,8 +450,8 @@ void shutdown_barebox(void)
 }
 
 BAREBOX_MAGICVAR(global.autoboot,
-                 "Autoboot state. Possible values: countdown (default), abort, menu, boot");
+                 "Autoboot state. Possible values: countdown (default), abort, halt, menu, boot");
 BAREBOX_MAGICVAR(global.autoboot_abort_key,
-                 "Which key allows to interrupt autoboot. Possible values: any, ctrl-c");
+                 "Which key allows to interrupt autoboot. Possible values: 'any', 'ctrl-c' or any other single ascii character.");
 BAREBOX_MAGICVAR(global.autoboot_timeout,
                  "Timeout before autoboot starts in seconds");

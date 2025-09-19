@@ -8,6 +8,7 @@
 
 #include <module.h>
 #include <driver.h>
+#include <linux/kernel.h>
 #include <linux/usb/role.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/typec_altmode.h>
@@ -95,7 +96,7 @@ EXPORT_SYMBOL_GPL(typec_get_drvdata);
 static int typec_register_port_dev(struct typec_port *port, const char *name, int id)
 {
 	port->dev.id = id;
-	dev_set_name(&port->dev, name);
+	dev_set_name(&port->dev, "%s", name);
 
 	return register_device(&port->dev);
 }
@@ -141,7 +142,7 @@ struct typec_port *typec_register_port(struct device *parent,
 	const char *alias;
 	int ret;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = calloc(1, sizeof(*port));
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 

@@ -88,7 +88,8 @@ static void __noreturn do_exception(struct pt_regs *pt_regs)
 {
 	show_regs(pt_regs);
 
-	unwind_backtrace(pt_regs);
+	if (IN_PROPER)
+		unwind_backtrace(pt_regs);
 
 	panic_no_stacktrace("panic: unhandled exception");
 }
@@ -146,16 +147,10 @@ extern volatile int arm_data_abort_occurred;
 
 static const char *data_abort_reason(ulong far)
 {
-	ulong guard_page;
-
 	if (far < PAGE_SIZE)
 		return "NULL pointer dereference: ";
-
-	if (IS_ENABLED(CONFIG_STACK_GUARD_PAGE)) {
-		guard_page = arm_mem_guard_page_get();
-		if (guard_page <= far && far < guard_page + PAGE_SIZE)
-			return "Stack overflow: ";
-	}
+	if (inside_stack_guard_page(far))
+		return "Stack overflow: ";
 
 	return NULL;
 }
@@ -212,13 +207,13 @@ static int aarch64_init_vectors(void)
 	switch (el) {
 	case 3:
 		asm volatile("msr vbar_el3, %0" : : "r" (&vectors) : "cc");
-		/* Fall through */
+		fallthrough;
 	case 2:
 		asm volatile("msr vbar_el2, %0" : : "r" (&vectors) : "cc");
-		/* Fall through */
+		fallthrough;
 	case 1:
 		asm volatile("msr vbar_el1, %0" : : "r" (&vectors) : "cc");
-		/* Fall through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -226,3 +221,10 @@ static int aarch64_init_vectors(void)
 	return 0;
 }
 core_initcall(aarch64_init_vectors);
+
+#if IS_ENABLED(CONFIG_ARM_EXCEPTIONS_PBL)
+void arm_pbl_init_exceptions(void)
+{
+	aarch64_init_vectors();
+}
+#endif

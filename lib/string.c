@@ -6,24 +6,19 @@
  */
 
 /*
- * stupid library routines.. The optimized versions should generally be found
- * as inline code in <asm-xx/string.h>
- *
- * These are buggy as well..
- *
- * * Fri Jun 25 1999, Ingo Oeser <ioe@informatik.tu-chemnitz.de>
- * -  Added strsep() which will replace strtok() soon (because strsep() is
- *    reentrant and should be faster). Use only strsep() in new code, please.
- * * Mon Sep 14 2020, Ahmad Fatoum <a.fatoum@pengutronix.de>
- * -  Kissed strtok() goodbye
- *
+ * This file should be used only for "library" routines that may have
+ * alternative implementations on specific architectures (generally
+ * found in <asm/string.h>), or get overloaded by FORTIFY_SOURCE.
+ * (Specifically, this file is built with __NO_FORTIFY.)
  */
 
+#define __NO_FORTIFY
 #include <linux/types.h>
 #include <string.h>
 #include <linux/ctype.h>
 #include <asm/word-at-a-time.h>
 #include <malloc.h>
+#include <asm-generic/sections.h>
 
 #ifndef __HAVE_ARCH_STRCASECMP
 int strcasecmp(const char *s1, const char *s2)
@@ -270,6 +265,27 @@ char * strncat(char *dest, const char *src, size_t count)
 #endif
 EXPORT_SYMBOL(strncat);
 
+#ifndef __HAVE_ARCH_STRLCAT
+size_t strlcat(char *dest, const char *src, size_t count)
+{
+	size_t dsize = strlen(dest);
+	size_t len = strlen(src);
+	size_t res = dsize + len;
+
+	/* This would be a bug */
+	BUG_ON(dsize >= count);
+
+	dest += dsize;
+	count -= dsize;
+	if (len >= count)
+		len = count-1;
+	__builtin_memcpy(dest, src, len);
+	dest[len] = 0;
+	return res;
+}
+EXPORT_SYMBOL(strlcat);
+#endif
+
 #ifndef __HAVE_ARCH_STRCMP
 /**
  * strcmp - Compare two strings
@@ -401,18 +417,25 @@ size_t strnlen(const char * s, size_t count)
 #endif
 EXPORT_SYMBOL(strnlen);
 
-#ifndef __HAVE_ARCH_STRDUP
-char * strdup(const char *s)
+static __always_inline char *__memdup_nul(const char *s, size_t len)
 {
 	char *new;
 
 	if ((s == NULL)	||
-	    ((new = malloc (strlen(s) + 1)) == NULL) ) {
+	    ((new = malloc (len + 1)) == NULL) ) {
 		return NULL;
 	}
 
-	strcpy (new, s);
+	memcpy (new, s, len);
+	/* Ensure the buf is always NUL-terminated, regardless of @s. */
+	new[len] = '\0';
 	return new;
+}
+
+#ifndef __HAVE_ARCH_STRDUP
+char * strdup(const char *s)
+{
+	return s ? __memdup_nul(s, strlen(s)) : NULL;
 }
 #endif
 EXPORT_SYMBOL(strdup);
@@ -420,22 +443,25 @@ EXPORT_SYMBOL(strdup);
 #ifndef __HAVE_ARCH_STRNDUP
 char *strndup(const char *s, size_t n)
 {
-	char *new;
-	size_t len = strnlen(s, n);
-
-	if ((s == NULL) ||
-	    ((new = malloc(len + 1)) == NULL)) {
-		return NULL;
-	}
-
-	memcpy(new, s, len);
-	new[len] = '\0';
-
-	return new;
+	return s ? __memdup_nul(s, strnlen(s, n)) : NULL;
 }
 
 #endif
 EXPORT_SYMBOL(strndup);
+
+/**
+ * memdup_nul - Create a NUL-terminated string from @s, which might be unterminated.
+ * @s: The data to copy
+ * @len: The size of the data, not including the NUL terminator
+ *
+ * Return: newly allocated copy of @s with NUL-termination or %NULL in
+ * case of error
+ */
+char *memdup_nul(const char *s, size_t n)
+{
+	return s ? __memdup_nul(s, n) : NULL;
+}
+EXPORT_SYMBOL(memdup_nul);
 
 #ifndef __HAVE_ARCH_STRSPN
 /**
@@ -519,12 +545,17 @@ EXPORT_SYMBOL(strsep);
  * strsep_unescaped - Split a string into tokens, while ignoring escaped delimiters
  * @s: The string to be searched
  * @ct: The delimiter characters to search for
+ * @delim: optional pointer to store found delimiter into
  *
  * strsep_unescaped() behaves like strsep unless it meets an escaped delimiter.
  * In that case, it shifts the string back in memory to overwrite the escape's
  * backslash then continues the search until an unescaped delimiter is found.
+ *
+ * On end of string, this function returns NULL. As long as a non-NULL
+ * value is returned and @delim is not NULL, the found delimiter will
+ * be stored into *@delim.
  */
-char *strsep_unescaped(char **s, const char *ct)
+char *strsep_unescaped(char **s, const char *ct, char *delim)
 {
         char *sbegin = *s, *hay;
         const char *needle;
@@ -549,9 +580,13 @@ char *strsep_unescaped(char **s, const char *ct)
         }
 
         *s = NULL;
+	if (delim)
+		*delim = '\0';
         return sbegin;
 
 match:
+	if (delim)
+		*delim = *hay;
         *hay = '\0';
         *s = &hay[shift + 1];
 
@@ -666,7 +701,6 @@ void *mempcpy(void *dest, const void *src, size_t count)
 }
 EXPORT_SYMBOL(mempcpy);
 
-#ifndef __HAVE_ARCH_MEMMOVE
 /**
  * memmove - Copy one area of memory to another
  * @dest: Where to copy to
@@ -675,7 +709,7 @@ EXPORT_SYMBOL(mempcpy);
  *
  * Unlike memcpy(), memmove() copes with overlapping areas.
  */
-void * memmove(void * dest,const void *src,size_t count)
+void *__default_memmove(void * dest,const void *src,size_t count)
 {
 	char *tmp, *s;
 
@@ -694,8 +728,14 @@ void * memmove(void * dest,const void *src,size_t count)
 
 	return dest;
 }
+EXPORT_SYMBOL(__default_memmove);
+
+#ifndef __HAVE_ARCH_MEMMOVE
+void *memmove(void * dest, const void *src, size_t count)
+	__alias(__default_memmove);
+void *__memmove(void * dest, const void *src, size_t count)
+	__alias(__default_memmove);
 #endif
-EXPORT_SYMBOL(memmove);
 
 #ifndef __HAVE_ARCH_MEMCMP
 /**
@@ -790,6 +830,27 @@ void *memchr(const void *s, int c, size_t n)
 
 #endif
 EXPORT_SYMBOL(memchr);
+
+/**
+ * memrchr - Find last occurrence of character in an area of memory.
+ * @s: The memory area
+ * @c: The byte to search for
+ * @n: The size of the area.
+ *
+ * returns the address of the last occurrence of @c, or %NULL
+ * if @c is not found
+ */
+void *memrchr(const void *s, int c, size_t n)
+{
+	const unsigned char *p = s;
+	while (n-- > 0) {
+		if ((unsigned char)c == p[n]) {
+			return (void *)(p+n);
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(memrchr);
 
 /**
  * skip_spaces - Removes leading whitespace from @str.
@@ -1028,6 +1089,33 @@ char *strjoin(const char *separator, char **arr, size_t arrlen)
 	return buf;
 }
 EXPORT_SYMBOL(strjoin);
+
+const char *xstrdup_const(const char *str)
+{
+	if (is_barebox_rodata((ulong)str))
+		return str;
+
+	return xstrdup(str);
+}
+EXPORT_SYMBOL(xstrdup_const);
+
+const char *strdup_const(const char *str)
+{
+	if (is_barebox_rodata((ulong)str))
+		return str;
+
+	return strdup(str);
+}
+EXPORT_SYMBOL(strdup_const);
+
+void free_const(const void *str)
+{
+	if (is_barebox_rodata((ulong)str))
+		return;
+
+	free((void *)str);
+}
+EXPORT_SYMBOL(free_const);
 
 /**
  * strreplace - Replace all occurrences of character in string.

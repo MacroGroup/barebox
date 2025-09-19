@@ -9,6 +9,46 @@
 #
 source "arch/$(SRCARCH)/Kconfig"
 
+config ARCH_LINUX_NAME
+	string
+	default "$(SRCARCH)"
+
+config ARCH_MKIMAGE_NAME
+	string
+	default "invalid"
+
+menu "General architecture-dependent options"
+
+config BOARD_GENERIC_DT
+	depends on HAVE_ARCH_BOARD_GENERIC_DT
+	bool "Build generic device tree 2nd stage image"
+	default y
+	help
+	  This enables compilation of a generic image that can be started 2nd
+	  stage from qemu, barebox, or other bootloaders. It picks up a device
+	  tree passed by the Linux kernel's boot convention for the given
+	  architecture and thus can be used anywhere that a Kernel image could be used.
+	  The image will be called images/barebox-dt-2nd.img
+
+config BOARD_GENERIC_FIT
+	depends on BOARD_GENERIC_DT
+	bool "Build generic device tree 2nd stage FIT image"
+	help
+	  This enables compilation of a generic FIT image that combines
+	  barebox-dt-2nd.img as well as all enabled device trees.
+	  This single image is the bootable from coreboot, barebox, or any other
+	  bootloader capable of booting a Linux kernel out of FIT images.
+	  The image will be called images/barebox-$(CONFIG_ARCH_LINUX_NAME).fit
+
+	  The image can be built manually, even without enabling this option
+	  by running make barebox.fit, which will create a barebox.fit symlink
+	  pointing at the built image.
+
+	  Note that this option requires python3 and its libfdt module to be
+	  installed on the build host.
+
+endmenu
+
 config ARCH_HAS_CTRLC
 	bool
 
@@ -18,3 +58,70 @@ config ARCH_HAS_CTRLC
 #
 config ARCH_DMA_DEFAULT_COHERENT
 	bool
+
+config ARCH_HAS_ASAN_FIBER_API
+	bool
+
+config ARCH_HAS_STACK_DUMP
+	bool
+
+config ARCH_HAS_DATA_ABORT_MASK
+	bool
+
+config ARCH_HAS_DATA_ABORT_MASK_PBL
+	bool
+
+config ARCH_HAS_ZERO_PAGE
+	bool
+
+config HAVE_EFFICIENT_UNALIGNED_ACCESS
+	bool
+
+config HAVE_ARCH_BOARD_GENERIC_DT
+	bool
+
+config HAVE_ARCH_BOOTM_OFTREE
+	bool
+	help
+	  Selected by architectures where barebox can pass a device tree to the
+	  kernel while booting with bootm.
+
+config HAVE_MOD_ARCH_SPECIFIC
+	bool
+	help
+	  The arch uses struct mod_arch_specific to store data.  Many arches
+	  just need a simple module loader without arch specific data - those
+	  should not enable this.
+
+config ARCH_HAS_SJLJ
+	bool
+	help
+	  Architecture has support implemented for setjmp()/longjmp()/initjmp()
+
+
+config PHYS_ADDR_T_64BIT
+	bool
+
+config ARCH_DMA_ADDR_T_64BIT
+	bool
+
+config ARCH_USE_SYM_ANNOTATIONS
+	bool
+	help
+	  This is selected by architectures that exclusively use the new SYM_
+	  macros in their assembly code and not the deprecated ENTRY/PROC.
+
+config HAS_DEBUG_LL
+	bool
+
+config HAVE_ARCH_KASAN
+	bool
+
+config ARCH_HAS_UBSAN_SANITIZE_ALL
+	bool
+
+config ARCH_HAS_FORTIFY_SOURCE
+	bool
+	help
+	  An architecture should select this when it can successfully
+	  build and run with CONFIG_FORTIFY_SOURCE.

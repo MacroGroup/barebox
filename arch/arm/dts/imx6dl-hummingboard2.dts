@@ -49,10 +49,7 @@
 / {
 	model = "SolidRun HummingBoard2 Solo/DualLite";
 	compatible = "solidrun,hummingboard2/dl", "fsl,imx6dl";
-};
-
-&ocotp {
-	barebox,provide-mac-address = <&fec 0x620>;
+	barebox,disable-deep-probe;
 };
 
 &usdhc3 {

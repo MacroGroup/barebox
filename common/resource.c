@@ -23,7 +23,7 @@ static int init_resource(struct resource *res, const char *name)
 {
 	INIT_LIST_HEAD(&res->children);
 	res->parent = NULL;
-	res->name = xstrdup(name);
+	res->name = xstrdup_const(name);
 
 	return 0;
 }
@@ -101,7 +101,7 @@ int release_region(struct resource *res)
 		return -EBUSY;
 
 	list_del(&res->sibling);
-	free((char *)res->name);
+	free_const(res->name);
 	free(res);
 
 	return 0;
@@ -122,8 +122,8 @@ int __merge_regions(const char *name,
 	else
 		resa->start = resb->start;
 
-	free((char *)resa->name);
-	resa->name = xstrdup(name);
+	free_const(resa->name);
+	resa->name = xstrdup_const(name);
 	release_region(resb);
 
 	return 0;
@@ -183,3 +183,69 @@ struct resource_entry *resource_list_create_entry(struct resource *res,
 	return entry;
 }
 EXPORT_SYMBOL(resource_list_create_entry);
+
+static const char memory_type_name[][13] = {
+	"Reserved",
+	"Loader Code",
+	"Loader Data",
+	"Boot Code",
+	"Boot Data",
+	"Runtime Code",
+	"Runtime Data",
+	"Conventional",
+	"Unusable",
+	"ACPI Reclaim",
+	"ACPI Mem NVS",
+	"MMIO",
+	"MMIO Port",
+	"PAL Code",
+	"Persistent",
+	"Unaccepted",
+};
+
+const char *resource_typeattr_format(char *buf, size_t size,
+				     const struct resource *res)
+{
+	char *pos;
+	int type_len;
+	u64 attr;
+
+	if (!(res->flags & IORESOURCE_TYPE_VALID))
+		return NULL;
+
+	pos = buf;
+	type_len = snprintf(pos, size, "[%-*s",
+			    (int)(sizeof(memory_type_name[0]) - 1),
+			    memory_type_name[res->type]);
+	if (type_len >= size)
+		return buf;
+
+	pos += type_len;
+	size -= type_len;
+
+	attr = res->attrs;
+	if (attr & ~(MEMATTR_UC | MEMATTR_WC | MEMATTR_WT |
+		     MEMATTR_WB | MEMATTR_UCE | MEMATTR_RO |
+		     MEMATTR_WP | MEMATTR_RP | MEMATTR_XP |
+		     MEMATTR_NV | MEMATTR_SP | MEMATTR_MORE_RELIABLE)
+		     )
+		snprintf(pos, size, "|attr=0x%08llx]",
+			 (unsigned long long)attr);
+	else
+		snprintf(pos, size,
+			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+			 res->runtime			? "RUN" : "",
+			 attr & MEMATTR_MORE_RELIABLE	? "MR"  : "",
+			 attr & MEMATTR_SP		? "SP"  : "",
+			 attr & MEMATTR_NV		? "NV"  : "",
+			 attr & MEMATTR_XP		? "XP"  : "",
+			 attr & MEMATTR_RP		? "RP"  : "",
+			 attr & MEMATTR_WP		? "WP"  : "",
+			 attr & MEMATTR_RO		? "RO"  : "",
+			 attr & MEMATTR_UCE		? "UCE" : "",
+			 attr & MEMATTR_WB		? "WB"  : "",
+			 attr & MEMATTR_WT		? "WT"  : "",
+			 attr & MEMATTR_WC		? "WC"  : "",
+			 attr & MEMATTR_UC		? "UC"  : "");
+	return buf;
+}

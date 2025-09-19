@@ -269,7 +269,7 @@ static void jtag_info(struct device *pdev)
 		ret = jtag_ioctl(&info->cdev, JTAG_GET_ID, &jid);
 		printf("  Device number: %d\n", dn);
 		if (ret == -1)
-			printf("   JTAG_GET_ID failed: %s\n", strerror(errno));
+			printf("   JTAG_GET_ID failed: %m\n");
 		else
 			printf("   ID: 0x%lX\n", jid.id);
 	}
@@ -329,7 +329,7 @@ static int jtag_probe(struct device *pdev)
 	info->devices = i;
 	info->pdata = pdata;
 	pdev->priv = info;
-	pdev->info = jtag_info;
+	devinfo_add(pdev, jtag_info);
 
 	info->cdev.name = JTAG_NAME;
 	info->cdev.dev = pdev;
@@ -352,6 +352,7 @@ static void jtag_remove(struct device *pdev)
 {
 	struct jtag_info *info = (struct jtag_info *) pdev->priv;
 
+	devinfo_del(pdev, jtag_info);
 	devfs_remove(&info->cdev);
 	pdev->priv = NULL;
 	free(info);

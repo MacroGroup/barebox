@@ -282,7 +282,7 @@ static void setup_parallel_timing(struct pxafb_info *fbi)
 	struct fb_info *info = &fbi->info;
 	struct fb_videomode *mode = info->mode;
 
-	unsigned int lines_per_panel, pcd = get_pcd(fbi, mode->pixclock);
+	unsigned int lines_per_panel, pcd = get_pcd(fbi, mode->pixclock.ps);
 
 	fbi->reg_lccr1 =
 		LCCR1_DisWdth(mode->xres) +
@@ -514,12 +514,14 @@ static int pxafb_probe(struct device *dev)
 		fbi->info.screen_base = pdata->framebuffer;
 	else
 		fbi->info.screen_base =
-			PTR_ALIGN(dma_alloc_coherent(info->xres * info->yres *
+			PTR_ALIGN(dma_alloc_coherent(DMA_DEVICE_BROKEN,
+						     info->xres * info->yres *
 						     (info->bits_per_pixel >> 3) + PAGE_SIZE,
 						     DMA_ADDRESS_BROKEN),
 				  PAGE_SIZE);
 
-	fbi->dma_buff = PTR_ALIGN(dma_alloc_coherent(sizeof(struct pxafb_dma_buff) + 16,
+	fbi->dma_buff = PTR_ALIGN(dma_alloc_coherent(DMA_DEVICE_BROKEN,
+						     sizeof(struct pxafb_dma_buff) + 16,
 				DMA_ADDRESS_BROKEN), 16);
 
 	pxafb_activate_var(fbi);

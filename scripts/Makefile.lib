@@ -35,6 +35,9 @@ else
 obj-y		+= $(lwl-y)
 endif
 
+dtb- 		+= $(patsubst %.dtb.o,%.dtb,$(filter %.dtb.o,$(pbl-)  $(lwl-)))
+dtb-y		+= $(patsubst %.dtb.o,%.dtb,$(filter %.dtb.o,$(pbl-y) $(lwl-y)))
+
 obj-y		+= $(obj-pbl-y)
 pbl-y		+= $(obj-pbl-y)
 
@@ -282,7 +285,7 @@ quiet_cmd_prelink__ = PRELINK $@
 endif
 
 quiet_cmd_prelink__ ?=
-      cmd_prelink__ ?=
+      cmd_prelink__ ?= :
 
 # Linking
 # ---------------------------------------------------------------------------
@@ -308,6 +311,23 @@ quiet_cmd_sha256bin ?= SHA-BIN $@
 quiet_cmd_sha256sum ?= SHA     $@
       cmd_sha256sum ?= sha256sum $2 > $@
 
+# Flat Image Tree (FIT)
+# This allows for packaging of barebox and all devicetrees files, using
+# compression.
+# ---------------------------------------------------------------------------
+
+MAKE_FIT := $(srctree)/scripts/make_fit.py
+
+# Use this to override the compression algorithm of the DTBs
+FIT_COMPRESSION ?= none
+
+quiet_cmd_fit = FIT     $@
+      cmd_fit = $(MAKE_FIT) -o $@ --arch $(CONFIG_ARCH_MKIMAGE_NAME) --os linux \
+		--name 'barebox-$(KERNELRELEASE)' \
+		$(if $(findstring 1,$(KBUILD_VERBOSE)),-v) \
+		$(if $(FIT_DECOMPOSE_DTBS),--decompose-dtbs) \
+		--dtb-compress $(FIT_COMPRESSION) -k $< @$(word 2,$^)
+
 # Decompressor for barebox proper binary when using PBL
 # ---------------------------------------------------------------------------
 
@@ -322,7 +342,7 @@ suffix_$(CONFIG_IMAGE_COMPRESSION_NONE) = comp_copy
 # ---------------------------------------------------------------------------
 
 quiet_cmd_gzip = GZIP    $@
-cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
+cmd_gzip = (cat $(filter-out FORCE,$^) | $(KGZIP) -n -f -9 > $@) || \
 	(rm -f $@ ; false)
 
 %.gz: %
@@ -353,7 +373,7 @@ cmd_xzkern = (cat $(filter-out FORCE,$^) | \
 
 quiet_cmd_xzmisc = XZMISC  $@
 cmd_xzmisc = (cat $(filter-out FORCE,$^) | \
-	xz --check=crc32 --lzma2=dict=1MiB) > $@ || \
+	$(XZ) --check=crc32 --lzma2=dict=1MiB) > $@ || \
 	(rm -f $@ ; false)
 
 %.xzkern: %
@@ -462,7 +482,7 @@ printf "%08x\n" $$dec_size |						\
 
 quiet_cmd_bzip2 = BZIP2   $@
 cmd_bzip2 = (cat $(filter-out FORCE,$^) | \
-	bzip2 -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	$(KBZIP2) -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
 	(rm -f $@ ; false)
 
 %.bz2: %
@@ -473,7 +493,7 @@ cmd_bzip2 = (cat $(filter-out FORCE,$^) | \
 
 quiet_cmd_lzma = LZMA    $@
 cmd_lzma = (cat $(filter-out FORCE,$^) | \
-	lzma -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	$(LZMA) -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
 	(rm -f $@ ; false)
 
 %.lzma: %
@@ -481,7 +501,7 @@ cmd_lzma = (cat $(filter-out FORCE,$^) | \
 
 quiet_cmd_lzo = LZO     $@
 cmd_lzo = (cat $(filter-out FORCE,$^) | \
-	lzop -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	$(KLZOP) -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
 	(rm -f $@ ; false)
 
 %.lzo: %
@@ -492,7 +512,7 @@ cmd_lzo = (cat $(filter-out FORCE,$^) | \
 
 quiet_cmd_lz4 = LZ4     $@
 cmd_lz4 = (cat $(filter-out FORCE,$^) | \
-	lz4c -l -c1 stdin stdout && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	$(LZ4) -l --best stdin stdout && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
 	(rm -f $@ ; false)
 
 %.lz4: %
@@ -509,8 +529,10 @@ cmd_comp_copy ?= cat $(filter-out FORCE,$^) > $@; \
 quiet_cmd_disasm = DISASM  $@
 cmd_disasm = $(OBJDUMP) -d $< > $@
 
-quiet_cmd_ln = LN      $@
-cmd_ln = ln -sf $< $@
+quiet_cmd_symlink = LN      $@
+      cmd_symlink = mkdir -p $(dir $@) ; ln -fsn --relative $< $@
+
+cmd_symlink_quiet = mkdir -p $(dir $@) ; ln -fsn --relative $< $@
 
 quiet_cmd_check_size = CHKSIZE $2
       cmd_check_size = set -e;						\
@@ -520,7 +542,7 @@ quiet_cmd_check_size = CHKSIZE $2
 	then								\
 		echo "$@ size $$size > maximum size $$max_size" >&2;	\
 		exit 1 ;						\
-	fi;
+	fi
 
 # Check size of a file
 quiet_cmd_check_file_size = CHKFILESIZE $2
@@ -531,7 +553,16 @@ quiet_cmd_check_file_size = CHKFILESIZE $2
 	then								\
 		echo "$@ size $$size > maximum size $$max_size" >&2;	\
 		exit 1 ;						\
-	fi;
+	fi
+
+# Check for missing firmware
+quiet_cmd_check_missing_fw = # no message as we collect info for later
+      cmd_check_missing_fw = set -e;						    \
+	$(OBJCOPY) -O binary --only-section=.missing_fw	$3 $2.missing-firmware;	    \
+	[ -s $2.missing-firmware ] || rm -f $2.missing-firmware
+
+quiet_cmd_k3_cfg = K3CFG   $@
+      cmd_k3_cfg = $(srctree)/scripts/ti-board-config.py $@ $(filter-out FORCE,$^)
 
 quiet_cmd_imximage__S_dcd= DCD_S   $@
 cmd_imximage_S_dcd=						\
@@ -550,7 +581,7 @@ cmd_imximage_S_dcd=						\
 overwrite-hab-env = $(shell set -e; \
       test -n "$(CONFIG_HAB_CERTS_ENV)"; \
       test -n "$$$(1)"; \
-      echo -D$(1)=\\\"$(shell echo $$$(1))\\\")
+      echo -D$(1)=\''"$($(1))"'\')
 
 overwrite-fit-env = $(shell set -e; \
       test -n "$(CONFIG_BOOTM_FITIMAGE_PUBKEY_ENV)"; \
@@ -565,6 +596,7 @@ imxcfg_cpp_flags  = -Wp,-MD,$(depfile) -nostdinc -x assembler-with-cpp \
       $(call overwrite-hab-env,CONFIG_HABV3_IMG_CRT_DER) \
       $(call overwrite-hab-env,CONFIG_HABV4_TABLE_BIN) \
       $(call overwrite-hab-env,CONFIG_HABV4_CSF_CRT_PEM) \
+      $(call overwrite-hab-env,CONFIG_HABV4_CSF_UNLOCK_UID) \
       $(call overwrite-hab-env,CONFIG_HABV4_IMG_CRT_PEM) \
       $(call overwrite-fit-env,CONFIG_BOOTM_FITIMAGE_PUBKEY) \
 
@@ -598,9 +630,6 @@ quiet_cmd_cboot_bct = BCT     $@
 $(obj)/%.bct: $(obj)/%.bct.cfg
 	$(call cmd,cboot_bct)
 
-quiet_cmd_stm32_image = STM32-IMG $@
-      cmd_stm32_image = $(objtree)/scripts/stm32image $(OPTS_$(@F)) -i $< -o $@
-
 quiet_cmd_b64dec = B64DEC  $@
       cmd_b64dec = base64 -d $< > $@
 
@@ -614,7 +643,7 @@ quiet_cmd_b64dec = B64DEC  $@
 # target file.
 quiet_cmd_public_keys = KEY     $@
 cmd_public_keys = \
-	$(objtree)/scripts/keytoc -o $@.tmp "$(2)" $(3) &&		\
+	$(objtree)/scripts/keytoc -o $@.tmp $(2) $(3) &&		\
 	if cmp -s $@.tmp $@; then					\
 		rm $@.tmp;						\
 	else								\

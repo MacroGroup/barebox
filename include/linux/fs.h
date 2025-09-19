@@ -5,6 +5,7 @@
 
 #include <linux/list.h>
 #include <linux/time.h>
+#include <linux/stat.h>
 #include <linux/mount.h>
 #include <linux/path.h>
 #include <linux/spinlock.h>
@@ -171,9 +172,6 @@ struct super_block {
 	int			s_count;
 	int			s_syncing;
 	int			s_need_sync_fs;
-#ifdef CONFIG_SECURITY
-	void                    *s_security;
-#endif
 	struct xattr_handler	**s_xattr;
 
 	struct list_head	s_inodes;	/* all inodes */
@@ -224,30 +222,39 @@ struct file_system_type {
 };
 
 struct file {
+	struct fs_device	*fsdev; /* The device this file belongs to */
+	char			*path;
 	struct path		f_path;
+#define FILE_SIZE_STREAM	((loff_t) -1)
+#define f_size f_inode->i_size
 	struct inode		*f_inode;	/* cached value */
-#define f_dentry	f_path.dentry
-#define f_vfsmnt	f_path.mnt
 	const struct file_operations	*f_op;
 	unsigned int 		f_flags;
 	loff_t			f_pos;
 	unsigned int		f_uid, f_gid;
 
 	u64			f_version;
-#ifdef CONFIG_SECURITY
-	void			*f_security;
-#endif
-	/* needed for tty driver, and maybe others */
+	/* private to the filesystem driver */
 	void			*private_data;
+};
 
-#ifdef CONFIG_EPOLL
-	/* Used by fs/eventpoll.c to link all the hooks to this file */
-	struct list_head	f_ep_links;
-	spinlock_t		f_ep_lock;
-#endif /* #ifdef CONFIG_EPOLL */
-#ifdef CONFIG_DEBUG_WRITECOUNT
-	unsigned long f_mnt_write_state;
-#endif
+/*
+ * Attribute flags.  These should be or-ed together to figure out what
+ * has been changed!
+ */
+#define ATTR_SIZE	(1 << 3)
+#define ATTR_FILE	(1 << 13)
+
+struct iattr {
+	unsigned int	ia_valid;
+	loff_t		ia_size;
+
+	/*
+	 * Not an attribute, but an auxiliary info for filesystems wanting to
+	 * implement an ftruncate() like method.  NOTE: filesystem should
+	 * check for (ia_valid & ATTR_FILE), and not for (ia_file != NULL).
+	 */
+	struct file	*ia_file;
 };
 
 struct super_operations {
@@ -276,11 +283,7 @@ static inline struct inode *file_inode(const struct file *f)
 #define S_IMA		1024	/* Inode has an associated IMA struct */
 #define S_AUTOMOUNT	2048	/* Automount/referral quasi-directory */
 #define S_NOSEC		4096	/* no suid or xattr security attributes */
-#ifdef CONFIG_FS_DAX
-#define S_DAX		8192	/* Direct Access, avoiding the page cache */
-#else
 #define S_DAX		0	/* Make all the DAX code disappear */
-#endif
 
 /*
  * Note that nosuid etc flags are inode-specific: setting some file-system
@@ -408,10 +411,21 @@ static inline loff_t i_size_read(const struct inode *inode)
 	return inode->i_size;
 }
 
+static inline void i_size_write(struct inode *inode, loff_t i_size)
+{
+	inode->i_size = i_size;
+}
+
+static inline void truncate_setsize(struct inode *inode, loff_t i_size)
+{
+	i_size_write(inode, i_size);
+}
+
 struct inode *new_inode(struct super_block *sb);
 unsigned int get_next_ino(void);
 void iput(struct inode *);
 struct inode *iget(struct inode *);
+void ihold(struct inode *inode);
 void inc_nlink(struct inode *inode);
 void clear_nlink(struct inode *inode);
 void set_nlink(struct inode *inode, unsigned int nlink);
@@ -468,11 +482,13 @@ static inline int dir_emit_dots(struct file *file, struct dir_context *ctx)
 }
 
 struct file_operations {
+	int (*open) (struct inode *, struct file *);
+	int (*release) (struct inode *, struct file *);
 	int (*iterate) (struct file *, struct dir_context *);
-	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
-	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	int (*ioctl) (struct file *, unsigned int request, void *buf);
-	int (*truncate) (struct file *, loff_t);
+	/*
+	 * TODO: move the remaining callbacks in struct fs_driver
+	 * here with Linux semantics
+	 */
 };
 
 void drop_nlink(struct inode *inode);
@@ -488,5 +504,21 @@ int dcache_readdir(struct file *, struct dir_context *);
 const char *simple_get_link(struct dentry *dentry, struct inode *inode);
 struct inode *iget_locked(struct super_block *, unsigned long);
 void iget_failed(struct inode *inode);
+
+static inline void inode_init_owner(struct inode *inode,
+				    const struct inode *dir, umode_t mode)
+{
+	if (dir && dir->i_mode & S_ISGID) {
+		inode->i_gid = dir->i_gid;
+
+		/* Directories are special, and always inherit S_ISGID */
+		if (S_ISDIR(mode))
+			mode |= S_ISGID;
+	}
+
+	inode->i_mode = mode;
+}
+
+static inline void mark_inode_dirty(struct inode *inode) {}
 
 #endif /* _LINUX_FS_H */

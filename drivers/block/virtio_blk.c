@@ -23,19 +23,19 @@ static int virtio_blk_do_req(struct virtio_blk_priv *priv, void *buffer,
 			     sector_t sector, blkcnt_t blkcnt, u32 type)
 {
 	unsigned int num_out = 0, num_in = 0;
-	struct virtio_sg *sgs[3];
-	u8 status;
+	struct scatterlist hdr_sg, data_sg, status_sg, *sgs[3];
+	u8 status = VIRTIO_BLK_S_IOERR;
 	int ret;
 
 	struct virtio_blk_outhdr out_hdr = {
 		.type = cpu_to_virtio32(priv->vdev, type),
 		.sector = cpu_to_virtio64(priv->vdev, sector),
 	};
-	struct virtio_sg hdr_sg = { &out_hdr, sizeof(out_hdr) };
-	struct virtio_sg data_sg = { buffer, blkcnt * 512 };
-	struct virtio_sg status_sg = { &status, sizeof(status) };
 
+	sg_init_one(&hdr_sg, &out_hdr, sizeof(out_hdr));
 	sgs[num_out++] = &hdr_sg;
+
+	sg_init_one(&data_sg, buffer, blkcnt * 512);
 
 	switch(type) {
 	case VIRTIO_BLK_T_OUT:
@@ -46,16 +46,17 @@ static int virtio_blk_do_req(struct virtio_blk_priv *priv, void *buffer,
 		break;
 	}
 
+	sg_init_one(&status_sg, &status, sizeof(status));
 	sgs[num_out + num_in++] = &status_sg;
 
-	ret = virtqueue_add(priv->vq, sgs, num_out, num_in);
+	ret = virtqueue_add_sgs(priv->vq, sgs, num_out, num_in, &out_hdr);
 	if (ret)
 		return ret;
 
 	virtqueue_kick(priv->vq);
 
-	while (!virtqueue_get_buf(priv->vq, NULL))
-		;
+	if (!virtqueue_get_buf_timeout(priv->vq, NULL, NSEC_PER_SEC))
+		return -ETIMEDOUT;
 
 	return status == VIRTIO_BLK_S_OK ? 0 : -EIO;
 }

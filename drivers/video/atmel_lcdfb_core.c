@@ -71,7 +71,7 @@ static int atmel_lcdfb_check_var(struct fb_info *info)
 
 	dev_dbg(dev, "%s:\n", __func__);
 
-	if (!(mode->pixclock && info->bits_per_pixel)) {
+	if (!(mode->pixclock.ps && info->bits_per_pixel)) {
 		dev_err(dev, "needed value not specified\n");
 		return -EINVAL;
 	}
@@ -139,7 +139,7 @@ static int atmel_lcdfb_check_var(struct fb_info *info)
 	case 32:
 		info->transp.offset = 24;
 		info->transp.length = 8;
-		/* fall through */
+		fallthrough;
 	case 24:
 		if (sinfo->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB) {
 			/* RGB:888 mode */
@@ -194,7 +194,8 @@ static int atmel_lcdfb_alloc_video_memory(struct atmel_lcdfb_info *sinfo)
 		    * ((info->bits_per_pixel + 7) / 8));
 	smem_len = max(smem_len, sinfo->smem_len);
 
-	info->screen_base = dma_alloc_coherent(smem_len, DMA_ADDRESS_BROKEN);
+	info->screen_base = dma_alloc_coherent(DMA_DEVICE_BROKEN,
+					       smem_len, DMA_ADDRESS_BROKEN);
 
 	if (!info->screen_base)
 		return -ENOMEM;
@@ -316,12 +317,12 @@ static int lcdfb_of_init(struct device *dev, struct atmel_lcdfb_info *sinfo)
 	struct fb_info *info = &sinfo->info;
 	struct display_timings *modes;
 	struct device_node *display;
-	struct atmel_lcdfb_config *config;
+	const struct atmel_lcdfb_config *config;
 	int ret;
 
 	/* Driver data - optional */
-	ret = dev_get_drvdata(dev, (const void **)&config);
-	if (!ret) {
+	config = device_get_match_data(dev);
+	if (config) {
 		sinfo->have_hozval = config->have_hozval;
 		sinfo->have_intensity_bit = config->have_intensity_bit;
 		sinfo->have_alt_pixclock = config->have_alt_pixclock;
@@ -408,8 +409,7 @@ static int lcdfb_pdata_init(struct device *dev,
 				   !cpu_is_at91sam9g45es();
 	sinfo->have_intensity_bit = pdata->have_intensity_bit;
 	sinfo->have_hozval = cpu_is_at91sam9261() ||
-			     cpu_is_at91sam9g10() ||
-			     cpu_is_at32ap7000();
+			     cpu_is_at91sam9g10();
 
 	info = &sinfo->info;
 	info->modes.modes = pdata->mode_list;
@@ -477,7 +477,8 @@ int atmel_lcdc_register(struct device *dev, struct atmel_lcdfb_devdata *data)
 	atmel_lcdfb_start_clock(sinfo);
 
 	if (data->dma_desc_size)
-		sinfo->dma_desc = dma_alloc_coherent(data->dma_desc_size,
+		sinfo->dma_desc = dma_alloc_coherent(DMA_DEVICE_BROKEN,
+						     data->dma_desc_size,
 						     DMA_ADDRESS_BROKEN);
 
 	info->dev.parent = dev;

@@ -552,15 +552,14 @@ static int ag71xx_probe(struct device *dev)
 	void __iomem *regs, *regs_gmac;
 	struct mii_bus *miibus;
 	struct eth_device *edev;
-	struct ag71xx_cfg *cfg;
+	const struct ag71xx_cfg *cfg;
 	struct ag71xx *priv;
 	u32 mac_h, mac_l;
 	u32 rd, mask;
-	int ret;
 
-	ret = dev_get_drvdata(dev, (const void **)&cfg);
-	if (ret)
-		return ret;
+	cfg = device_get_match_data(dev);
+	if (!cfg)
+		return -ENODEV;
 
 	regs_gmac = dev_request_mem_region_by_name(dev, "gmac");
 	if (IS_ERR(regs_gmac))
@@ -637,9 +636,11 @@ static int ag71xx_probe(struct device *dev)
 	ag71xx_wr(priv, AG71XX_REG_FIFO_CFG3, 0x1f00140);
 
 	priv->rx_buffer = xmemalign(PAGE_SIZE, NO_OF_RX_FIFOS * MAX_RBUFF_SZ);
-	priv->fifo_tx = dma_alloc_coherent(NO_OF_TX_FIFOS * sizeof(ag7240_desc_t),
+	priv->fifo_tx = dma_alloc_coherent(DMA_DEVICE_BROKEN,
+					   NO_OF_TX_FIFOS * sizeof(ag7240_desc_t),
 					   &priv->addr_tx);
-	priv->fifo_rx = dma_alloc_coherent(NO_OF_RX_FIFOS * sizeof(ag7240_desc_t),
+	priv->fifo_rx = dma_alloc_coherent(DMA_DEVICE_BROKEN,
+					   NO_OF_RX_FIFOS * sizeof(ag7240_desc_t),
 					   &priv->addr_rx);
 	priv->next_tx = 0;
 

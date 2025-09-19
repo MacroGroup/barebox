@@ -238,7 +238,7 @@ static const struct regulator_ops fan53555_regulator_ops = {
 
 static int fan53555_device_setup(struct fan53555_device_info *di)
 {
-	unsigned int mode_reg, mode_mask;
+	unsigned int mode_reg, mode_mask = 0;
 	int ret = 0;
 
 	/* Setup voltage control register */
@@ -384,7 +384,7 @@ static int fan53555_regulator_probe(struct device *dev)
 
 	di = xzalloc(sizeof(*di));
 
-	di->vendor = (enum fan53555_vendor)device_get_match_data(dev);
+	di->vendor = (enum fan53555_vendor)(uintptr_t)device_get_match_data(dev);
 
 	di->rdev.desc = &di->rdesc;
 	di->rdev.dev = dev;

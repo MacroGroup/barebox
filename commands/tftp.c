@@ -18,7 +18,8 @@
 
 static int do_tftpb(int argc, char *argv[])
 {
-	char *source, *dest, *freep;
+	const char *source, *dest;
+	char *freep;
 	int opt;
 	int tftp_push = 0;
 	int port = -1;
@@ -50,17 +51,14 @@ static int do_tftpb(int argc, char *argv[])
 	source = argv[optind++];
 
 	if (argc == optind)
-		dest = basename(source);
+		dest = kbasename(source);
 	else
 		dest = argv[optind];
 
 	if (tftp_push)
-		dest = freep = basprintf("%s/%s", TFTP_MOUNT_PATH, dest);
+		dest = freep = xasprintf("%s/%s", TFTP_MOUNT_PATH, dest);
 	else
-		source = freep = basprintf("%s/%s", TFTP_MOUNT_PATH, source);
-
-	if (!freep)
-		return -ENOMEM;
+		source = freep = xasprintf("%s/%s", TFTP_MOUNT_PATH, source);
 
 	ret = make_directory(TFTP_MOUNT_PATH);
 	if (ret)
@@ -80,7 +78,7 @@ static int do_tftpb(int argc, char *argv[])
 
 	debug("%s: %s -> %s\n", __func__, source, dest);
 
-	ret = copy_file(source, dest, 1);
+	ret = copy_file(source, dest, COPY_FILE_VERBOSE);
 
 	umount(TFTP_MOUNT_PATH);
 

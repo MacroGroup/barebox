@@ -892,7 +892,7 @@ static int cfi_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	struct flash_info *info = container_of(mtd, struct flash_info, mtd);
 
-	memcpy(buf, info->base + from, len);
+	memcpy_fromio(buf, info->base + from, len);
 	*retlen = len;
 
 	return 0;
@@ -1019,7 +1019,7 @@ static int cfi_probe(struct device *dev)
 		priv->mtds[i] = &priv->infos[i].mtd;
 	}
 
-	dev->info = cfi_info;
+	devinfo_add(dev, cfi_info);
 
 	if (priv->num_devs > 1 && IS_ENABLED(CONFIG_MTD_CONCAT)) {
 		mtd = mtd_concat_create(priv->mtds, priv->num_devs, "nor");

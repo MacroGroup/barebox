@@ -3,9 +3,66 @@
 menu "K3 boards"
         depends on ARCH_K3
 
+config MACH_AM62X
+	bool
+
+config MACH_AM62LX
+	bool
+
+config MACH_K3_CORTEX_R5
+	bool
+	select CPU_V7
+	select CLOCKSOURCE_TI_DM
+	select REMOTEPROC
+	select REMOTEPROC_TI_K3_ARM64
+	select REMOTEPROC_K3_SYSTEM_CONTROLLER
+	select PM_GENERIC_DOMAINS
+	select TI_K3_PM_DOMAINS
+	select ARMV7R_MPU
+	select ELF
+	select K3_DDRSS
+	select FIP
+	select HAVE_FIRMWARE_VERIFY_NEXT_IMAGE
+	depends on 32BIT
+	select HAS_INSECURE_DEFAULTS if (!FIRMWARE_VERIFY_NEXT_IMAGE && !ARCH_K3_AUTHENTICATE_IMAGE)
+	default y
+
+config MACH_K3_CORTEX_A
+	bool
+	select CPU_V8
+	depends on 64BIT
+	default y
+
+config MACH_AM625_SK
+	bool "TI AM625 SK"
+	select MACH_AM62X
+	help
+	  Say Y here if you are using a TI AM625 SK board
+
 config MACH_BEAGLEPLAY
 	bool "BeagleBoard BeaglePlay"
+	select MACH_AM62X
 	help
 	  Say Y here if you are using a TI AM62x based BeaglePlay board
+
+config MACH_AM62LX_EVM
+	bool "TI AM62Lx EVM"
+	select MACH_AM62LX
+	help
+	  Say Y here if you are using a TI AM62Lx EVM board
+
+config ARCH_K3_AUTHENTICATE_IMAGE
+	bool "Force authentication of FIP image against ROM API"
+	help
+	  By enabling this option the FIP image loaded by the first stage
+	  will be authenticated against the K3 ROM API. Images which fail
+	  to authenticate will not be started.
+
+config ARCH_K3_COMMAND_AUTHENTICATE
+	bool "k3_authenticate_image command"
+	depends on COMMAND_SUPPORT
+	help
+	  Add k3_authenticate_image command to test authenticating images
+	  against the K3 ROM API.
 
 endmenu

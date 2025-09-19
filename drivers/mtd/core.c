@@ -375,16 +375,15 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 		.len = len,
 		.datbuf = buf,
 	};
-	int ret;
+	int ret = 0;
 
 	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
-	if (!len)
-		return 0;
 
-	ret = mtd_read_oob(mtd, from, &ops);
+	if (len)
+		ret = mtd_read_oob(mtd, from, &ops);
+
 	*retlen = ops.retlen;
-
 	return ret;
 }
 
@@ -672,7 +671,7 @@ int add_mtd_device(struct mtd_info *mtd, const char *devname, int device_id)
 
 	if (!devname)
 		devname = "mtd";
-	dev_set_name(&mtd->dev, devname);
+	dev_set_name(&mtd->dev, "%s", devname);
 	mtd->dev.id = device_id;
 
 	if (IS_ENABLED(CONFIG_MTD_UBI))

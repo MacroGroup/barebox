@@ -14,7 +14,10 @@
  *
  */
 
+#define pr_fmt(fmt) "kasan: generic: " fmt
+
 #include <common.h>
+#include <asm/reloc.h>
 
 #include "kasan.h"
 
@@ -149,10 +152,25 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
 
 static bool kasan_initialized;
 
+bool kasan_enabled(void)
+{
+	return kasan_initialized;
+}
+
 static __always_inline bool check_memory_region_inline(unsigned long addr,
 						size_t size, bool write,
 						unsigned long ret_ip)
 {
+	/*
+	 * Hardening options like -ftrivial-auto-var-init=zero can end up
+	 * emitting memset calls to initialize stack variables.
+	 * This can lead to this function reached before relocation.
+	 *
+	 * Play it safe by ensuring we are relocated before proceeding.
+	 */
+	if (global_variable_offset() != 0)
+		return true;
+
 	if (!kasan_initialized)
 		return true;
 
@@ -177,6 +195,43 @@ static __always_inline bool check_memory_region_inline(unsigned long addr,
 	return !kasan_report(addr, size, write, ret_ip);
 }
 
+int kasan_is_poisoned_shadow(const void *_addr, size_t size)
+{
+	unsigned long addr = (unsigned long)_addr;
+	unsigned long ret;
+
+	if (!kasan_initialized)
+		return -1;
+
+	if (addr < kasan_shadow_start)
+		return -1;
+
+	if (addr > kasan_shadowed_end)
+		return -1;
+
+	if (unlikely(size == 0))
+		return -1;
+
+	if (unlikely(addr + size < addr))
+		return -1;
+
+	if (addr < kasan_shadow_base)
+		return -1;
+
+	ret = memory_is_nonzero(kasan_mem_to_shadow((void *)addr),
+			kasan_mem_to_shadow((void *)addr + size - 1) + 1);
+
+	if (unlikely(ret)) {
+		unsigned long last_byte = addr + size - 1;
+		s8 *last_shadow = (s8 *)kasan_mem_to_shadow((void *)last_byte);
+
+		if (unlikely(ret != (unsigned long)last_shadow ||
+			((long)(last_byte & KASAN_SHADOW_MASK) >= *last_shadow)))
+			return 1;
+	}
+	return 0;
+}
+
 void kasan_init(unsigned long membase, unsigned long memsize,
 		unsigned long shadow_base)
 {
@@ -186,6 +241,9 @@ void kasan_init(unsigned long membase, unsigned long memsize,
 
 	kasan_unpoison_shadow((void *)membase, memsize);
 	kasan_initialized = true;
+
+	pr_debug("initialized for 0x%08lx-0x%lx with shadow at 0x%08lx\n",
+		 kasan_shadow_start, kasan_shadowed_end, kasan_shadow_base);
 }
 
 bool __no_sanitize_address check_memory_region(unsigned long addr,

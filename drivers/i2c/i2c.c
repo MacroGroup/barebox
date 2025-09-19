@@ -42,7 +42,7 @@ struct boardinfo {
 };
 
 static LIST_HEAD(board_list);
-LIST_HEAD(i2c_adapter_list);
+DEFINE_DEV_CLASS(i2c_adapter_class, "i2c_adapter");
 
 /**
  * i2c_transfer - execute a single or combined I2C message
@@ -394,7 +394,7 @@ static struct i2c_client *i2c_new_device(struct i2c_adapter *adapter,
 	int status;
 
 	client = xzalloc(sizeof *client);
-	dev_set_name(&client->dev, chip->type);
+	dev_set_name(&client->dev, "%s", chip->type);
 	client->dev.type_data = client;
 	client->dev.platform_data = chip->platform_data;
 	client->dev.id = DEVICE_ID_DYNAMIC;
@@ -410,7 +410,7 @@ static struct i2c_client *i2c_new_device(struct i2c_adapter *adapter,
 		free(client);
 		return NULL;
 	}
-	client->dev.info = i2c_info;
+	devinfo_add(&client->dev, i2c_info);
 
 	if (chip->of_node)
 		chip->of_node->dev = &client->dev;
@@ -483,7 +483,7 @@ static void i2c_hw_rescan(struct device *dev)
 {
 	struct i2c_adapter *adap;
 
-	list_for_each_entry(adap, &i2c_adapter_list, list) {
+	for_each_i2c_adapter(adap) {
 		if (dev != adap->dev.parent)
 			continue;
 		of_i2c_register_devices(adap);
@@ -686,6 +686,20 @@ void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t,
 EXPORT_SYMBOL_GPL(i2c_parse_fw_timings);
 
 /**
+ * i2c_first_nonreserved_index() - get the first index that is not reserved
+ */
+static int i2c_first_nonreserved_index(void)
+{
+	int max;
+
+	max = of_alias_get_highest_id("i2c");
+	if (max < 0)
+		return 0;
+
+	return max + 1;
+}
+
+/**
  * i2c_add_numbered_adapter - declare i2c adapter, use static bus number
  * @adapter: the adapter to register (with adap->nr initialized)
  *
@@ -705,21 +719,21 @@ int i2c_add_numbered_adapter(struct i2c_adapter *adapter)
 	struct device *hw_dev;
 	int ret;
 
+	if (adapter->nr < 0 && dev_of_node(&adapter->dev))
+		adapter->nr = of_alias_get_id(adapter->dev.of_node, "i2c");
+
 	if (adapter->nr < 0) {
-		if (!adapter->dev.of_node) {
-			int nr = adapter->dev.id;
+		int nr;
 
-			for (nr = 0;; nr++)
-				if (!i2c_get_adapter(nr))
-					break;
-			adapter->nr = nr;
-		} else
-			adapter->nr =
-				of_alias_get_id(adapter->dev.of_node, "i2c");
+		for (nr = i2c_first_nonreserved_index();
+		     i2c_get_adapter(nr); nr++)
+			;
+
+		adapter->nr = nr;
+	} else {
+		if (i2c_get_adapter(adapter->nr))
+			return -EBUSY;
 	}
-
-	if (i2c_get_adapter(adapter->nr))
-		return -EBUSY;
 
 	adapter->dev.id = adapter->nr;
 	dev_set_name(&adapter->dev, "i2c");
@@ -728,7 +742,7 @@ int i2c_add_numbered_adapter(struct i2c_adapter *adapter)
 	if (ret)
 		return ret;
 
-	list_add_tail(&adapter->list, &i2c_adapter_list);
+	class_add_device(&i2c_adapter_class, &adapter->dev);
 
 	slice_init(&adapter->slice, dev_name(&adapter->dev));
 
@@ -751,6 +765,7 @@ struct bus_type i2c_bus = {
 	.name = "i2c",
 	.match = device_match_of_modalias,
 };
+EXPORT_SYMBOL(i2c_bus);
 
 static int i2c_bus_init(void)
 {

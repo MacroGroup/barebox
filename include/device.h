@@ -54,7 +54,10 @@ struct device {
 	/*! Devices of a particular class normaly need to store more
 	 * information than struct device holds.
 	 */
-	void *priv;
+	union {
+		void *priv;
+		void *driver_data;
+	};
 	void *type_data;     /*! In case this device is a specific device, this pointer
 			      * points to the type specific device, i.e. eth_device
 			      */
@@ -92,7 +95,9 @@ struct device {
 
 	unsigned long dma_offset;
 
-	void    (*info) (struct device *);
+#ifdef CONFIG_CMD_DEVINFO
+	struct list_head info_list;
+#endif
 	/*
 	 * For devices which take longer to probe this is called
 	 * when the driver should actually detect client devices
@@ -126,14 +131,18 @@ void class_register(struct class *class);
 	pure_initcall(register_##_name);
 
 int class_add_device(struct class *class, struct device *dev);
-void class_remove_device(struct class *class, struct device *dev);
 
 int class_register_device(struct class *class, struct device *class_dev,
 			  const char *name);
-void class_unregister_device(struct device *class_dev);
 
 extern struct list_head class_list;
 #define class_for_each_device(class, dev) list_for_each_entry((dev), &(class)->devices, class_list)
+#define class_first_device(class) \
+	list_first_entry_or_null(&(class)->devices, struct device, class_list)
+
+#define class_for_each_container_of_device(class, obj, member) \
+	list_for_each_entry((obj), &(class)->devices, member.class_list)
+
 #define class_for_each(class) list_for_each_entry((class), &class_list, list)
 
 struct device_alias {
@@ -162,5 +171,15 @@ static inline bool dev_is_dma_coherent(struct device *dev)
 
 	return IS_ENABLED(CONFIG_ARCH_DMA_DEFAULT_COHERENT);
 }
+
+#ifdef CONFIG_CMD_DEVINFO
+void devinfo_add(struct device *dev, void (*info)(struct device *));
+void devinfo_del(struct device *dev, void (*info)(struct device *));
+void devinfo(struct device *dev);
+#else
+static inline void devinfo_add(struct device *dev, void (*info)(struct device *)) {}
+static inline void devinfo_del(struct device *dev, void (*info)(struct device *)) {}
+static inline void devinfo(struct device *dev) {}
+#endif
 
 #endif

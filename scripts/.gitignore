@@ -20,7 +20,10 @@ bareboxenv-target
 kernel-install-target
 bareboxcrc32-target
 bareboximd-target
+bareboxtlv
+bareboxtlv-target
 mk-am35xx-spi-image
+mkimage
 mxsimage
 mxsboot
 mxs-usb-loader
@@ -34,6 +37,5 @@ rk-usb-loader-target
 rkimage
 mips-relocs
 keytoc
-stm32image
 mvebuimg
 prelink-riscv

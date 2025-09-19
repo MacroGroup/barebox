@@ -422,7 +422,7 @@ static int cdns_i2c_probe(struct device *dev)
 		return err;
 
 	i2c->adapter.master_xfer = cdns_i2c_xfer;
-	i2c->adapter.nr = dev->id;
+	i2c->adapter.nr = -1;
 	i2c->adapter.dev.parent = dev;
 	i2c->adapter.dev.of_node = np;
 
@@ -441,6 +441,7 @@ static int cdns_i2c_probe(struct device *dev)
 }
 
 static const struct of_device_id cdns_i2c_match[] = {
+	{ .compatible = "cdns,i2c-r1p10" },
 	{ .compatible = "cdns,i2c-r1p14" },
 	{},
 };

@@ -5,11 +5,19 @@ config PPC
 	select HAVE_CONFIGURABLE_TEXT_BASE
 	select HAS_KALLSYMS
 	select HAS_MODULES
-	select HAS_CACHE
 	select GENERIC_FIND_NEXT_BIT
 	select OFTREE
+	select HAVE_ARCH_BOOTM_OFTREE
 	select ARCH_HAS_SJLJ
 	default y
+
+config ARCH_LINUX_NAME
+	string
+	default "ppc"
+
+config ARCH_MKIMAGE_NAME
+	string
+	default "powerpc"
 
 choice
 	prompt "Processor type"

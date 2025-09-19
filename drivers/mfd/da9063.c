@@ -309,10 +309,11 @@ static void da9063_detect_reset_source(struct da9063 *priv)
 	else
 		return;
 
-	reset_source_set_device(priv->dev, type);
+	reset_source_set_device(priv->dev, type, 200);
 }
 
-static void da9063_restart(struct restart_handler *rst)
+static void da9063_restart(struct restart_handler *rst,
+			   unsigned long flags)
 {
 	struct da9063 *priv = container_of(rst, struct da9063, restart);
 

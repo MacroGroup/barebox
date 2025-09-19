@@ -120,8 +120,8 @@ void dev_param_init_from_nv(struct device *dev, const char *name)
 	if (val) {
 		ret = dev_set_param(dev, name, val);
 		if (ret)
-			pr_err("Cannot init param from nv: %s.%s=%s: %s\n",
-				dev_name(dev), name, val, strerror(-ret));
+			pr_err("Cannot init param from nv: %s.%s=%s: %pe\n",
+				dev_name(dev), name, val, ERR_PTR(ret));
 	}
 
 	free(nvname);
@@ -189,7 +189,7 @@ static int nv_set(struct device *dev, struct param_d *p, const char *name,
 	}
 
 	if (p) {
-		free(p->value);
+		free_const(p->value);
 		p->value = xstrdup(val);
 	}
 
@@ -246,7 +246,7 @@ static int __nvvar_add(const char *name, const char *value)
 		value = dev_get_param(&global_device, name);
 
 	if (value && p) {
-		free(p->value);
+		free_const(p->value);
 		p->value = xstrdup(value);
 	}
 
@@ -368,8 +368,8 @@ int nvvar_load(void)
 		n = globalvar_new_name(d->d_name);
 		ret = __nvvar_add(n, val);
 		if (ret)
-			pr_err("failed to create nv variable %s: %s\n",
-					n, strerror(-ret));
+			pr_err("failed to create nv variable %s: %pe\n",
+					n, ERR_PTR(ret));
 		free(val);
 	}
 
@@ -469,8 +469,8 @@ static int globalvar_simple_set(struct device *dev, struct param_d *p,
 	if (ret && rdev) {
 		ret = dev_set_param(rdev, pname, val);
 		if (ret)
-			pr_err("Cannot init param from global: %s.%s=%s: %s\n",
-				dev_name(rdev), pname, val, strerror(-ret));
+			pr_err("Cannot init param from global: %s.%s=%s: %pe\n",
+				dev_name(rdev), pname, val, ERR_PTR(ret));
 	}
 
 	/* Pass to the generic function we have overwritten */
@@ -680,6 +680,8 @@ static int globalvar_init(void)
 	if (strlen(buildsystem_version_string) > 0)
 		globalvar_add_simple("buildsystem.version", buildsystem_version_string);
 
+	globalvar_add_simple("arch", CONFIG_ARCH_LINUX_NAME);
+
 #ifdef __BIG_ENDIAN
 	endianness = "big";
 #elif defined(__LITTLE_ENDIAN)
@@ -698,6 +700,7 @@ BAREBOX_MAGICVAR(global.version, "The barebox version");
 BAREBOX_MAGICVAR(global.buildsystem.version,
 		 "version of buildsystem barebox was built with");
 BAREBOX_MAGICVAR(global.endianness, "The barebox endianness");
+BAREBOX_MAGICVAR(global.arch, "Name of architecture as used by Linux");
 
 /**
  * nvvar_save - save NV variables to persistent environment
@@ -724,7 +727,7 @@ int nvvar_save(void)
 		ret = __nv_save(TMPDIR "/nv", param->name,
 				dev_get_param(&nv_device, param->name));
 		if (ret) {
-			pr_err("Cannot save NV var: %s\n", strerror(-ret));
+			pr_err("Cannot save NV var: %pe\n", ERR_PTR(ret));
 			goto out;
 		}
 	}

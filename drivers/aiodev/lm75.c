@@ -110,7 +110,7 @@ static int lm75_probe(struct device *dev)
 	int new, ret;
 	enum lm75_type kind;
 
-	kind = (enum lm75_type)device_get_match_data(dev);
+	kind = (enum lm75_type)(uintptr_t)device_get_match_data(dev);
 	if (kind == unknown)
 		return -ENODEV;
 
@@ -158,7 +158,6 @@ static int lm75_probe(struct device *dev)
 		data->resolution = 9;
 		break;
 	case mcp980x:
-		/* fall through */
 	case tmp100:
 	case tmp101:
 		set_mask |= 3 << 5;		/* 12-bit mode */

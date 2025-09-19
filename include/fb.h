@@ -31,10 +31,19 @@
 #define FB_VMODE_SMOOTH_XPAN	512	/* smooth xpan possible (internally used) */
 #define FB_VMODE_CONUPDATE	512	/* don't update x/yoffset	*/
 
-#define PICOS2KHZ(a) (1000000000UL/(a))
-#define KHZ2PICOS(a) (1000000000UL/(a))
+typedef struct {
+	u32 ps;
+} picoseconds_t;
+
+#define PICOS2KHZ(a) (1000000000UL/(a).ps)
+#define KHZ2PICOS(a) ((picoseconds_t){1000000000UL/(a)})
 
 enum display_flags {
+	DISPLAY_FLAGS_HSYNC_LOW		= BIT(0),
+	DISPLAY_FLAGS_HSYNC_HIGH	= BIT(1),
+	DISPLAY_FLAGS_VSYNC_LOW		= BIT(2),
+	DISPLAY_FLAGS_VSYNC_HIGH	= BIT(3),
+
 	/* data enable flag */
 	DISPLAY_FLAGS_DE_LOW		= BIT(4),
 	DISPLAY_FLAGS_DE_HIGH		= BIT(5),
@@ -42,6 +51,13 @@ enum display_flags {
 	DISPLAY_FLAGS_PIXDATA_POSEDGE	= BIT(6),
 	/* drive data on neg. edge */
 	DISPLAY_FLAGS_PIXDATA_NEGEDGE	= BIT(7),
+	DISPLAY_FLAGS_INTERLACED	= BIT(8),
+	DISPLAY_FLAGS_DOUBLESCAN	= BIT(9),
+	DISPLAY_FLAGS_DOUBLECLK		= BIT(10),
+	/* drive sync on pos. edge */
+	DISPLAY_FLAGS_SYNC_POSEDGE	= BIT(11),
+	/* drive sync on neg. edge */
+	DISPLAY_FLAGS_SYNC_NEGEDGE	= BIT(12),
 };
 
 struct fb_videomode {
@@ -49,7 +65,7 @@ struct fb_videomode {
 	u32 refresh;		/* optional */
 	u32 xres;
 	u32 yres;
-	u32 pixclock;
+	picoseconds_t pixclock;
 	u32 left_margin;
 	u32 right_margin;
 	u32 upper_margin;
@@ -60,6 +76,17 @@ struct fb_videomode {
 	u32 vmode;
 	u32 display_flags;
 };
+
+static inline ulong fb_videomode_get_pixclock_hz(const struct fb_videomode *mode)
+{
+	return mode->pixclock.ps ? PICOS2KHZ(mode->pixclock) * 1000UL : 0;
+}
+
+static inline void fb_videomode_set_pixclock_hz(struct fb_videomode *mode,
+						ulong rate)
+{
+	mode->pixclock = rate ? KHZ2PICOS(rate / 1000UL) : (picoseconds_t){0};
+}
 
 /* Interpretation of offset for color fields: All offsets are from the right,
  * inside a "pixel" value, which is exactly 'bits_per_pixel' wide (means: you
@@ -86,6 +113,16 @@ struct fb_rect {
 	u32 x2;
 	u32 y2;
 };
+
+static inline int fb_rect_width(const struct fb_rect *r)
+{
+	return r->x2 - r->x1;
+}
+
+static inline int fb_rect_height(const struct fb_rect *r)
+{
+	return r->y2 - r->y1;
+}
 
 struct fb_ops {
 	/* set color register */
@@ -153,6 +190,9 @@ struct fb_info {
 					 * be created.
 					 */
 	int shadowfb;
+
+	struct fb_info *base_plane;
+	int n_overlays;
 };
 
 int of_get_display_timing(const struct device_node *np, const char *name,

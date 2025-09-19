@@ -2,9 +2,6 @@
 
 comment "Processor Type"
 
-config PHYS_ADDR_T_64BIT
-	bool
-
 config CPU_32
 	bool
 	select HAS_MODULES
@@ -156,3 +153,11 @@ config CACHE_L2X0
 	bool "Enable L2x0 PrimeCell"
 	depends on MMU && ARCH_HAS_L2X0
 
+config ARMV7R_MPU
+	bool
+	depends on CPU_V7
+	select MALLOC_TLSF
+	help
+	  Some ARM systems without an MMU have instead a Memory Protection
+	  Unit (MPU) that defines the type and permissions for regions of
+	  memory.

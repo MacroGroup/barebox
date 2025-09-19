@@ -53,9 +53,6 @@ struct image_data {
 	/* if os is an uImage this will be provided */
 	struct uimage_handle *os;
 
-	/* if os is an elf file this will be provided */
-	struct elf_image *elf;
-
 	/* if os is a FIT image this will be provided */
 	struct fit_handle *os_fit;
 
@@ -138,11 +135,12 @@ static inline int bootm_verbose(struct image_data *data)
 #endif
 
 void bootm_data_init_defaults(struct bootm_data *data);
+void bootm_data_restore_defaults(const struct bootm_data *data);
 
 int bootm_load_os(struct image_data *data, unsigned long load_address);
 
-bool bootm_has_initrd(struct image_data *data);
-int bootm_load_initrd(struct image_data *data, unsigned long load_address);
+const struct resource *
+bootm_load_initrd(struct image_data *data, unsigned long load_address);
 
 void *bootm_get_devicetree(struct image_data *data);
 int bootm_load_devicetree(struct image_data *data, void *fdt,
@@ -156,6 +154,9 @@ bool bootm_signed_images_are_forced(void);
 void bootm_force_signed_images(void);
 
 #define UIMAGE_SOME_ADDRESS (UIMAGE_INVALID_ADDRESS - 1)
+#define UIMAGE_IS_ADDRESS_VALID(addr) \
+	((addr) != UIMAGE_INVALID_ADDRESS && \
+	 (addr) != UIMAGE_SOME_ADDRESS)
 
 void *booti_load_image(struct image_data *data, phys_addr_t *oftree);
 

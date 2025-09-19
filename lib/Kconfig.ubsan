@@ -1,6 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config ARCH_HAS_UBSAN_SANITIZE_ALL
-	bool
 
 config UBSAN
 	bool "Undefined behaviour sanity checker"
@@ -30,6 +28,9 @@ config UBSAN_NO_ALIGNMENT
 	  This option should be used when building allmodconfig.
 	  Disabling this option on architectures that support unaligned
 	  accesses may produce a lot of false positives.
+
+config UBSAN_STANDALONE
+	def_bool !SANDBOX
 
 config UBSAN_ALIGNMENT
 	def_bool !UBSAN_NO_ALIGNMENT

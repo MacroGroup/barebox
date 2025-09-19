@@ -3,6 +3,8 @@
 #ifndef _MACH_GENERIC_H
 #define _MACH_GENERIC_H
 
+#define OMAP_DRAM_ADDR_SPACE_START	0x80000000
+
 /* I2C controller revisions */
 #define OMAP_I2C_OMAP1_REV_2            0x20
 
@@ -52,6 +54,15 @@ extern unsigned int __omap_cpu_type;
 # define cpu_is_am33xx()		(omap_cpu_type == OMAP_CPU_AM33XX)
 #else
 # define cpu_is_am33xx()	(0)
+#endif
+
+#if defined(CONFIG_ARCH_MULTIARCH) || defined(CONFIG_BOARD_ARM_GENERIC_DT)
+# ifdef omap_cpu_type
+#  undef omap_cpu_type
+#  define omap_cpu_type __omap_cpu_type
+# else
+#  define omap_cpu_type 0
+# endif
 #endif
 
 #ifdef omap_cpu_type

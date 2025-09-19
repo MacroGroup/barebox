@@ -25,6 +25,7 @@
 #include <uncompress.h>
 #include <compressed-dtb.h>
 #include <malloc.h>
+#include <asm/armv7r-mpu.h>
 
 #include <debug_ll.h>
 
@@ -99,7 +100,7 @@ void *barebox_arm_boot_dtb(void)
 
 unsigned long arm_mem_ramoops_get(void)
 {
-	return arm_mem_ramoops(arm_stack_top);
+	return arm_mem_ramoops(arm_endmem);
 }
 EXPORT_SYMBOL_GPL(arm_mem_ramoops_get);
 
@@ -117,9 +118,10 @@ EXPORT_SYMBOL_GPL(arm_mem_membase_get);
 
 static int barebox_memory_areas_init(void)
 {
-	if (IS_ENABLED(CONFIG_KASAN))
+	if (kasan_enabled())
 		request_sdram_region("kasan shadow", kasan_shadow_base,
-				     mem_malloc_start() - kasan_shadow_base);
+				     mem_malloc_start() - kasan_shadow_base,
+				     MEMTYPE_BOOT_SERVICES_DATA, MEMATTRS_RW);
 
 	return 0;
 }
@@ -152,6 +154,12 @@ __noreturn __prereloc void barebox_non_pbl_start(unsigned long membase,
 	arm_stack_top = arm_mem_stack_top(endmem);
 	arm_barebox_size = barebox_image_size + MAX_BSS_SIZE;
 	malloc_end = barebox_base;
+
+	if (IS_ENABLED(CONFIG_ARMV7R_MPU)) {
+		malloc_end = ALIGN_DOWN(malloc_end - SZ_8M, SZ_8M);
+
+		armv7r_mpu_init_coherent(malloc_end, REGION_8MB);
+	}
 
 	/*
 	 * Maximum malloc space is the Kconfig value if given

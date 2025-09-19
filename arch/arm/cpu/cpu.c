@@ -52,6 +52,8 @@ int icache_status(void)
 	return (get_cr () & CR_I) != 0;
 }
 
+#ifndef __PBL__
+
 /*
  * SoC like the ux500 have the l2x0 always enable
  * with or without MMU enable
@@ -102,9 +104,11 @@ static int arm_request_stack(void)
 	if (efi_is_payload())
 		return 0;
 
-	if (!request_barebox_region("stack", arm_stack_top - STACK_SIZE, STACK_SIZE))
+	if (!request_barebox_region("stack", arm_stack_top - STACK_SIZE, STACK_SIZE,
+				    MEMATTRS_RW))
 		pr_err("Error: Cannot request SDRAM region for stack\n");
 
 	return 0;
 }
 coredevice_initcall(arm_request_stack);
+#endif

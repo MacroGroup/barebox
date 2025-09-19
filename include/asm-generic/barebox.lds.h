@@ -106,17 +106,27 @@
 #define BAREBOX_PCI_FIXUP
 #endif
 
-#define BAREBOX_RSA_KEYS			\
+#define BAREBOX_PUBLIC_KEYS			\
 	STRUCT_ALIGN();				\
-	__rsa_keys_start = .;			\
-	KEEP(*(.rsa_keys.rodata.*));		\
-	__rsa_keys_end = .;			\
+	__public_keys_start = .;		\
+	KEEP(*(.public_keys.rodata.*));		\
+	__public_keys_end = .;			\
 
 #define BAREBOX_DEEP_PROBE			\
 	STRUCT_ALIGN();				\
 	__barebox_deep_probe_start = .;		\
 	KEEP(*(SORT_BY_NAME(.barebox_deep_probe*)))	\
 	__barebox_deep_probe_end = .;
+
+#ifdef CONFIG_FUZZ
+#define BAREBOX_FUZZ_TESTS			\
+	STRUCT_ALIGN();				\
+	__barebox_fuzz_tests_start = .;		\
+	KEEP(*(SORT_BY_NAME(.barebox_fuzz_test*)))	\
+	__barebox_fuzz_tests_end = .;
+#else
+#define BAREBOX_FUZZ_TESTS
+#endif
 
 
 #ifdef CONFIG_CONSTRUCTORS
@@ -140,9 +150,10 @@
 	BAREBOX_MAGICVARS			\
 	BAREBOX_CLK_TABLE			\
 	BAREBOX_DTB				\
-	BAREBOX_RSA_KEYS			\
+	BAREBOX_PUBLIC_KEYS			\
 	BAREBOX_PCI_FIXUP			\
-	BAREBOX_DEEP_PROBE
+	BAREBOX_DEEP_PROBE			\
+	BAREBOX_FUZZ_TESTS
 
 #if defined(CONFIG_ARCH_BAREBOX_MAX_BARE_INIT_SIZE) && \
 CONFIG_ARCH_BAREBOX_MAX_BARE_INIT_SIZE < CONFIG_BAREBOX_MAX_BARE_INIT_SIZE

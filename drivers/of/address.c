@@ -16,17 +16,10 @@
 #define OF_CHECK_COUNTS(na, ns)	(OF_CHECK_ADDR_COUNT(na) && (ns) > 0)
 
 /* Debug utility */
-#ifdef DEBUG
 static void of_dump_addr(const char *s, const __be32 *addr, int na)
 {
-	printk(KERN_DEBUG "%s", s);
-	while (na--)
-		printk(" %08x", be32_to_cpu(*(addr++)));
-	printk("\n");
+	pr_debug("%*phN\n", na * (int)sizeof(__be32), addr);
 }
-#else
-static void of_dump_addr(const char *s, const __be32 *addr, int na) { }
-#endif
 
 /* Callbacks for bus specific translators */
 struct of_bus {
@@ -127,7 +120,7 @@ static unsigned int of_bus_pci_get_flags(const __be32 *addr)
 		break;
 	case 0x03: /* 64 bits */
 		flags |= IORESOURCE_MEM_64;
-		/* fallthrough */
+		fallthrough;
 	case 0x02: /* 32 bits */
 		flags |= IORESOURCE_MEM;
 		break;
@@ -399,7 +392,7 @@ static u64 __of_translate_address(struct device_node *dev,
 		pbus = of_match_bus(parent);
 		pbus->count_cells(dev, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
-			printk(KERN_ERR "prom_parse: Bad cell count for %pOF\n", dev);
+			pr_err("prom_parse: Bad cell count for %pOF\n", dev);
 			break;
 		}
 

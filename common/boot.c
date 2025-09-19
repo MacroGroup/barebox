@@ -13,6 +13,9 @@
 #include <init.h>
 #include <menu.h>
 #include <unistd.h>
+#include <libfile.h>
+#include <net.h>
+#include <fs.h>
 
 #include <linux/stat.h>
 
@@ -44,25 +47,26 @@ void bootentries_free(struct bootentries *bootentries)
 
 	list_for_each_entry_safe(be, tmp, &bootentries->entries, list) {
 		list_del(&be->list);
-		free(be->title);
+		free_const(be->title);
 		free(be->description);
-		free(be->me.display);
+		free_const(be->me.display);
 		be->release(be);
 	}
 
-	if (bootentries->menu) {
+	if (IS_ENABLED(CONFIG_MENU) && bootentries->menu) {
 		int i;
 		for (i = 0; i < bootentries->menu->display_lines; i++)
-			free(bootentries->menu->display[i]);
-		free(bootentries->menu->display);
+			free_const(bootentries->menu->display[i]);
+		free_const(bootentries->menu->display);
+		free(bootentries->menu);
 	}
-	free(bootentries->menu);
+
 	free(bootentries);
 }
 
 struct bootentry_script {
 	struct bootentry entry;
-	char *scriptpath;
+	const char *scriptpath;
 };
 
 /*
@@ -73,21 +77,22 @@ static int bootscript_boot(struct bootentry *entry, int verbose, int dryrun)
 	struct bootentry_script *bs = container_of(entry, struct bootentry_script, entry);
 	int ret;
 
-	struct bootm_data data = {};
+	struct bootm_data backup = {}, data = {};
 
 	if (dryrun == 1) {
 		printf("Would run %s\n", bs->scriptpath);
 		return 0;
 	}
 
+	bootm_data_init_defaults(&backup);
+
 	globalvar_add_simple("linux.bootargs.dyn.ip", NULL);
 	globalvar_add_simple("linux.bootargs.dyn.root", NULL);
-	globalvar_set_match("linux.bootargs.dyn.", "");
 
 	ret = run_command(bs->scriptpath);
 	if (ret) {
-		pr_err("Running script '%s' failed: %s\n", bs->scriptpath, strerror(-ret));
-		return ret;
+		pr_err("Running script '%s' failed: %pe\n", bs->scriptpath, ERR_PTR(ret));
+		goto out;
 	}
 
 	bootm_data_init_defaults(&data);
@@ -97,7 +102,10 @@ static int bootscript_boot(struct bootentry *entry, int verbose, int dryrun)
 	if (dryrun >= 2)
 		data.dryrun = dryrun - 1;
 
-	return bootm_boot(&data);
+	ret = bootm_boot(&data);
+out:
+	bootm_data_restore_defaults(&backup);
+	return ret;
 }
 
 static unsigned int boot_watchdog_timeout;
@@ -126,7 +134,12 @@ static char *global_user;
 
 static int init_boot(void)
 {
-	global_boot_default = global_boot_default ? : xstrdup("net");
+	if (!global_boot_default)
+		global_boot_default = xstrdup(
+			IF_ENABLED(CONFIG_BOOT_DEFAULTS, "bootsource ")
+			"net"
+		);
+
 	globalvar_add_simple_string("boot.default", &global_boot_default);
 	globalvar_add_simple_int("boot.watchdog_timeout",
 				 &boot_watchdog_timeout, "%u");
@@ -152,14 +165,20 @@ int boot_entry(struct bootentry *be, int verbose, int dryrun)
 
 		ret = watchdog_set_timeout(boot_enabled_watchdog, boot_watchdog_timeout);
 		if (ret) {
-			pr_warn("Failed to enable watchdog: %s\n", strerror(-ret));
+			pr_warn("Failed to enable watchdog: %pe\n", ERR_PTR(ret));
 			boot_enabled_watchdog = NULL;
 		}
 	}
 
+	bootm_set_overrides(&be->overrides);
+
 	ret = be->boot(be, verbose, dryrun);
 	if (ret && ret != -ENOMEDIUM)
 		pr_err("Booting entry '%s' failed: %pe\n", be->title, ERR_PTR(ret));
+
+	bootm_set_overrides(NULL);
+
+	globalvar_set_match("linux.bootargs.dyn.", "");
 
 	return ret;
 }
@@ -179,7 +198,7 @@ static void bootscript_entry_release(struct bootentry *entry)
 {
 	struct bootentry_script *bs = container_of(entry, struct bootentry_script, entry);
 
-	free(bs->scriptpath);
+	free_const(bs->scriptpath);
 	free(bs);
 }
 
@@ -203,8 +222,8 @@ static int bootscript_create_entry(struct bootentries *bootentries, const char *
 	bs->entry.me.type = MENU_ENTRY_NORMAL;
 	bs->entry.release = bootscript_entry_release;
 	bs->entry.boot = bootscript_boot;
-	bs->scriptpath = xstrdup(name);
-	bs->entry.title = xstrdup(basename(bs->scriptpath));
+	bs->scriptpath = xstrdup_const(name);
+	bs->entry.title = xstrdup_const(kbasename(bs->scriptpath));
 	bs->entry.description = basprintf("script: %s", name);
 	bootentries_add_entry(bootentries, &bs->entry);
 
@@ -260,22 +279,117 @@ static int bootscript_scan_path(struct bootentries *bootentries, const char *pat
 
 static LIST_HEAD(bootentry_providers);
 
-struct bootentry_provider {
-	int (*fn)(struct bootentries *bootentries, const char *name);
-	struct list_head list;
-};
-
-int bootentry_register_provider(int (*fn)(struct bootentries *bootentries, const char *name))
+int bootentry_register_provider(struct bootentry_provider *p)
 {
-	struct bootentry_provider *p;
-
-	p = xzalloc(sizeof(*p));
-	p->fn = fn;
-
-	list_add_tail(&p->list, &bootentry_providers);
-
+	list_add(&p->list, &bootentry_providers);
 	return 0;
 }
+
+/*
+ * nfs_find_mountpath - Check if a given url is already mounted
+ */
+static const char *nfs_find_mountpath(const char *nfshostpath)
+{
+	struct fs_device *fsdev;
+
+	for_each_fs_device(fsdev) {
+		if (fsdev->backingstore && !strcmp(fsdev->backingstore, nfshostpath))
+			return fsdev->path;
+	}
+
+	return NULL;
+}
+
+/*
+ * parse_nfs_url - check for nfs:// style url
+ *
+ * Check if the passed string is a NFS url and if yes, mount the
+ * NFS and return the path we have mounted to.
+ */
+static char *parse_nfs_url(const char *url)
+{
+	char *sep, *str, *host, *port, *path;
+	char *mountpath = NULL, *hostpath = NULL, *options = NULL;
+	const char *prevpath;
+	IPaddr_t ip;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_FS_NFS))
+		return NULL;
+
+	if (strncmp(url, "nfs://", 6))
+		return NULL;
+
+	url += 6;
+
+	str = xstrdup(url);
+
+	host = str;
+
+	sep = strchr(str, '/');
+	if (!sep) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	*sep++ = 0;
+
+	path = sep;
+
+	port = strchr(host, ':');
+	if (port)
+		*port++ = 0;
+
+	ret = ifup_all(0);
+	if (ret) {
+		pr_err("Failed to bring up networking\n");
+		goto out;
+	}
+
+	ret = resolv(host, &ip);
+	if (ret) {
+		pr_err("Cannot resolve \"%s\": %s\n", host, strerror(-ret));
+		goto out;
+	}
+
+	hostpath = basprintf("%pI4:%s", &ip, path);
+
+	prevpath = nfs_find_mountpath(hostpath);
+
+	if (prevpath) {
+		mountpath = xstrdup(prevpath);
+	} else {
+		mountpath = basprintf("/mnt/nfs-%s-bootentries-%08x", host,
+					random32());
+		if (port)
+			options = basprintf("mountport=%s,port=%s", port,
+					      port);
+
+		ret = make_directory(mountpath);
+		if (ret)
+			goto out;
+
+		pr_debug("host: %s port: %s path: %s\n", host, port, path);
+		pr_debug("hostpath: %s mountpath: %s options: %s\n", hostpath, mountpath, options);
+
+		ret = mount(hostpath, "nfs", mountpath, options);
+		if (ret)
+			goto out;
+	}
+
+	ret = 0;
+
+out:
+	free(str);
+	free(hostpath);
+	free(options);
+
+	if (ret)
+		free(mountpath);
+
+	return ret ? NULL : mountpath;
+}
+
 
 /*
  * bootentry_create_from_name - create boot entries from a name
@@ -297,26 +411,33 @@ int bootentry_create_from_name(struct bootentries *bootentries,
 {
 	struct bootentry_provider *p;
 	int found = 0, ret;
+	char *nfspath;
+
+	nfspath = parse_nfs_url(name);
+	if (nfspath)
+		name = nfspath;
 
 	list_for_each_entry(p, &bootentry_providers, list) {
-		ret = p->fn(bootentries, name);
+		ret = p->generate(bootentries, name);
 		if (ret > 0)
 			found += ret;
 	}
 
+	free(nfspath);
+
 	if (IS_ENABLED(CONFIG_COMMAND_SUPPORT) && !found) {
-		char *path;
+		const char *path;
 
 		if (*name != '/')
 			path = basprintf("/env/boot/%s", name);
 		else
-			path = xstrdup(name);
+			path = xstrdup_const(name);
 
 		ret = bootscript_scan_path(bootentries, path);
 		if (ret > 0)
 			found += ret;
 
-		free(path);
+		free_const(path);
 	}
 
 	return found;
@@ -339,7 +460,7 @@ void bootsources_menu(struct bootentries *bootentries,
 
 	bootentries_for_each_entry(bootentries, entry) {
 		if (!entry->me.display)
-			entry->me.display = xstrdup(entry->title);
+			entry->me.display = xstrdup_const(entry->title);
 		entry->me.action = bootsource_action;
 		menu_add_entry(bootentries->menu, &entry->me);
 

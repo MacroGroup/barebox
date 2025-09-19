@@ -81,7 +81,7 @@ The :ref:`dhcp command <command_dhcp>` will change the settings based on the ans
 from the DHCP server.
 
 To make the network device settings persistent across reboots there is a nonvolatile
-variable (nvvar) for each of the varariables above. The network device specific variables
+variable (nvvar) for each of the variables above. The network device specific variables
 are:
 
 .. code-block:: sh
@@ -134,8 +134,7 @@ or:
 Network filesystems
 -------------------
 
-barebox supports NFS and TFTP both with commands (:ref:`nfs <command_nfs>` and
-:ref:`tftp <command_tftp>`) and as filesystem implementations; see
+barebox supports NFS and TFTP as filesystem implementations; see
 :ref:`filesystems_nfs` and :ref:`filesystems_tftp` for more information. After
 the network device has been brought up, a network filesystem can be mounted
 with:
@@ -150,9 +149,26 @@ or
 
   mount -t nfs 192.168.2.1:/export none /mnt
 
-**NOTE:** The execution of the mount command can often be hidden behind the
-:ref:`automount command <command_automount>`, to make mounting transparent to
-the user.
+.. _network_filesystems_automounts:
+
+Automounts
+^^^^^^^^^^
+
+For user convenience, the default ``automount`` init script runs
+the :ref:`automount command <command_automount>` to create automounts for
+both TFTP and NFS. On first access, an Ethernet interface will be brought
+up and file operations will be forwarded to a host specified by global
+variables:
+
+- ``/mnt/tftp``: will use ``$global.net.server`` as TFTP server
+
+- ``/mnt/nfs``: will use ``$global.net.server`` as NFS server
+  and ``/home/${global.user}/nfsroot/${global.hostname}`` as nfsroot.
+  By default, a RPC lookup will be conducted to determine mount and
+  NFS ports, but these can be overridden together using a user-specified
+  by means of ``global.nfs.port``. The latter is equivalent to specifying
+  ``-o port=$global.nfs.port,mountport=$global.nfs.port`` as argument
+  to the :ref:`mount command <command_mount>`.
 
 Network console
 ---------------
@@ -186,3 +202,93 @@ barebox:
 The netconsole can be used just like any other console. Note, however, that the
 simple console protocol is UDP based, so there is no guarantee about packet
 loss.
+
+Fastboot over UDP
+-----------------
+
+When built with ``CONFIG_NET_FASTBOOT=y`` and the environment variable
+``fastboot.net.autostart`` is set to any non-empty value, barebox will
+listen for fastboot commands on UDP port 5554.
+You might need to configure a IP address first in order to use fastboot (e.g.
+via DHCP or statically; see above).
+
+Additionally, you have to configure at least the ``fastboot.partitions``
+variable, see :ref:`usbgadget_variables`.
+
+On your development host, use fastboot with the ``-s udp:<IP-address>``
+parameter, specifying the IP address of your board.
+See :ref:`fastboot` for more information about Fastboot usage.
+
+DSA (Distributed Switch Architecture) Support in Barebox
+--------------------------------------------------------
+
+Barebox includes support for DSA (Distributed Switch Architecture), allowing
+for basic configuration and management of network switches within the
+bootloader.
+
+DSA enables network devices to use a switch framework where each port of the
+switch is treated as a separate network interface, while still allowing packet
+forwarding between ports when enabled.
+
+DSA Configuration
+^^^^^^^^^^^^^^^^^
+
+DSA switches are managed through device parameters, similar to network
+interfaces. Each switch is identified as a separate device, typically named
+``switch0`` or ``switch@00`` depending on the bus address.
+
+Global Forwarding Control
+"""""""""""""""""""""""""
+
+A parameter, ``forwarding``, allows configuring whether a switch operates
+in **isolated mode** (default) or **forwarding mode**:
+
+- **Isolated Mode** (default): Each port is treated as an independent interface,
+  with no forwarding between ports.
+
+- **Forwarding Mode**: The switch allows forwarding of packets between ports,
+  acting as a traditional non-managed switch.
+
+To check the current DSA switch settings, use:
+
+.. code-block:: sh
+
+  barebox:/ devinfo switch0
+  Parameters:
+    forwarding: 0 (type: bool)
+
+To enable forwarding mode:
+
+.. code-block:: sh
+
+  dev.switch0.forwarding=1
+
+To disable forwarding and revert to isolated mode:
+
+.. code-block:: sh
+
+  dev.switch0.forwarding=0
+
+Persisting Configuration
+""""""""""""""""""""""""
+
+To ensure that the forwarding mode setting persists across reboots,
+it can be stored as a nonvolatile (nv) variable:
+
+.. code-block:: sh
+
+  nv dev.switch0.forwarding=1
+
+This will configure the switch to always boot in forwarding mode.
+
+Integration with Network Interfaces
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Each port of the DSA switch is exposed as an independent network interface in
+Barebox. However, when forwarding is enabled, packets can be forwarded between
+these interfaces without requiring intervention from the CPU.
+
+To configure network settings for individual ports, use standard network
+configuration variables (e.g., ``eth0.ipaddr``, ``eth0.mode``, etc.). These
+settings are applied per port and are independent of the global switch
+forwarding configuration.

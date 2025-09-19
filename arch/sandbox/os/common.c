@@ -20,9 +20,11 @@
  * files here...
  */
 #define _GNU_SOURCE
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -38,13 +40,36 @@
 #include <sys/select.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
-#include <linux/fs.h>
+#include <sys/mount.h>
 #include <sys/time.h>
 /*
  * ...except the ones needed to connect with barebox
  */
 #include <mach/linux.h>
 #include <mach/hostfile.h>
+#include <asm/barebox-sandbox.h>
+
+#ifdef CONFIG_CONSOLE_NONE
+int __attribute__((unused)) barebox_loglevel;
+#else
+extern int barebox_loglevel;
+#endif
+
+#ifdef CONFIG_FUZZ_EXTERNAL
+int call_for_each_fuzz_test(int (*fn)(const char **test));
+int setup_external_fuzz(const char *name,
+			int *argc, char ***argv);
+#else
+static inline int call_for_each_fuzz_test(int (*fn)(const char **test))
+{
+	return 0;
+}
+static inline int setup_external_fuzz(const char *name,
+				      int *argc, char ***argv)
+{
+	return -1;
+}
+#endif
 
 #define DELETED_OFFSET (sizeof(" (deleted)") - 1)
 
@@ -185,6 +210,11 @@ int linux_open(const char *filename, int readwrite)
 	return open(filename, (readwrite ? O_RDWR : O_RDONLY) | O_CLOEXEC);
 }
 
+int linux_close(int fd)
+{
+	return close(fd);
+}
+
 int linux_read(int fd, void *buf, size_t count)
 {
 	ssize_t ret;
@@ -293,7 +323,7 @@ int linux_watchdog_set_timeout(unsigned int timeout)
 extern void start_barebox(void);
 extern void mem_malloc_init(void *start, void *end);
 
-extern char * strsep_unescaped(char **s, const char *ct);
+extern char * strsep_unescaped(char **s, const char *ct, char *delim);
 
 static int add_image(const char *_str, char *devname_template, int *devname_number)
 {
@@ -308,8 +338,8 @@ static int add_image(const char *_str, char *devname_template, int *devname_numb
 
 	str = strdup(_str);
 
-	filename = strsep_unescaped(&str, ",");
-	while ((opt = strsep_unescaped(&str, ","))) {
+	filename = strsep_unescaped(&str, ",", NULL);
+	while ((opt = strsep_unescaped(&str, ",", NULL))) {
 		if (!strcmp(opt, "ro"))
 			hf->is_readonly = 1;
 		if (!strcmp(opt, "cdev"))
@@ -319,8 +349,8 @@ static int add_image(const char *_str, char *devname_template, int *devname_numb
 	}
 
 	/* parses: "devname=filename" */
-	devname = strsep_unescaped(&filename, "=");
-	filename = strsep_unescaped(&filename, "=");
+	devname = strsep_unescaped(&filename, "=", NULL);
+	filename = strsep_unescaped(&filename, "=", NULL);
 	if (!filename) {
 		filename = devname;
 		snprintf(tmp, sizeof(tmp),
@@ -435,8 +465,7 @@ int linux_open_hostfile(struct hf_info *hf)
 				MAP_SHARED, fd, 0);
 
 		if (hf->base == (unsigned long)MAP_FAILED)
-			printf("warning: mmapping %s failed: %s\n",
-			       hf->filename, strerror(errno));
+			printf("warning: mmapping %s failed: %m\n", hf->filename);
 	} else {
 		printf("warning: %s: contiguous map failed\n", hf->filename);
 	}
@@ -492,12 +521,24 @@ static int add_dtb(const char *file)
 	return -1;
 }
 
+static char *cmdline;
+
+const char *barebox_cmdline_get(void)
+{
+	return cmdline;
+}
+
 static void print_usage(const char*);
+
+#define OPT_LOGLEVEL		(CHAR_MAX + 1)
+#define OPT_LIST_FUZZERS	(CHAR_MAX + 2)
+#define OPT_FUZZ		(CHAR_MAX + 3)
 
 static struct option long_options[] = {
 	{"help",     0, 0, 'h'},
 	{"malloc",   1, 0, 'm'},
 	{"image",    1, 0, 'i'},
+	{"command",  1, 0, 'c'},
 	{"env",      1, 0, 'e'},
 	{"dtb",      1, 0, 'd'},
 	{"stdout",   1, 0, 'O'},
@@ -505,24 +546,86 @@ static struct option long_options[] = {
 	{"stdinout", 1, 0, 'B'},
 	{"xres",     1, 0, 'x'},
 	{"yres",     1, 0, 'y'},
+#ifndef CONFIG_CONSOLE_NONE
+	{"loglevel", 1, 0, OPT_LOGLEVEL},
+#endif
+#ifdef CONFIG_FUZZ_EXTERNAL
+	{"fuzz", 1, 0, OPT_FUZZ},
+	{"list-fuzzers", 0, 0, OPT_LIST_FUZZERS},
+#endif
 	{0, 0, 0, 0},
 };
 
-static const char optstring[] = "hm:i:e:d:O:I:B:x:y:";
+static const char optstring[] = "hm:i:c:e:d:O:I:B:x:y:";
 
-int main(int argc, char *argv[])
+static __attribute__((unused)) int print_fuzz_test_name(const char **test_name)
 {
+	printf("%s\n", *test_name);
+	return 0;
+}
+
+static inline size_t str_has_prefix(const char *str, const char *prefix)
+{
+	size_t len = strlen(prefix);
+	return strncmp(str, prefix, len) == 0 ? len : 0;
+}
+
+static char *realpath_alloc(char *path)
+{
+	char *real;
+
+	real = malloc(PATH_MAX);
+	if (!real) {
+		perror("malloc");
+		exit(3);
+	}
+
+	if (!realpath(path, real)) {
+		perror("realpath");
+		exit(EXIT_FAILURE);
+	}
+
+	return real;
+}
+
+static void setup_external_fuzz_with_args(const char *fuzz, int *pargc, char **pargv[])
+{
+	char **argv = *pargv;
+	char *rlpath;
+	int ret;
+
+	rlpath = realpath_alloc(argv[0]);
+
+	asprintf(&argv[optind - 1], "%s/fuzz-%s", dirname(rlpath), fuzz);
+
+	free(rlpath);
+
+	*pargc -= optind - 1;
+	*pargv += optind - 1;
+
+	ret = setup_external_fuzz(fuzz, pargc, pargv);
+	if (ret) {
+		printf("unknown fuzz target '%s'\n", fuzz);
+		exit(ret);
+	}
+}
+
+static int normal_main(int argc, char *argv[])
+{
+	bool skip_opts = false;
+	const char *fuzz = NULL;
 	void *ram;
 	int opt, ret, fd, fd2;
 	int malloc_size = CONFIG_MALLOC_SIZE;
-	int fdno = 0, envno = 0, option_index = 0;
+	int loglevel = -1, fdno = 0, envno = 0, option_index = 0;
+	char *new_cmdline;
 	char *aux;
 
 #ifdef CONFIG_ASAN
 	__sanitizer_set_death_callback(prepare_exit);
 #endif
 
-	while (1) {
+	while (!skip_opts) {
 		option_index = 0;
 		opt = getopt_long(argc, argv, optstring,
 			long_options, &option_index);
@@ -537,7 +640,16 @@ int main(int argc, char *argv[])
 		case 'm':
 			malloc_size = strtoul(optarg, NULL, 0);
 			break;
+		case OPT_LOGLEVEL:
+			loglevel = strtoul(optarg, NULL, 0);
+			break;
 		case 'i':
+			break;
+		case 'c':
+			if (asprintf(&new_cmdline, "%s%s\n", cmdline ?: "", optarg) < 0)
+				exit(1);
+			free(cmdline);
+			cmdline = new_cmdline;
 			break;
 		case 'e':
 			break;
@@ -554,10 +666,18 @@ int main(int argc, char *argv[])
 		case 'y':
 			sdl_yres = strtoul(optarg, NULL, 0);
 			break;
+		case OPT_LIST_FUZZERS:
+			call_for_each_fuzz_test(print_fuzz_test_name);
+			exit(0);
+			break;
+		case OPT_FUZZ:
+			skip_opts = true;
+			break;
 		default:
 			break;
 		}
 	}
+	skip_opts = false;
 
 	saved_argv = argv;
 
@@ -575,7 +695,7 @@ int main(int argc, char *argv[])
 	 */
 	optind = 1;
 
-	while (1) {
+	while (!skip_opts) {
 		option_index = 0;
 		opt = getopt_long(argc, argv, optstring,
 			long_options, &option_index);
@@ -637,6 +757,10 @@ int main(int argc, char *argv[])
 
 			barebox_register_console(fd2, fd);
 			break;
+		case OPT_FUZZ:
+			fuzz = optarg;
+			skip_opts = true;
+			break;
 		default:
 			break;
 		}
@@ -644,11 +768,51 @@ int main(int argc, char *argv[])
 
 	barebox_register_console(fileno(stdin), fileno(stdout));
 
-	rawmode();
+	if (fuzz)
+		setup_external_fuzz_with_args(fuzz, &argc, &argv);
+	else
+		rawmode();
+
+	if (loglevel >= 0)
+		barebox_loglevel = loglevel;
+
 	start_barebox();
 
 	/* never reached */
 	return 0;
+}
+
+ENTRY_FUNCTION(sandbox_main, argc, argv)
+{
+	char **args;
+	char *argv0;
+	size_t fuzz_off;
+	char *rlpath;
+
+	tcgetattr(0, &term_orig);
+
+	argv0 = basename(argv[0]);
+	fuzz_off = str_has_prefix(argv0, "fuzz-");
+	if (fuzz_off) {
+		args = malloc((argc + 3) * sizeof(*args));
+		if (!args)
+			exit(3);
+
+		rlpath = realpath_alloc(argv[0]);
+		asprintf(&args[0], "%s/barebox", dirname(rlpath));
+
+		free(rlpath);
+
+		args[1] = "--fuzz";
+		args[2] = argv0 + fuzz_off;
+
+		memcpy(&args[3], &argv[1], argc * sizeof(*args));
+
+		argc += 2;
+		argv = args;
+	}
+
+	return normal_main(argc, argv);
 }
 
 #ifdef __PPC__
@@ -669,6 +833,7 @@ static void print_usage(const char *prgname)
 "  -i, --image=<dev>=<file>\n"
 "                       Same as above, the files will show up as\n"
 "                       /dev/<dev>\n"
+"  -c, --command=<cmd>  Run extra command after init scripts\n"
 "  -e, --env=<file>     Map a file with an environment to barebox. With this \n"
 "                       option, files are mapped as /dev/env0 ... /dev/envx\n"
 "                       and thus are used as the default environment.\n"
@@ -684,7 +849,23 @@ static void print_usage(const char *prgname)
 "                       stdin and stdout. <filein> and <fileout> can be regular\n"
 "                       files or FIFOs.\n"
 "  -x, --xres=<res>     SDL width.\n"
-"  -y, --yres=<res>     SDL height.\n",
-	prgname
+"  -y, --yres=<res>     SDL height.\n"
+#ifndef CONFIG_CONSOLE_NONE
+"      --loglevel=<num> Default log level to use, where <num> is one of:\n"
+"			  0    system is unusable (emerg)\n"
+"			  1    action must be taken immediately (alert)\n"
+"			  2    critical conditions (crit)\n"
+"			  3    error conditions (err)\n"
+"			  4    warning conditions (warn)\n"
+"			  5    normal but significant condition (notice)\n"
+"			  6    informational (info)\n"
+"			  7    debug-level messages (debug)\n"
+"			  8    verbose debug messages (vdebug)\n"
+#endif
+#ifdef CONFIG_FUZZ_EXTERNAL
+"      --fuzz=<test>     Run libfuzzer against the <test> target.\n"
+"      --list-fuzzers    List all available fuzzing test targets.\n"
+#endif
+	, prgname
 	);
 }

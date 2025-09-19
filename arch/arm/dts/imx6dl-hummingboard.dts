@@ -9,6 +9,8 @@
 #include "imx6qdl.dtsi"
 
 / {
+	barebox,disable-deep-probe;
+
 	chosen {
 		stdout-path = &uart1;
 
@@ -17,10 +19,6 @@
 			device-path = &env_sd2;
 		};
 	};
-};
-
-&ocotp {
-	barebox,provide-mac-address = <&fec 0x620>;
 };
 
 &usdhc2 {

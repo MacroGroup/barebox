@@ -9,6 +9,7 @@
 
 / {
 	compatible = "gome,e143_01", "variscite,var-som-mx7", "fsl,imx7d";
+	barebox,deep-probe;
 
 	aliases {
 		state = &state;
@@ -83,7 +84,7 @@
 	partitions {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "fixed-partitions";
+		compatible = "barebox,fixed-partitions";
 
 		/** original storage layout:
 		offset     size  label

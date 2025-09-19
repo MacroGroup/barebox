@@ -9,6 +9,8 @@
 #include "imx6qdl.dtsi"
 
 / {
+	barebox,deep-probe;
+
 	chosen {
 		stdout-path = &uart2;
 
@@ -36,10 +38,6 @@
 		label = "barebox-environment";
 		reg = <0xe0000 0x20000>;
 	};
-};
-
-&ocotp {
-	barebox,provide-mac-address = <&fec 0x620>;
 };
 
 &clks {

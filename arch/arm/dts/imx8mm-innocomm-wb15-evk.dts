@@ -5,6 +5,8 @@
 #include <arm64/freescale/imx8mm-innocomm-wb15-evk.dts>
 
 / {
+	barebox,deep-probe;
+
 	chosen {
 		environment-emmc {
 			compatible = "barebox,environment";
@@ -25,7 +27,7 @@
 
 &usdhc1 {
 	partitions {
-		compatible = "fixed-partitions";
+		compatible = "barebox,fixed-partitions";
 		#address-cells = <2>;
 		#size-cells = <2>;
 
@@ -43,7 +45,7 @@
 
 &usdhc2 {
 	partitions {
-		compatible = "fixed-partitions";
+		compatible = "barebox,fixed-partitions";
 		#address-cells = <2>;
 		#size-cells = <2>;
 

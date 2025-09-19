@@ -3,6 +3,8 @@
 #include "imx6q.dtsi"
 
 / {
+	barebox,disable-deep-probe;
+
 	chosen {
 		stdout-path = &uart1;
 
@@ -15,10 +17,6 @@
 
 &{/memory@10000000} {
 	reg = <0x10000000 0x0>;
-};
-
-&ocotp {
-	barebox,provide-mac-address = <&fec 0x620>;
 };
 
 &usdhc3 {

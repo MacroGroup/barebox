@@ -93,10 +93,12 @@ static int nvme_pci_setup_prps(struct nvme_dev *dev,
 
 	nprps = DIV_ROUND_UP(length, page_size);
 	if (nprps > dev->prp_pool_size) {
-		dma_free_coherent(dev->prp_pool, dev->prp_dma,
+		dma_free_coherent(DMA_DEVICE_BROKEN,
+				  dev->prp_pool, dev->prp_dma,
 				  dev->prp_pool_size * sizeof(u64));
 		dev->prp_pool_size = nprps;
-		dev->prp_pool = dma_alloc_coherent(nprps * sizeof(u64),
+		dev->prp_pool = dma_alloc_coherent(DMA_DEVICE_BROKEN,
+						   nprps * sizeof(u64),
 						   &dev->prp_dma);
 	}
 
@@ -157,12 +159,14 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
 	if (dev->ctrl.queue_count > qid)
 		return 0;
 
-	nvmeq->cqes = dma_alloc_coherent(CQ_SIZE(depth),
+	nvmeq->cqes = dma_alloc_coherent(DMA_DEVICE_BROKEN,
+					 CQ_SIZE(depth),
 					 &nvmeq->cq_dma_addr);
 	if (!nvmeq->cqes)
 		goto free_nvmeq;
 
-	nvmeq->sq_cmds = dma_alloc_coherent(SQ_SIZE(depth),
+	nvmeq->sq_cmds = dma_alloc_coherent(DMA_DEVICE_BROKEN,
+					    SQ_SIZE(depth),
 					    &nvmeq->sq_dma_addr);
 	if (!nvmeq->sq_cmds)
 		goto free_cqdma;
@@ -178,7 +182,8 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
 	return 0;
 
  free_cqdma:
-	dma_free_coherent((void *)nvmeq->cqes, nvmeq->cq_dma_addr,
+	dma_free_coherent(DMA_DEVICE_BROKEN,
+			  (void *)nvmeq->cqes, nvmeq->cq_dma_addr,
 			  CQ_SIZE(depth));
  free_nvmeq:
 	return -ENOMEM;
@@ -395,10 +400,12 @@ static int nvme_pci_submit_sync_cmd(struct nvme_ctrl *ctrl,
 		case nvme_admin_create_cq:
 		case nvme_admin_delete_sq:
 		case nvme_admin_delete_cq:
+		case nvme_admin_sanitize_nvm:
 		case nvme_admin_set_features:
 			dma_dir = DMA_TO_DEVICE;
 			break;
 		case nvme_admin_identify:
+		case nvme_admin_get_log_page:
 			dma_dir = DMA_FROM_DEVICE;
 			break;
 		default:
@@ -622,8 +629,8 @@ static void nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 	int ret;
 	ret = adapter_delete_queue(nvmeq->dev, opcode, nvmeq->qid);
 	if (ret < 0)
-		dev_err(nvmeq->dev->dev, "%s: %s\n", __func__,
-			strerror(-ret));
+		dev_err(nvmeq->dev->dev, "%s: %pe\n", __func__,
+			ERR_PTR(ret));
 	else if (ret)
 		dev_err(nvmeq->dev->dev,
 			"%s: status code type: %xh, status code %02xh\n",

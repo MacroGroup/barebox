@@ -6,7 +6,7 @@ obj-$(CONFIG_BOOTSTRAP)	+= bootstrap/
 obj-pbl-y		+= ctype.o
 obj-y			+= rbtree.o
 obj-y			+= display_options.o
-obj-y			+= string.o
+obj-y			+= string.o string_helpers.o
 obj-$(CONFIG_VERSION_CMP)	+= strverscmp.o
 obj-y			+= strtox.o
 obj-y			+= kstrtox.o
@@ -22,14 +22,18 @@ obj-y			+= readkey.o
 obj-y			+= kfifo.o
 obj-y			+= libbb.o
 obj-y			+= libgen.o
+obj-$(CONFIG_FIP)	+= fip.o tbbr_config.o
 obj-$(CONFIG_JSMN)	+= jsmn.o
 obj-$(CONFIG_BLOBGEN)	+= blobgen.o
 obj-y			+= stringlist.o
+obj-y			+= scatterlist.o
 obj-y			+= cmdlinepart.o
 obj-y			+= recursive_action.o
 obj-y			+= make_directory.o
 obj-y			+= arith.o
 obj-$(CONFIG_IDR)	+= idr.o
+obj-y			+= parser.o
+obj-y			+= iov_iter.o
 obj-y			+= math/
 obj-y			+= uuid.o
 obj-$(CONFIG_XXHASH)	+= xxhash.o
@@ -64,6 +68,7 @@ obj-$(CONFIG_XYMODEM)	+= xymodem.o
 obj-y			+= unlink-recursive.o
 obj-$(CONFIG_STMP_DEVICE) += stmp-device.o
 obj-y			+= wchar.o
+obj-$(CONFIG_FUZZ)	+= fuzz.o
 obj-y			+= libfile.o
 obj-y			+= bitmap.o
 obj-y			+= gcd.o
@@ -82,7 +87,7 @@ obj-$(CONFIG_CRC_CCITT) += crc-ccitt.o
 obj-$(CONFIG_CRC8)	+= crc8.o
 obj-$(CONFIG_NLS)	+= nls_base.o
 obj-$(CONFIG_FSL_QE_FIRMWARE) += fsl-qe-firmware.o
-obj-$(CONFIG_UBSAN)	+= ubsan.o
+obj-$(CONFIG_UBSAN_STANDALONE)	+= ubsan.o
 obj-$(CONFIG_GENERIC_ALLOCATOR) += genalloc.o
 
 # GCC library routines
@@ -98,7 +103,7 @@ KASAN_SANITIZE_ubsan.o := n
 CFLAGS_ubsan.o := -fno-stack-protector
 
 libfdt_files = fdt.o fdt_ro.o fdt_wip.o fdt_rw.o fdt_sw.o fdt_strerror.o \
-	                      fdt_empty_tree.o
+	                      fdt_empty_tree.o fdt_addresses.o
 $(foreach file, $(libfdt_files), \
 	$(eval CFLAGS_$(file) = -I $(srctree)/scripts/dtc/libfdt) \
 	$(eval CFLAGS_$(file:%.o=%.pbl.o) = -I $(srctree)/scripts/dtc/libfdt))

@@ -18,9 +18,21 @@ static int nvmem_cdev_read(void *ctx, unsigned offset, void *buf, size_t bytes)
 	return cdev_read(ctx, buf, bytes, offset, 0);
 }
 
-struct nvmem_device *nvmem_partition_register(struct cdev *cdev)
+static int nvmem_cdev_protect(void *ctx, unsigned int offset, size_t bytes,
+			      int prot)
+{
+	return cdev_protect(ctx, bytes, offset, prot);
+}
+
+static int nvmem_cells_probe(struct device *dev)
 {
 	struct nvmem_config config = {};
+	struct device_node *node = dev->of_node;
+	struct cdev *cdev;
+
+	cdev = cdev_by_device_node(node);
+	if (!cdev)
+		return -EINVAL;
 
 	config.name = cdev->name;
 	config.dev = cdev->dev;
@@ -31,6 +43,20 @@ struct nvmem_device *nvmem_partition_register(struct cdev *cdev)
 	config.size = cdev->size;
 	config.reg_read = nvmem_cdev_read;
 	config.reg_write = nvmem_cdev_write;
+	config.reg_protect = nvmem_cdev_protect;
 
-	return nvmem_register(&config);
+	return PTR_ERR_OR_ZERO(nvmem_register(&config));
 }
+
+static __maybe_unused struct of_device_id nvmem_cells_dt_ids[] = {
+	{ .compatible = "nvmem-cells", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, nvmem_cells_dt_ids);
+
+static struct driver nvmem_cells_driver = {
+	.name	= "nvmem_cells",
+	.probe	= nvmem_cells_probe,
+	.of_compatible = nvmem_cells_dt_ids,
+};
+device_platform_driver(nvmem_cells_driver);

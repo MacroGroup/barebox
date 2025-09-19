@@ -16,6 +16,7 @@ int imx7_esdhc_start_image(int instance);
 int imx7_nand_start_image(void);
 
 /* Below functions only load and don't start the image */
+int imx8m_ecspi_load_image(int instance, void *bl33);
 int imx8m_esdhc_load_image(int instance, void *bl33);
 int imx8mn_esdhc_load_image(int instance, void *bl33);
 int imx8mp_esdhc_load_image(int instance, void *bl33);
@@ -38,6 +39,7 @@ void __noreturn __imx8mp_load_and_start_image_via_tfa(void *bl33);
 void __noreturn __imx8mq_load_and_start_image_via_tfa(void *bl33);
 
 void __noreturn imx93_load_and_start_image_via_tfa(void);
+void __noreturn __imx93_load_and_start_image_via_tfa(void *bl33);
 
 int imx_load_image(ptrdiff_t address, ptrdiff_t entry, u32 offset,
 		   u32 ivt_offset, bool start, unsigned int alignment,

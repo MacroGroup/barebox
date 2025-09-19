@@ -16,6 +16,7 @@
 #include <soc/fsl/caam.h>
 #include <tee/optee.h>
 #include <mach/imx/ele.h>
+#include <mach/imx/xload.h>
 
 /**
  * imx8m_atf_load_bl31 - Load ATF BL31 blob and transfer control to it
@@ -102,6 +103,9 @@ void imx8mm_load_bl33(void *bl33)
 		break;
 	case BOOTSOURCE_SPI:
 		imx8mm_qspi_load_image(instance, bl33);
+		break;
+	case BOOTSOURCE_SPI_NOR:
+		imx8m_ecspi_load_image(instance, bl33);
 		break;
 	default:
 		printf("Unsupported bootsource BOOTSOURCE_%d\n", src);
@@ -191,6 +195,9 @@ void imx8mp_load_bl33(void *bl33)
 	case BOOTSOURCE_SPI:
 		imx8mp_qspi_load_image(instance, bl33);
 		break;
+	case BOOTSOURCE_SPI_NOR:
+		imx8m_ecspi_load_image(instance, bl33);
+		break;
 	default:
 		printf("Unhandled bootsource BOOTSOURCE_%d\n", src);
 		hang();
@@ -263,6 +270,9 @@ void imx8mn_load_bl33(void *bl33)
 	case BOOTSOURCE_SPI:
 		imx8mn_qspi_load_image(instance, bl33);
 		break;
+	case BOOTSOURCE_SPI_NOR:
+		imx8m_ecspi_load_image(instance, bl33);
+		break;
 	default:
 		printf("Unhandled bootsource BOOTSOURCE_%d\n", src);
 		hang();
@@ -328,6 +338,9 @@ void imx8mq_load_bl33(void *bl33)
 	case BOOTSOURCE_MMC:
 		imx8m_esdhc_load_image(instance, bl33);
 		break;
+	case BOOTSOURCE_SPI_NOR:
+		imx8m_ecspi_load_image(instance, bl33);
+		break;
 	default:
 		printf("Unhandled bootsource BOOTSOURCE_%d\n", src);
 		hang();
@@ -385,31 +398,20 @@ __noreturn void __imx8mq_load_and_start_image_via_tfa(void *bl33)
 
 void __noreturn imx93_load_and_start_image_via_tfa(void)
 {
+	__imx93_load_and_start_image_via_tfa((void *)MX93_ATF_BL33_BASE_ADDR);
+}
+
+void __noreturn __imx93_load_and_start_image_via_tfa(void *bl33)
+{
 	unsigned long atf_dest = MX93_ATF_BL31_BASE_ADDR;
 	void __noreturn (*bl31)(void) = (void *)atf_dest;
 	const void *tfa;
 	size_t tfa_size;
-	void *bl33 = (void *)MX93_ATF_BL33_BASE_ADDR;
 	unsigned long endmem = MX9_DDR_CSD1_BASE_ADDR + imx9_ddrc_sdram_size();
 
 	imx_set_cpu_type(IMX_CPU_IMX93);
 	imx93_init_scratch_space(true);
-
-	/*
-	 * On completion the TF-A will jump to MX93_ATF_BL33_BASE_ADDR
-	 * in EL2. Copy the image there, but replace the PBL part of
-	 * that image with ourselves. On a high assurance boot only the
-	 * currently running code is validated and contains the checksum
-	 * for the piggy data, so we need to ensure that we are running
-	 * the same code in DRAM.
-	 *
-	 * The second purpose of this memcpy is for USB booting. When booting
-	 * from USB the image comes in as a stream, so the PBL is transferred
-	 * only once. As we jump into the PBL again in SDRAM we need to copy
-	 * it there. The USB protocol transfers data in chunks of 1024 bytes,
-	 * so align the copy size up to the next 1KiB boundary.
-	 */
-	memcpy((void *)MX93_ATF_BL33_BASE_ADDR, __image_start, ALIGN(barebox_pbl_size, 1024));
+	imx93_romapi_load_image(bl33);
 
 	if (IS_ENABLED(CONFIG_FIRMWARE_IMX93_OPTEE)) {
 		void *bl32 = (void *)arm_mem_optee(endmem);
@@ -431,10 +433,28 @@ void __noreturn imx93_load_and_start_image_via_tfa(void)
 		get_builtin_firmware(imx93_bl31_bin, &tfa, &tfa_size);
 	}
 
+	handoff_data_move(bl33 - ALIGN(handoff_data_size(), 0x1000));
+
+	/*
+	 * On completion the TF-A will jump to MX93_ATF_BL33_BASE_ADDR
+	 * in EL2. Copy the image there, but replace the PBL part of
+	 * that image with ourselves. On a high assurance boot only the
+	 * currently running code is validated and contains the checksum
+	 * for the piggy data, so we need to ensure that we are running
+	 * the same code in DRAM.
+	 *
+	 * The second purpose of this memcpy is for USB booting. When booting
+	 * from USB the image comes in as a stream, so the PBL is transferred
+	 * only once. As we jump into the PBL again in SDRAM we need to copy
+	 * it there. The USB protocol transfers data in chunks of 1024 bytes,
+	 * so align the copy size up to the next 1KiB boundary.
+	 */
+	memcpy(bl33, __image_start, ALIGN(barebox_pbl_size, 1024));
+
 	memcpy(bl31, tfa, tfa_size);
 
 	asm volatile("msr sp_el2, %0" : :
-		     "r" (MX93_ATF_BL33_BASE_ADDR - 16) :
+		     "r" (bl33 - 16) :
 		     "cc");
 	bl31();
 	__builtin_unreachable();

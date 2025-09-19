@@ -52,7 +52,7 @@ config HAVE_AT91_SDRAMC
 config HAVE_AT91_DDRAMC
 	bool
 
-config AT91_MCI_PBL
+config AT91_PBL
 	def_bool MCI_ATMEL_PBL || MCI_ATMEL_SDHCI_PBL
 
 # Select if board uses the common at91sam926x_board_init
@@ -92,7 +92,6 @@ config SOC_SAMA5_MULTI
 config SOC_SAMA5D2
 	bool
 	select SOC_SAMA5
-	select AT91SAM9_SMC
 	select CLOCKSOURCE_ATMEL_PIT
 	select HAVE_AT91_H32MX
 	select HAVE_AT91_UTMI
@@ -153,9 +152,6 @@ config HAVE_NAND_ATMEL_BUSWIDTH_16
 config HAVE_AT91_DATAFLASH_CARD
 	bool
 
-config HAVE_AT91_LOAD_BAREBOX_SRAM
-	bool
-
 comment "Atmel AT91 System-on-Chip"
 
 config SOC_AT91RM9200
@@ -178,7 +174,6 @@ config SOC_AT91SAM9261
 	bool
 	select SOC_AT91SAM9
 	select PINCTRL_AT91
-	select HAVE_AT91_LOAD_BAREBOX_SRAM
 	help
 	  Select this if you are using one of Atmel's AT91SAM9261 or AT91SAM9G10 SoC.
 
@@ -186,7 +181,6 @@ config SOC_AT91SAM9263
 	bool
 	select SOC_AT91SAM9
 	select HAS_MACB
-	select HAVE_AT91_LOAD_BAREBOX_SRAM
 	select PINCTRL_AT91
 
 config SOC_AT91SAM9G45
@@ -270,10 +264,6 @@ config ARCH_AT91SAM9N12
 	bool "AT91SAM9N12"
 	select SOC_AT91SAM9N12
 
-config ARCH_SAMA5D3
-	bool "SAMA5D3x"
-	select SOC_SAMA5D3
-
 config ARCH_SAMA5D4
 	bool "SAMA5D4"
 	select SOC_SAMA5D4
@@ -290,7 +280,6 @@ config ARCH_BAREBOX_MAX_BARE_INIT_SIZE
 	default 0xF000 if ARCH_AT91SAM9G45
 	default 0x6000 if ARCH_AT91SAM9X5
 	default 0x6000 if ARCH_AT91SAM9N12
-	default 0x6000 if ARCH_SAMA5D3
 	default 0xffffffff
 
 if ARCH_AT91RM9200
@@ -556,7 +545,6 @@ endif
 
 config AT91_MULTI_BOARDS
 	bool "Allow multiple boards to be selected"
-	select ARM_USE_COMPRESSED_DTB
 
 if AT91_MULTI_BOARDS
 
@@ -593,6 +581,8 @@ config MACH_AT91SAM9263EK
 config MACH_AT91SAM9X5EK
 	bool "Atmel AT91SAM9x5 Series Evaluation Kit"
 	select SOC_AT91SAM9X5
+	select OFDEVICE
+	select COMMON_CLK_OF_PROVIDER
 	help
 	  Select this if you re using Atmel's AT91SAM9x5-EK Evaluation Kit.
 	  Supported chips are sam9g15, sam9g25, sam9x25, sam9g35 and sam9x35.
@@ -708,10 +698,5 @@ config AT91_BOOTSTRAP
 	bool "at91 bootstrap"
 	depends on HAVE_AT91_BOOTSTRAP
 	select BOOTSTRAP
-
-config AT91_LOAD_BAREBOX_SRAM
-	bool "at91 load barebox in sram"
-	depends on SHELL_NONE || HAVE_AT91_LOAD_BAREBOX_SRAM
-	default y if SHELL_NONE
 
 endif

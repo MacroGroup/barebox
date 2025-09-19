@@ -6,6 +6,8 @@
 #define __COMPILER_H__
 
 #include <stddef.h>
+#include <xalloc.h>
+#include <linux/types.h>
 
 #if defined(__BEOS__)	 || \
     defined(__NetBSD__)  || \
@@ -159,6 +161,27 @@ typedef uint32_t __u32;
 # define be64_to_cpu(x)		(x)
 #endif
 
+#define DEFINE_CONV_P(endian, bits) \
+	static inline __##endian##bits endian##bits##_to_cpup(const u##bits *p) \
+	{ \
+		u##bits val; \
+		memmove(&val, p, sizeof(val)); \
+		return endian##bits##_to_cpu(val); \
+	} \
+	static inline u##bits cpu_to_##endian##bits##p(const __##endian##bits *p) \
+	{ \
+		__##endian##bits val; \
+		memmove(&val, p, sizeof(val)); \
+		return cpu_to_##endian##bits(val); \
+	}
+
+DEFINE_CONV_P(le, 16)
+DEFINE_CONV_P(le, 32)
+DEFINE_CONV_P(le, 64)
+DEFINE_CONV_P(be, 16)
+DEFINE_CONV_P(be, 32)
+DEFINE_CONV_P(be, 64)
+
 #ifndef min
 #define min(x, y) ({                            \
 	typeof(x) _min1 = (x);                  \
@@ -166,24 +189,5 @@ typedef uint32_t __u32;
 	(void) (&_min1 == &_min2);              \
 	_min1 < _min2 ? _min1 : _min2; })
 #endif
-
-static inline void *xmalloc(size_t size)
-{
-	void *p = NULL;
-
-	if (!(p = malloc(size))) {
-		printf("ERROR: out of memory\n");
-		exit(1);
-	}
-
-	return p;
-}
-
-static inline void *xzalloc(size_t size)
-{
-	void *p = xmalloc(size);
-	memset(p, 0, size);
-	return p;
-}
 
 #endif

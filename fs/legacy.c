@@ -20,6 +20,7 @@ static int legacy_iterate(struct file *file, struct dir_context *ctx)
 	struct inode *dir = d_inode(dentry);
 	struct super_block *sb = dir->i_sb;
 	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
 	struct dir *d;
 	struct dirent *dirent;
 	char *pathname;
@@ -28,19 +29,19 @@ static int legacy_iterate(struct file *file, struct dir_context *ctx)
 
 	pathname = dpath(dentry, fsdev->vfsmount.mnt_root);
 
-	d = fsdev->driver->opendir(&fsdev->dev, pathname);
+	d = legacy_ops->opendir(&fsdev->dev, pathname);
 	if (!d)
 		goto out;
 
 	while (1) {
-		dirent = fsdev->driver->readdir(&fsdev->dev, d);
+		dirent = legacy_ops->readdir(&fsdev->dev, d);
 		if (!dirent)
 			break;
 
 		dir_emit(ctx, dirent->d_name, strlen(dirent->d_name), 0, DT_UNKNOWN);
 	}
 
-	fsdev->driver->closedir(&fsdev->dev, d);
+	legacy_ops->closedir(&fsdev->dev, d);
 out:
 	free(pathname);
 
@@ -52,6 +53,7 @@ static struct dentry *legacy_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct super_block *sb = dir->i_sb;
 	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
 	struct inode *inode;
 	char *pathname;
 	struct stat s;
@@ -61,7 +63,7 @@ static struct dentry *legacy_lookup(struct inode *dir, struct dentry *dentry,
 	if (!pathname)
 		return NULL;
 
-	ret = fsdev->driver->stat(&fsdev->dev, pathname, &s);
+	ret = legacy_ops->stat(&fsdev->dev, pathname, &s);
 	if (!ret) {
 		inode = legacy_get_inode(sb, dir, s.st_mode);
 		if (!inode)
@@ -76,20 +78,51 @@ static struct dentry *legacy_lookup(struct inode *dir, struct dentry *dentry,
 	return NULL;
 }
 
+static int legacy_open(struct inode *inode, struct file *file)
+{
+	struct super_block *sb = inode->i_sb;
+	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
+	char *pathname;
+	int error;
+
+	if (!legacy_ops->open)
+		return 0;
+
+	pathname = dpath(file->f_path.dentry, fsdev->vfsmount.mnt_root);
+	error = legacy_ops->open(&file->fsdev->dev, file, pathname);
+	free(pathname);
+
+	return error;
+}
+
+static int legacy_release(struct inode *inode, struct file *file)
+{
+	struct super_block *sb = inode->i_sb;
+	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
+
+	if (!legacy_ops->close)
+		return 0;
+
+	return legacy_ops->close(&file->fsdev->dev, file);
+}
+
 static int legacy_create(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
 	struct inode *inode;
 	char *pathname;
 	int ret;
 
-	if (!fsdev->driver->create)
+	if (!legacy_ops->create)
 		return -EROFS;
 
 	pathname = dpath(dentry, fsdev->vfsmount.mnt_root);
 
-	ret = fsdev->driver->create(&fsdev->dev, pathname, mode | S_IFREG);
+	ret = legacy_ops->create(&fsdev->dev, pathname, mode | S_IFREG);
 
 	free(pathname);
 
@@ -107,16 +140,17 @@ static int legacy_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
 	struct inode *inode;
 	char *pathname;
 	int ret;
 
-	if (!fsdev->driver->mkdir)
+	if (!legacy_ops->mkdir)
 		return -EROFS;
 
 	pathname = dpath(dentry, fsdev->vfsmount.mnt_root);
 
-	ret = fsdev->driver->mkdir(&fsdev->dev, pathname);
+	ret = legacy_ops->mkdir(&fsdev->dev, pathname);
 
 	free(pathname);
 
@@ -135,16 +169,17 @@ static int legacy_dir_is_empty(struct dentry *dentry)
 	struct inode *dir = d_inode(dentry);
 	struct super_block *sb = dir->i_sb;
 	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
 	struct dir *d;
 	struct dirent *dirent;
 	char *pathname;
 
 	pathname = dpath(dentry, fsdev->vfsmount.mnt_root);
 
-	d = fsdev->driver->opendir(&fsdev->dev, pathname);
-	dirent = fsdev->driver->readdir(&fsdev->dev, d);
+	d = legacy_ops->opendir(&fsdev->dev, pathname);
+	dirent = legacy_ops->readdir(&fsdev->dev, d);
 
-	fsdev->driver->closedir(&fsdev->dev, d);
+	legacy_ops->closedir(&fsdev->dev, d);
 
 	free(pathname);
 
@@ -155,10 +190,11 @@ static int legacy_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct super_block *sb = dir->i_sb;
 	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
 	char *pathname;
 	int ret;
 
-	if (!fsdev->driver->rmdir)
+	if (!legacy_ops->rmdir)
 		return -EROFS;
 
 	if (!legacy_dir_is_empty(dentry))
@@ -166,7 +202,7 @@ static int legacy_rmdir(struct inode *dir, struct dentry *dentry)
 
 	pathname = dpath(dentry, fsdev->vfsmount.mnt_root);
 
-	ret = fsdev->driver->rmdir(&fsdev->dev, pathname);
+	ret = legacy_ops->rmdir(&fsdev->dev, pathname);
 
 	free(pathname);
 
@@ -184,15 +220,16 @@ static int legacy_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct super_block *sb = dir->i_sb;
 	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
 	char *pathname;
 	int ret;
 
-	if (!fsdev->driver->unlink)
+	if (!legacy_ops->unlink)
 		return -EROFS;
 
 	pathname = dpath(dentry, fsdev->vfsmount.mnt_root);
 
-	ret = fsdev->driver->unlink(&fsdev->dev, pathname);
+	ret = legacy_ops->unlink(&fsdev->dev, pathname);
 
 	free(pathname);
 
@@ -210,16 +247,17 @@ static int legacy_symlink(struct inode *dir, struct dentry *dentry,
 {
 	struct super_block *sb = dir->i_sb;
 	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
 	struct inode *inode;
 	char *pathname;
 	int ret;
 
-	if (!fsdev->driver->symlink)
+	if (!legacy_ops->symlink)
 		return -ENOSYS;
 
 	pathname = dpath(dentry, fsdev->vfsmount.mnt_root);
 
-	ret = fsdev->driver->symlink(&fsdev->dev, dest, pathname);
+	ret = legacy_ops->symlink(&fsdev->dev, dest, pathname);
 
 	free(pathname);
 
@@ -238,16 +276,17 @@ static const char *legacy_get_link(struct dentry *dentry, struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct fs_device *fsdev = container_of(sb, struct fs_device, sb);
+	const struct fs_legacy_ops *legacy_ops = fsdev->driver->legacy_ops;
 	char *pathname;
 	int ret;
 	char link[PATH_MAX] = {};
 
-	if (!fsdev->driver->readlink)
+	if (!legacy_ops->readlink)
 		return ERR_PTR(-ENOSYS);
 
 	pathname = dpath(dentry, fsdev->vfsmount.mnt_root);
 
-	ret = fsdev->driver->readlink(&fsdev->dev, pathname, link, PATH_MAX - 1);
+	ret = legacy_ops->readlink(&fsdev->dev, pathname, link, PATH_MAX - 1);
 
 	free(pathname);
 
@@ -269,6 +308,11 @@ static const struct inode_operations legacy_dir_inode_operations = {
 	.rmdir = legacy_rmdir,
 	.unlink = legacy_unlink,
 	.symlink = legacy_symlink,
+};
+
+static const struct file_operations legacy_file_operations = {
+	.open = legacy_open,
+	.release = legacy_release,
 };
 
 static const struct file_operations legacy_dir_operations = {
@@ -297,6 +341,7 @@ static struct inode *legacy_get_inode(struct super_block *sb, const struct inode
 	case S_IFCHR:
 	case S_IFBLK:
 		inode->i_op = &legacy_file_inode_operations;
+		inode->i_fop = &legacy_file_operations;
 		break;
 	case S_IFDIR:
 		inode->i_op = &legacy_dir_inode_operations;

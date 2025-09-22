@@ -381,6 +381,13 @@
 	status = "okay";
 };
 
+&sdmmc {
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	sd-uhs-sdr104;
+	vqmmc-supply = <&vccio_sd>;
+};
+
 &spi2 {
 	pinctrl-0 = <&spi2m2_cs0 &spi2m2_pins>;
 	num-cs = <1>;

@@ -110,14 +110,10 @@
 
 &sdmmc {
 	bus-width = <4>;
-	cap-mmc-highspeed;
-	cap-sd-highspeed;
 	disable-wp;
 	no-1-8-v;
-	sd-uhs-sdr104;
 	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&vccio_sd>;
-	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
 };
 

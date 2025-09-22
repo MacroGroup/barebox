@@ -15,10 +15,10 @@
 		     "rockchip,rk3588";
 
 	aliases {
-		ethernet0 = &gmac0;
-		ethernet1 = &gmac1;
-		ethernet2 = &ethernet2;
-		ethernet3 = &ethernet3;
+		ethernet0 = &ethernet2;
+		ethernet1 = &ethernet3;
+		ethernet2 = &gmac0;
+		ethernet3 = &gmac1;
 		i2c9 = &i2c9;
 		i2c10 = &i2c10;
 		i2c11 = &i2c11;

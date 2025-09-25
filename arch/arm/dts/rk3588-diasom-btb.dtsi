@@ -6,6 +6,7 @@
 #include <arm64/rockchip/rk3588j.dtsi>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/soc/rockchip,vop2.h>
 
 #include "rk3588.dtsi"
 

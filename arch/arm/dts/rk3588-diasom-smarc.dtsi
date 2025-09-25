@@ -598,6 +598,10 @@
 	};
 };
 
+&pd_gpu {
+	domain-supply = <&vdd_gpu>;
+};
+
 &saradc {
 	vref-supply = <&vcca_1v8>;
 	status = "okay";

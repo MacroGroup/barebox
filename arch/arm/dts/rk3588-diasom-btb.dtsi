@@ -214,6 +214,7 @@
 };
 
 &hdmi0_sound {
+	simple-audio-card,name = "HDMI0";
 	status = "okay";
 };
 
@@ -238,6 +239,7 @@
 };
 
 &hdmi1_sound {
+	simple-audio-card,name = "HDMI1";
 	status = "okay";
 };
 

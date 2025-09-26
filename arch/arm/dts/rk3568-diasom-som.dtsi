@@ -177,6 +177,10 @@
 	avdd-1v8-supply = <&vcca1v8_image>;
 };
 
+&hdmi_sound {
+	simple-audio-card,name = "HDMI0";
+};
+
 &i2c0 {
 	clock-frequency = <1000000>;
 	status = "okay";

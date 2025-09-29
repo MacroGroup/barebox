@@ -165,7 +165,8 @@ static int __init diasom_rk3588_init(void)
 		}
 
 		pr_info("SMARC revision: %i\n", som_revision);
-	}
+	} else
+		return 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3588-btb-evb")) {
 		//TODO:

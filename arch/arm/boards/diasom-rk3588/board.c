@@ -121,8 +121,26 @@ static int __init diasom_rk3588_machine_id(void)
 }
 of_populate_initcall(diasom_rk3588_machine_id);
 
+__maybe_unused static bool __init diasom_rk3588_load_overlay(const void *ovl)
+{
+	if (ovl) {
+		int ret;
+
+		ret = of_overlay_apply_dtbo(of_get_root_node(), ovl);
+		if (!ret)
+			return true;
+
+		pr_err("Cannot apply overlay: %pe!\n", ERR_PTR(ret));
+	}
+
+	return false;
+}
+
 static int __init diasom_rk3588_init(void)
 {
+	bool do_probe = false;
+	int ret = 0;
+
 	if (of_machine_is_compatible("diasom,ds-rk3588-btb")) {
 		diasom_rk3588_check_adc();
 
@@ -149,7 +167,21 @@ static int __init diasom_rk3588_init(void)
 		pr_info("SMARC revision: %i\n", som_revision);
 	}
 
-	return 0;
+	if (of_machine_is_compatible("diasom,ds-rk3588-btb-evb")) {
+		//TODO:
+	}
+
+	if (do_probe) {
+		struct device_node *root = of_get_root_node();
+
+		of_probe();
+
+		/* Ensure reload aliases & model name */
+		of_set_root_node(NULL);
+		of_set_root_node(root);
+	}
+
+	return ret;
 }
 device_initcall(diasom_rk3588_init);
 

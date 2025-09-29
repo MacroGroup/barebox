@@ -65,7 +65,7 @@
 		#clock-cells = <0>;
 	};
 
-	thermal-sensor {
+	lvds_sensor: thermal-sensor {
 		compatible = "generic-adc-thermal";
 		#thermal-sensor-cells = <0>;
 		io-channels = <&saradc 3>;
@@ -579,6 +579,22 @@
 	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&vcc_3v3_sys>;
 	status = "okay";
+};
+
+&thermal_zones {
+	lvds-thermal {
+		polling-delay = <20000>;
+		polling-delay-passive = <0>;
+		thermal-sensors = <&lvds_sensor>;
+
+		trips {
+			alert {
+				temperature = <75000>;
+				hysteresis = <2000>;
+				type = "passive";
+			};
+		};
+	};
 };
 
 &usb_host0_ehci {

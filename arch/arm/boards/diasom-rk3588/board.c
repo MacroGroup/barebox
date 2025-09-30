@@ -171,6 +171,7 @@ static int __init diasom_rk3588_init(void)
 		return 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3588-btb-evb")) {
+		pr_info("EVB version 1.0.0+ detected.\n");
 		//TODO:
 	}
 

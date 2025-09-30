@@ -16,6 +16,7 @@ config ARM
 	select HAVE_ARCH_BOARD_GENERIC_DT if OFDEVICE
 	select HAVE_ARCH_BOOTM_OFTREE
 	select HW_HAS_PCI
+	select ARCH_HAS_DMA_WRITE_COMBINE
 	default y
 
 config ARCH_LINUX_NAME
@@ -110,10 +111,7 @@ config ARCH_PXA
 
 config ARCH_SOCFPGA
 	bool "Altera SOCFPGA"
-	depends on 32BIT
 	select HAS_DEBUG_LL
-	select ARM_SMP_TWD
-	select CPU_V7
 	select COMMON_CLK
 
 config ARCH_TEGRA

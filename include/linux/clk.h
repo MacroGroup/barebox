@@ -11,6 +11,7 @@
 #define __LINUX_CLK_H
 
 #include <linux/err.h>
+#include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/stringify.h>
 #include <linux/string.h>
@@ -352,11 +353,13 @@ struct clk_ops {
 /**
  * struct clk_parent_data - clk parent information
  * @hw: parent clk_hw pointer (used for clk providers with internal clks)
+ * @fw_name: parent name local to provider registering clk
  * @name: globally unique parent name (used as a fallback)
  * @index: parent index local to provider registering clk (if @fw_name absent)
  */
 struct clk_parent_data {
 	const struct clk_hw	*hw;
+	const char		*fw_name;
 	const char		*name;
 	int			index;
 };
@@ -969,6 +972,9 @@ static inline void clk_hw_unregister(struct clk_hw *hw)
 
 #ifdef CONFIG_COMMON_CLK
 
+bool clk_have_nonfixed_providers(void);
+
+
 /**
  * clk_bulk_get - lookup and obtain a number of references to clock producer.
  * @dev: device for clock "consumer"
@@ -1083,6 +1089,11 @@ int __must_check clk_bulk_enable(int num_clks,
 void clk_bulk_disable(int num_clks, const struct clk_bulk_data *clks);
 
 #else
+static inline bool clk_have_nonfixed_providers(void)
+{
+	return false;
+}
+
 static inline int __must_check clk_bulk_get(struct device *dev, int num_clks,
 					    struct clk_bulk_data *clks)
 {

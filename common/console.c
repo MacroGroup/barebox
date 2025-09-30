@@ -222,17 +222,12 @@ static void console_init_early(void)
 
 static void console_add_earlycon_param(struct console_device *cdev, unsigned baudrate)
 {
-	char *str;
-
 	if (!cdev->linux_earlycon_name)
 		return;
 
-	str = basprintf("earlycon=%s,0x%lx", cdev->linux_earlycon_name,
-			(ulong)cdev->phys_base);
-
-	dev_add_param_fixed(&cdev->class_dev, "linux.bootargs.earlycon", str);
-
-	free(str);
+	dev_add_param_fixed(&cdev->class_dev, "linux.bootargs.earlycon",
+			    "earlycon=%s,0x%lx", cdev->linux_earlycon_name,
+			    (ulong)cdev->phys_base);
 }
 
 void console_set_stdoutpath(struct console_device *cdev, unsigned baudrate)
@@ -639,66 +634,6 @@ void console_flush(void)
 	}
 }
 EXPORT_SYMBOL(console_flush);
-
-static int ctrlc_abort;
-static int ctrlc_allowed;
-
-void ctrlc_handled(void)
-{
-	ctrlc_abort = 0;
-}
-
-int ctrlc_non_interruptible(void)
-{
-	int ret = 0;
-
-	if (!ctrlc_allowed)
-		return 0;
-
-	if (ctrlc_abort)
-		return 1;
-
-#ifdef CONFIG_ARCH_HAS_CTRLC
-	ret = arch_ctrlc();
-#else
-	if (tstc() && getchar() == 3)
-		ret = 1;
-#endif
-
-	if (ret)
-		ctrlc_abort = 1;
-
-	return ret;
-}
-EXPORT_SYMBOL(ctrlc_non_interruptible);
-
-/* test if ctrl-c was pressed */
-int ctrlc(void)
-{
-	resched();
-	return ctrlc_non_interruptible();
-}
-EXPORT_SYMBOL(ctrlc);
-
-static int console_ctrlc_init(void)
-{
-	globalvar_add_simple_bool("console.ctrlc_allowed", &ctrlc_allowed);
-	return 0;
-}
-device_initcall(console_ctrlc_init);
-
-void console_ctrlc_allow(void)
-{
-	ctrlc_allowed = 1;
-}
-
-void console_ctrlc_forbid(void)
-{
-	ctrlc_allowed = 0;
-}
-
-BAREBOX_MAGICVAR(global.console.ctrlc_allowed,
-		"If true, scripts can be aborted with ctrl-c");
 
 BAREBOX_MAGICVAR(global.linux.bootargs.console,
 		"console= argument for Linux from the stdout-path property in /chosen node");

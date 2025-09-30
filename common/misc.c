@@ -211,8 +211,7 @@ bool barebox_hostname_is_valid(const char *s)
 
 /*
  * The hostname is supposed to be the shortname of a board. It should
- * contain only lowercase letters, numbers, '-', '_'. No whitespaces
- * allowed.
+ * contain only letters, numbers, hyphens. No whitespaces allowed.
  */
 void barebox_set_hostname(const char *__hostname)
 {
@@ -289,6 +288,8 @@ BAREBOX_MAGICVAR(global.of.kernel.add_machine_compatible, "Extra machine/board c
 
 static void __noreturn do_panic(bool stacktrace, const char *fmt, va_list ap)
 {
+	if (*fmt)
+		eprintf("PANIC: ");
 	veprintf(fmt, ap);
 	eputchar('\n');
 
@@ -304,6 +305,8 @@ static void __noreturn do_panic(bool stacktrace, const char *fmt, va_list ap)
 
 	if (IS_ENABLED(CONFIG_PANIC_POWEROFF))
 		poweroff_machine(0);
+	else if (IS_ENABLED(CONFIG_PANIC_TRAP))
+		__builtin_trap();
 	else
 		restart_machine(0);
 }

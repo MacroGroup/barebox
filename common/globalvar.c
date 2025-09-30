@@ -35,11 +35,11 @@ void globalvar_remove(const char *name)
 {
 	struct param_d *p, *tmp;
 
-	list_for_each_entry_safe(p, tmp, &global_device.parameters, list) {
+	dev_for_each_param_safe(&global_device, p, tmp) {
 		if (fnmatch(name, p->name, 0))
 			continue;
 
-		dev_remove_param(p);
+		param_remove(p);
 	}
 }
 
@@ -177,8 +177,7 @@ static int nvvar_device_dispatch(const char *name, struct device **dev,
 	return 1;
 }
 
-static int nv_set(struct device *dev, struct param_d *p, const char *name,
-		  const char *val)
+static int nv_set(struct param_d *p, const char *name, const char *val)
 {
 	int ret;
 
@@ -196,17 +195,17 @@ static int nv_set(struct device *dev, struct param_d *p, const char *name,
 	return 0;
 }
 
-static const char *nv_param_get(struct device *dev, struct param_d *p)
+static const char *nv_param_get(struct bobject *bobj, struct param_d *p)
 {
 	return p->value ? p->value : "";
 }
 
-static int nv_param_set(struct device *dev, struct param_d *p,
+static int nv_param_set(struct bobject *bobj, struct param_d *p,
 			const char *val)
 {
 	int ret;
 
-	ret = nv_set(dev, p, p->name, val);
+	ret = nv_set(p, p->name, val);
 	if (ret)
 		return ret;
 
@@ -237,7 +236,7 @@ static int __nvvar_add(const char *name, const char *value)
 		return ret;
 
 	if (value)
-		return nv_set(&nv_device, p, name, value);
+		return nv_set(p, name, value);
 
 	ret = nvvar_device_dispatch(name, &dev, &pname);
 	if (ret > 0)
@@ -276,13 +275,13 @@ int nvvar_remove(const char *name)
 	if (!IS_ENABLED(CONFIG_NVVAR))
 		return -ENOSYS;
 
-	list_for_each_entry_safe(p, tmp, &nv_device.parameters, list) {
+	dev_for_each_param_safe(&nv_device, p, tmp) {
 		if (fnmatch(name, p->name, 0))
 			continue;
 
 		fname = basprintf("/env/nv/%s", p->name);
 
-		dev_remove_param(p);
+		param_remove(p);
 
 		unlink(fname);
 		free(fname);
@@ -382,7 +381,7 @@ static void device_param_print(struct device *dev)
 {
 	struct param_d *param;
 
-	list_for_each_entry(param, &dev->parameters, list) {
+	dev_for_each_param(dev, param) {
 		const char *p = dev_get_param(dev, param->name);
 		const char *nv = NULL;
 
@@ -420,7 +419,7 @@ char *globalvar_get_match(const char *match, const char *separator)
 	char *val = NULL;
 	struct param_d *param;
 
-	list_for_each_entry(param, &global_device.parameters, list) {
+	dev_for_each_param(&global_device, param) {
 		if (!strncmp(match, param->name, strlen(match))) {
 			const char *p = dev_get_param(&global_device, param->name);
 			if (val) {
@@ -444,7 +443,7 @@ void globalvar_set_match(const char *match, const char *val)
 {
 	struct param_d *param;
 
-	list_for_each_entry(param, &global_device.parameters, list) {
+	dev_for_each_param(&global_device, param) {
 		if (!strncmp(match, param->name, strlen(match)))
 			dev_set_param(&global_device, param->name, val);
 	}
@@ -455,7 +454,7 @@ void globalvar_set(const char *name, const char *val)
 	dev_set_param(&global_device, name, val);
 }
 
-static int globalvar_simple_set(struct device *dev, struct param_d *p,
+static int globalvar_simple_set(struct bobject *bobj, struct param_d *p,
 				const char *val)
 {
 	struct device *rdev;
@@ -474,7 +473,7 @@ static int globalvar_simple_set(struct device *dev, struct param_d *p,
 	}
 
 	/* Pass to the generic function we have overwritten */
-	return dev_param_set_generic(dev, p, val);
+	return dev_param_set_generic(bobj, p, val);
 }
 
 /*
@@ -510,7 +509,7 @@ static int globalvar_remove_unqualified(const char *name)
 	if (!(p->flags & PARAM_GLOBALVAR_UNQUALIFIED))
 		return -EEXIST;
 
-	dev_remove_param(p);
+	param_remove(p);
 
 	return 0;
 }
@@ -723,7 +722,7 @@ int nvvar_save(void)
 	envfs_load(env, TMPDIR, 0);
 	unlink_recursive(TMPDIR "/nv", NULL);
 
-	list_for_each_entry(param, &nv_device.parameters, list) {
+	dev_for_each_param(&nv_device, param) {
 		ret = __nv_save(TMPDIR "/nv", param->name,
 				dev_get_param(&nv_device, param->name));
 		if (ret) {
@@ -760,7 +759,7 @@ static int nv_global_param_complete(struct device *dev,
 
 	len = strlen(instr);
 
-	list_for_each_entry(param, &dev->parameters, list) {
+	dev_for_each_param(dev, param) {
 		if (strncmp(instr, param->name, len))
 			continue;
 
@@ -790,7 +789,7 @@ int nv_complete(struct string_list *sl, char *instr)
 		if (dev == &global_device || dev == &nv_device)
 			continue;
 
-		list_for_each_entry(param, &dev->parameters, list) {
+		dev_for_each_param(dev, param) {
 			str = basprintf("dev.%s.%s=", dev_name(dev), param->name);
 			if (strncmp(instr, str, len))
 				free(str);

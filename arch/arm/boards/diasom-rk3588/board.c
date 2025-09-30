@@ -117,6 +117,8 @@ static int __init diasom_rk3588_machine_id(void)
 
 	machine_id_set_hashable(serial, strlen(serial));
 
+	nvvar_add("bootm.provide_machine_id", "1");
+
 	return 0;
 }
 of_populate_initcall(diasom_rk3588_machine_id);

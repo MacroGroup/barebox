@@ -442,6 +442,7 @@
 		regulators {
 			vdd_gpu: dcdc-reg1 {
 				regulator-name = "vdd_gpu";
+				regulator-boot-on;
 				regulator-min-microvolt = <675000>;
 				regulator-max-microvolt = <950000>;
 				regulator-enable-ramp-delay = <400>;

@@ -53,6 +53,11 @@
 	};
 };
 
+&combphy1 {
+	/* USB3.0 HOST1 */
+	status = "okay";
+};
+
 &combphy2 {
 	/* PCI-E 2.0 */
 	phy-supply = <&vcc3v3_sys>;
@@ -293,6 +298,22 @@
 &uart4 {
 	/* SODIMM UART0 */
 	pinctrl-0 = <&uart4m0_xfer &uart4m0_ctsn &uart4m0_rtsn>;
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+&usb_host1_xhci {
+	status = "okay";
+};
+
+&usb2phy0_host {
+	status = "okay";
 };
 
 &vpu {

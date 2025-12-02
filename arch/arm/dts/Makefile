@@ -33,6 +33,8 @@ lwl-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-smarc-evb.dtb.o
 # Reference only now
 #obj-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-btb-evb-socket.dtb.o
 
+lwl-$(CONFIG_MACH_EXYNOS) += exynos8895-dreamlte.dtb.o \
+			exynos990-x1s.dtb.o
 lwl-$(CONFIG_MACH_DUCKBILL) += imx28-duckbill.dtb.o
 lwl-$(CONFIG_MACH_KINDLE_MX50) += imx50-kindle-d01100.dtb.o imx50-kindle-d01200.dtb.o imx50-kindle-ey21.dtb.o
 lwl-$(CONFIG_MACH_EFIKA_MX_SMARTBOOK) += imx51-genesi-efika-sb.dtb.o
@@ -130,7 +132,9 @@ lwl-$(CONFIG_MACH_PROTONIC_IMX6) += \
 	imx6qp-vicutp.dtb.o \
 	imx6ul-prti6g.dtb.o \
 	imx6ull-jozacp.dtb.o
-lwl-$(CONFIG_MACH_PROTONIC_IMX8M) += imx8mm-prt8mm.dtb.o
+lwl-$(CONFIG_MACH_PROTONIC_IMX8M) += \
+	imx8mm-prt8mm.dtb.o \
+	imx8mp-prt8ml.dtb.o
 lwl-$(CONFIG_MACH_PROTONIC_MECSBC) += rk3568-mecsbc.dtb.o
 lwl-$(CONFIG_MACH_PROTONIC_PRTPUK) += rk3576-prtpuk.dtb.o
 lwl-$(CONFIG_MACH_PROTONIC_STM32MP1) += \
@@ -145,7 +149,9 @@ lwl-$(CONFIG_MACH_PROTONIC_STM32MP13) += \
 	stm32mp133c-prihmb.dtb.o
 lwl-$(CONFIG_MACH_RADXA_ROCK) += rk3188-radxarock.dtb.o
 lwl-$(CONFIG_MACH_RADXA_ROCK3) += rk3568-rock-3a.dtb.o
-lwl-$(CONFIG_MACH_RADXA_ROCK5) += rk3588-rock-5b.dtb.o
+lwl-$(CONFIG_MACH_RADXA_ROCK5) += \
+	rk3588-rock-5b.dtb.o \
+	rk3588-rock-5t.dtb.o
 lwl-$(CONFIG_MACH_RADXA_CM3) += rk3566-cm3-io.dtb.o
 lwl-$(CONFIG_MACH_PHYTEC_SOM_RK3288) += rk3288-phycore-som.dtb.o
 lwl-$(CONFIG_MACH_REALQ7) += imx6q-dmo-edmqmx6.dtb.o

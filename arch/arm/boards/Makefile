@@ -33,6 +33,7 @@ obj-$(CONFIG_MACH_DIASOM_DS_IMX8M)		+= diasom-imx8m/
 obj-$(CONFIG_MACH_DIASOM_DS_RK3568)		+= diasom-rk3568/
 obj-$(CONFIG_MACH_DIASOM_DS_RK3588)		+= diasom-rk3588/
 obj-$(CONFIG_MACH_DIGI_CCIMX6ULSBCPRO)		+= digi-ccimx6ulsom/
+obj-$(CONFIG_MACH_EXYNOS)			+= samsung-exynos/
 obj-$(CONFIG_MACH_DUCKBILL)			+= duckbill/
 obj-$(CONFIG_MACH_DSS11)			+= dss11/
 obj-$(CONFIG_MACH_EFIKA_MX_SMARTBOOK)		+= efika-mx-smartbook/

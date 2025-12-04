@@ -401,7 +401,6 @@
 
 &sdhci {
 	bus-width = <8>;
-	cap-mmc-hw-reset;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
 	non-removable;

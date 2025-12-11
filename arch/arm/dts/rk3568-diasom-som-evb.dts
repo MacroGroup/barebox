@@ -1033,10 +1033,10 @@
 	board {
 		board_pins: board-pins {
 			rockchip,pins =
-				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,		/* GPIO_1 */
-				<1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,		/* GPIO_2 */
-				<1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>,		/* GPIO_3 */
-				<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;		/* GPIO_4 */
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,		/* GPIO_0 */
+				<1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,		/* GPIO_1 */
+				<1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>,		/* GPIO_2 */
+				<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;		/* GPIO_3 */
 		};
 	};
 

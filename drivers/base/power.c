@@ -331,14 +331,22 @@ int pm_runtime_resume_and_get_genpd(struct device *dev)
 	return genpd_power_on(genpd);
 }
 
-static void genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
+static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
 {
 	dev->pm_domain = genpd;
+
+	if (genpd && genpd->attach_dev)
+		return genpd->attach_dev(genpd, dev);
+
+	return 0;
 }
 
 static void genpd_remove_device(struct generic_pm_domain *genpd,
 			       struct device *dev)
 {
+	if (genpd && genpd->detach_dev)
+		genpd->detach_dev(genpd, dev);
+
 	dev->pm_domain = NULL;
 }
 
@@ -371,9 +379,6 @@ static int __genpd_dev_pm_attach(struct device *dev,
 	struct generic_pm_domain *pd;
 	int ret;
 
-	if (!have_genpd_providers)
-		return 0;
-
 	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
 				"#power-domain-cells", index, &pd_args);
 	if (ret < 0)
@@ -384,11 +389,18 @@ static int __genpd_dev_pm_attach(struct device *dev,
 		ret = PTR_ERR(pd);
 		dev_dbg(dev, "%s() failed to find PM domain: %d\n",
 			__func__, ret);
+
+		if (ret == -ENOENT)
+			ret = -EPROBE_DEFER;
+
+		if (!have_genpd_providers && ret == -EPROBE_DEFER)
+			return 0;
+
 		/*
 		 * Assume that missing genpds are unresolved
 		 * dependency are report them as deferred
 		 */
-		return (ret == -ENOENT) ? -EPROBE_DEFER : ret;
+		return ret;
 	}
 
 	dev_dbg(dev, "adding to PM domain %s\n", pd ? pd->name : "dummy");
@@ -481,11 +493,11 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 	if (!virt_dev)
 		return ERR_PTR(-ENOMEM);
 
-	dev_set_name(virt_dev, "genpd");
+	dev_set_name(virt_dev, "genpd:%u:%s", index, dev_name(dev));
 	virt_dev->bus = &genpd_bus_type;
 	virt_dev->parent = dev;
 	virt_dev->of_node = dev->of_node;
-	virt_dev->id = index;
+	virt_dev->id = DEVICE_ID_SINGLE;
 
 	ret = device_register(virt_dev);
 	if (ret) {

@@ -268,6 +268,8 @@ int register_device(struct device *new_device)
 
 	bobject_init(&new_device->bobject);
 
+	of_pinctrl_register_consumer(new_device, new_device->device_node);
+
 	if (new_device->bus) {
 		if (!new_device->parent)
 			new_device->parent = &new_device->bus->dev;
@@ -297,6 +299,8 @@ int unregister_device(struct device *old_dev)
 	dev_dbg(old_dev, "unregister\n");
 
 	bobject_del(&old_dev->bobject);
+
+	of_pinctrl_unregister_consumer(old_dev);
 
 	if (old_dev->driver)
 		device_remove(old_dev);
@@ -344,8 +348,6 @@ EXPORT_SYMBOL(unregister_device);
  */
 void free_device_res(struct device *dev)
 {
-	free(dev->name);
-	dev->name = NULL;
 	free(dev->unique_name);
 	dev->unique_name = NULL;
 	free(dev->deferred_probe_reason);

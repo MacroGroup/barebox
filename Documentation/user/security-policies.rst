@@ -43,7 +43,7 @@ Usage
    ``CONFIG_SECURITY_POLICY_PATH``.
 
    Alternatively, policies can also be be referenced in a board's
-   Makefile::
+   Makefile:
 
    .. code-block:: make
 
@@ -96,7 +96,7 @@ Trying it out
 policy development and evaluation. ``images/barebox-dt-2nd.img`` that results
 from building it can be passed as argument to ``qemu-system-arm -M virt -kernel``.
 
-The easiest way to do this is proabably installing labgrid and running
+The easiest way to do this is probably installing labgrid and running
 ``pytest --interactive`` after having built the config.
 
 Differences from Kconfig

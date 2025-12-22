@@ -36,7 +36,7 @@ TEXT_BASE = $(CONFIG_TEXT_BASE)
 
 SANDBOX_PBL2PROPER_GLUE_SYMS := \
 	putchar errno setjmp longjmp \
-	malloc_stats memalign malloc free realloc calloc brk sbrk
+	malloc_stats memalign malloc free realloc calloc memleak_check brk sbrk
 
 KBUILD_CFLAGS += $(foreach s,$(SANDBOX_PBL2PROPER_GLUE_SYMS),-D$(s)=barebox_$(s))
 
@@ -96,7 +96,7 @@ SANDBOX_PROPER2PBL_GLUE_SYMS := \
 	strsep_unescaped start_barebox linux_get_stickypage_path \
 	stickypage mem_malloc_init \
 	barebox_register_filedev barebox_register_dtb barebox_register_console \
-	barebox_errno barebox_loglevel call_for_each_fuzz_test setup_external_fuzz
+	barebox_errno barebox_loglevel list_fuzz_tests setup_external_fuzz
 
 OBJCOPYFLAGS_barebox.o := $(addprefix --keep-global-symbol=, $(SANDBOX_PROPER2PBL_GLUE_SYMS))
 

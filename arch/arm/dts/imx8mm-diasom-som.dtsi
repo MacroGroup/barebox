@@ -15,6 +15,7 @@
 	compatible = "diasom,ds-imx8m-som",
 		     "fsl,imx8mm";
 	chassis-type = "embedded";
+	barebox,deep-probe;
 
 	chosen {
 		stdout-path = "serial1:115200n8";

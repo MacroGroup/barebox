@@ -2,7 +2,6 @@
 
 #include <bootsource.h>
 #include <common.h>
-#include <deep-probe.h>
 #include <envfs.h>
 #include <globalvar.h>
 #include <init.h>
@@ -93,7 +92,6 @@ static const struct of_device_id __init diasom_imx8m_of_match[] = {
 	{ .compatible = "diasom,ds-imx8m-som", },
 	{ }
 };
-BAREBOX_DEEP_PROBE_ENABLE(diasom_imx8m_of_match);
 
 static struct driver __init diasom_imx8m_driver = {
 	.name = "board-ds-imx8m",

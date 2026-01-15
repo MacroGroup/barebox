@@ -15,6 +15,7 @@
 	compatible = "diasom,ds-rk3568-som",
 		     "rockchip,rk3568";
 	chassis-type = "embedded";
+	barebox,deep-probe;
 
 	aliases {
 		mmc0 = &sdhci;

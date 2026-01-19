@@ -44,3 +44,6 @@ barebox.sum
 *.missing-firmware
 *.k3img
 fuzz-*
+*.efi
+*.esp
+*.vfat

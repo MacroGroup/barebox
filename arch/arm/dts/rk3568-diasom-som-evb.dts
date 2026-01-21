@@ -22,6 +22,7 @@
 		camera3 = &fpdlink;
 		camera4 = &imx415_i2c4;
 		camera5 = &imx415_i2c7;
+		camera6 = &imx327;
 		can0 = &can1;
 		can1 = &can2;
 		ethernet0 = &gmac0;
@@ -301,38 +302,44 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			imx335_i2c4_in: endpoint@0 {
+			imx327_in: endpoint@0 {
 				reg = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx327_out>;
+			};
+
+			imx335_i2c4_in: endpoint@1 {
+				reg = <1>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&imx335_i2c4_out>;
 			};
 
-			imx335_i2c7_in: endpoint@1 {
-				reg = <1>;
+			imx335_i2c7_in: endpoint@2 {
+				reg = <2>;
 				data-lanes = <1 2>;
 				remote-endpoint = <&imx335_i2c7_out>;
 			};
 
-			imx415_i2c4_in: endpoint@2 {
-				reg = <2>;
+			imx415_i2c4_in: endpoint@3 {
+				reg = <3>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&imx415_i2c4_out>;
 			};
 
-			imx415_i2c7_in: endpoint@3 {
-				reg = <3>;
+			imx415_i2c7_in: endpoint@4 {
+				reg = <4>;
 				data-lanes = <1 2>;
 				remote-endpoint = <&imx415_i2c7_out>;
 			};
 
-			ub954_csi_in: endpoint@4 {
-				reg = <4>;
+			ub954_csi_in: endpoint@5 {
+				reg = <5>;
 				data-lanes = <1 2>;
 				remote-endpoint = <&ub954_csi_out>;
 			};
 
-			xc7160_in: endpoint@5 {
-				reg = <5>;
+			xc7160_in: endpoint@6 {
+				reg = <6>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&xc7160_out>;
 			};
@@ -535,7 +542,27 @@
 		#sound-dai-cells = <0>;
 	};
 
-	imx335_i2c4: camera-0@1a {
+	imx327: camera-0@1a {
+		compatible = "sony,imx327lqr";
+		reg = <0x1a>;
+		clocks = <&clk37m125>;
+		clock-names = "xclk";
+		power-domains = <&power RK3568_PD_VI>;
+		vdda-supply = <&vcc_cam0>;
+		vddd-supply = <&vcc_cam0>;
+		vdddo-supply = <&vcc_cam0>;
+		status = "disabled";
+
+		port {
+			imx327_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx327_in>;
+				link-frequencies = /bits/ 64 <222750000 148500000>;
+			};
+		};
+	};
+
+	imx335_i2c4: camera-1@1a {
 		compatible = "sony,imx335";
 		reg = <0x1a>;
 		clocks = <&xin24m>;
@@ -554,7 +581,7 @@
 		};
 	};
 
-	imx415_i2c4: camera-1@1a {
+	imx415_i2c4: camera-2@1a {
 		compatible = "sony,imx415";
 		reg = <0x1a>;
 		clocks = <&clk37m125>;

@@ -56,7 +56,7 @@ static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const int nr)
 		camera1 = IMX415/I2C7
 */
 
-#define CAMERA_I2C_ADDR		0x1a
+#define SONY_CAMERA_I2C_ADDR	0x1a
 
 struct cameras {
 	const char *alias;
@@ -113,11 +113,11 @@ static int diasom_rk3568_sony_camera_detect(struct i2c_adapter *adapter,
 {
 	struct i2c_client client;
 
-	if (diasom_rk3568_probe_i2c(adapter, CAMERA_I2C_ADDR))
+	if (diasom_rk3568_probe_i2c(adapter, SONY_CAMERA_I2C_ADDR))
 		return -ENODEV;
 
 	client.adapter = adapter;
-	client.addr = CAMERA_I2C_ADDR;
+	client.addr = SONY_CAMERA_I2C_ADDR;
 
 	for (int i = 0; cameras[i].alias && cameras[i].detect; i++)
 		if (!cameras[i].detect(&client, cameras[i].alias))

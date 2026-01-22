@@ -60,11 +60,10 @@ static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const int nr)
 
 struct cameras {
 	const char *alias;
-	int (*detect)(struct i2c_client *, const char *);
+	int (*detect)(struct i2c_client *);
 };
 
-static int diasom_rk3568_sony_imx327_detect(struct i2c_client *client,
-					    const char *alias)
+static int diasom_rk3568_sony_imx327_detect(struct i2c_client *client)
 {
 	u16 buf;
 	int ret;
@@ -73,8 +72,6 @@ static int diasom_rk3568_sony_imx327_detect(struct i2c_client *client,
 	ret = i2c_read_reg(client, 0x3441 | I2C_ADDR_16_BIT, (u8 *)&buf, sizeof(buf));
 	if (ret == sizeof(buf) && (buf == 0x0a0a || buf == 0x0c0c)) {
 		pr_info("Camera IMX327 detected.\n");
-		if (alias)
-			of_register_set_status_fixup(alias, true);
 
 		return 0;
 	}
@@ -82,8 +79,7 @@ static int diasom_rk3568_sony_imx327_detect(struct i2c_client *client,
 	return -ENODEV;
 }
 
-static int diasom_rk3568_sony_imx335_detect(struct i2c_client *client,
-					    const char *alias)
+static int diasom_rk3568_sony_imx335_detect(struct i2c_client *client)
 {
 	u16 buf;
 	int ret;
@@ -92,8 +88,6 @@ static int diasom_rk3568_sony_imx335_detect(struct i2c_client *client,
 	ret = i2c_read_reg(client, 0x341c | I2C_ADDR_16_BIT, (u8 *)&buf, sizeof(buf));
 	if (ret == sizeof(buf) && (buf == 0x01ff || buf == 0x0047)) {
 		pr_info("Camera IMX335 detected.\n");
-		if (alias)
-			of_register_set_status_fixup(alias, true);
 
 		return 0;
 	}
@@ -101,8 +95,7 @@ static int diasom_rk3568_sony_imx335_detect(struct i2c_client *client,
 	return -ENODEV;
 }
 
-static int diasom_rk3568_sony_imx415_detect(struct i2c_client *client,
-					    const char *alias)
+static int diasom_rk3568_sony_imx415_detect(struct i2c_client *client)
 {
 	u8 buf;
 	int ret;
@@ -111,8 +104,6 @@ static int diasom_rk3568_sony_imx415_detect(struct i2c_client *client,
 	ret = i2c_read_reg(client, 0x4001 | I2C_ADDR_16_BIT, &buf, sizeof(buf));
 	if (ret == sizeof(buf) && (buf == 0x01 || buf == 0x03)) {
 		pr_info("Camera IMX415 detected.\n");
-		if (alias)
-			of_register_set_status_fixup(alias, true);
 
 		return 0;
 	}
@@ -120,8 +111,7 @@ static int diasom_rk3568_sony_imx415_detect(struct i2c_client *client,
 	return -ENODEV;
 }
 
-static int diasom_rk3568_sony_imx662_detect(struct i2c_client *client,
-					    const char *alias)
+static int diasom_rk3568_sony_imx662_detect(struct i2c_client *client)
 {
 	u8 buf;
 	int ret;
@@ -130,8 +120,6 @@ static int diasom_rk3568_sony_imx662_detect(struct i2c_client *client,
 	ret = i2c_read_reg(client, 0x3046 | I2C_ADDR_16_BIT, &buf, sizeof(buf));
 	if (ret == sizeof(buf) && buf == 0x4c) {
 		pr_info("Camera IMX662 detected.\n");
-		if (alias)
-			of_register_set_status_fixup(alias, true);
 
 		return 0;
 	}
@@ -151,8 +139,12 @@ static int diasom_rk3568_sony_camera_detect(struct i2c_adapter *adapter,
 	client.addr = SONY_CAMERA_I2C_ADDR;
 
 	for (int i = 0; cameras[i].detect; i++)
-		if (!cameras[i].detect(&client, cameras[i].alias))
+		if (!cameras[i].detect(&client)) {
+			if (cameras[i].alias)
+				of_register_set_status_fixup(cameras[i].alias, true);
+
 			return 0;
+		}
 
 	return -ENODEV;
 }

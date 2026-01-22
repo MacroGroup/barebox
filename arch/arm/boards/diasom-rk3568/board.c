@@ -130,7 +130,8 @@ static int diasom_rk3568_sony_imx662_detect(struct i2c_client *client,
 	ret = i2c_read_reg(client, 0x3046 | I2C_ADDR_16_BIT, &buf, sizeof(buf));
 	if (ret == sizeof(buf) && buf == 0x4c) {
 		pr_info("Camera IMX662 detected.\n");
-		//TODO:
+		if (alias)
+			of_register_set_status_fixup(alias, true);
 
 		return 0;
 	}

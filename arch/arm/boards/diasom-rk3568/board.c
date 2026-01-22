@@ -152,7 +152,7 @@ static int diasom_rk3568_sony_camera_detect(struct i2c_adapter *adapter,
 static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 {
 	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(4);
-	static const struct cameras cameras[] = {
+	const struct cameras cameras[] = {
 		{ "camera1", diasom_rk3568_sony_imx335_detect },
 		{ "camera4", diasom_rk3568_sony_imx415_detect },
 		{ "camera6", diasom_rk3568_sony_imx327_detect },
@@ -180,7 +180,7 @@ static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 static int diasom_rk3568_smarc_evb_fixup(struct device_node *root, void *unused)
 {
 	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(7);
-	static const struct cameras cameras[] = {
+	const struct cameras cameras[] = {
 		{ "camera0", diasom_rk3568_sony_imx335_detect },
 		{ "camera1", diasom_rk3568_sony_imx415_detect },
 		{ }
@@ -198,6 +198,11 @@ static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 					    void *unused)
 {
 	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(7);
+	const struct cameras cameras[] = {
+		{ "camera2", diasom_rk3568_sony_imx335_detect },
+		{ "camera5", diasom_rk3568_sony_imx415_detect },
+		{ }
+	};
 
 	if (!adapter)
 		return -ENODEV;
@@ -205,15 +210,8 @@ static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 	if (!diasom_rk3568_probe_i2c(adapter, 0x30)) {
 		pr_info("FPD-Link deserializer detected.\n");
 		of_register_set_status_fixup("camera3", true);
-	} else {
-		static const struct cameras cameras[] = {
-			{ "camera2", diasom_rk3568_sony_imx335_detect },
-			{ "camera5", diasom_rk3568_sony_imx415_detect },
-			{ }
-		};
-
+	} else
 		diasom_rk3568_sony_camera_detect(adapter, cameras);
-	}
 	
 	return 0;
 }

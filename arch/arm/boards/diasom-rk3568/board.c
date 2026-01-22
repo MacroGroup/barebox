@@ -81,13 +81,22 @@ static int diasom_rk3568_sony_imx327_detect(struct i2c_client *client,
 	return -ENODEV;
 }
 
-static int diasom_rk3568_sony_imx335_detect(struct i2c_client *,
+static int diasom_rk3568_sony_imx335_detect(struct i2c_client *client,
 					    const char *alias)
 {
-	pr_info("Assume camera IMX335 is used.\n");
-	of_register_set_status_fixup(alias, true);
+	u16 buf;
+	int ret;
 
-	return 0;
+	/* 0x341c == (0x01ff || 0x0047) => IMX335 */
+	ret = i2c_read_reg(client, 0x341c | I2C_ADDR_16_BIT, (u8 *)&buf, sizeof(buf));
+	if (ret == sizeof(buf) && (buf == 0x01ff || buf == 0x0047)) {
+		pr_info("Camera IMX335 detected.\n");
+		of_register_set_status_fixup(alias, true);
+
+		return 0;
+	}
+
+	return -ENODEV;
 }
 
 static int diasom_rk3568_sony_imx415_detect(struct i2c_client *client,
@@ -101,6 +110,24 @@ static int diasom_rk3568_sony_imx415_detect(struct i2c_client *client,
 	if (ret == sizeof(buf) && (buf == 0x01 || buf == 0x03)) {
 		pr_info("Camera IMX415 detected.\n");
 		of_register_set_status_fixup(alias, true);
+
+		return 0;
+	}
+
+	return -ENODEV;
+}
+
+static int diasom_rk3568_sony_imx662_detect(struct i2c_client *client,
+					    const char *alias)
+{
+	u8 buf;
+	int ret;
+
+	/* 0x3046 == 0x4c => IMX662 */
+	ret = i2c_read_reg(client, 0x3046 | I2C_ADDR_16_BIT, &buf, sizeof(buf));
+	if (ret == sizeof(buf) && buf == 0x4c) {
+		pr_info("Camera IMX662 detected.\n");
+		//TODO:
 
 		return 0;
 	}
@@ -123,17 +150,17 @@ static int diasom_rk3568_sony_camera_detect(struct i2c_adapter *adapter,
 		if (!cameras[i].detect(&client, cameras[i].alias))
 			return 0;
 
-	/* Do not fail if client.addr online but we not detect anything */
-	return 0;
+	return -ENODEV;
 }
 
 static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 {
 	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(4);
 	static const struct cameras cameras[] = {
+		{ "camera1", diasom_rk3568_sony_imx335_detect },
 		{ "camera4", diasom_rk3568_sony_imx415_detect },
 		{ "camera6", diasom_rk3568_sony_imx327_detect },
-		{ "camera1", diasom_rk3568_sony_imx335_detect },
+		{ "camera7", diasom_rk3568_sony_imx662_detect },
 		{ }
 	};
 
@@ -158,8 +185,8 @@ static int diasom_rk3568_smarc_evb_fixup(struct device_node *root, void *unused)
 {
 	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(7);
 	static const struct cameras cameras[] = {
-		{ "camera1", diasom_rk3568_sony_imx415_detect },
 		{ "camera0", diasom_rk3568_sony_imx335_detect },
+		{ "camera1", diasom_rk3568_sony_imx415_detect },
 		{ }
 	};
 
@@ -184,8 +211,8 @@ static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 		of_register_set_status_fixup("camera3", true);
 	} else {
 		static const struct cameras cameras[] = {
-			{ "camera5", diasom_rk3568_sony_imx415_detect },
 			{ "camera2", diasom_rk3568_sony_imx335_detect },
+			{ "camera5", diasom_rk3568_sony_imx415_detect },
 			{ }
 		};
 

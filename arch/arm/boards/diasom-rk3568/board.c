@@ -268,8 +268,10 @@ static int __init diasom_rk3568_init(void)
 				cpuver = of_find_node_by_name_address(NULL, "cpu-info");
 				if (cpuver) {
 					char *val = nvmem_cell_get_and_read(cpuver, "cpu-version", sizeof(char));
-					ver = *val;
-					free(val);
+					if (val) {
+						ver = *val;
+						free(val);
+					}
 				}
 			}
 		}

@@ -335,7 +335,7 @@ static int __init diasom_rk3568_init(void)
 		}
 
 		pr_info("SODIMM revision: %i.%d.%d\n", module_revision >> 8,
-			module_revision & 0xff >> 4, module_revision & 0xf);
+			(module_revision & 0xff) >> 4, module_revision & 0xf);
 	} else
 		pr_info("RAW module variant used.\n");
 

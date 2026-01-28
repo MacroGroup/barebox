@@ -16,7 +16,6 @@ elif [ -f /mnt/mmc0.2/boot/Image.gz ]; then
 	global.linux.bootargs.dyn.root="root=/dev/mmcblk0p3 ro rootdelay=3"
 else
 	echo "Boot image not found!"
-	global.autoboot=abort
 	exit 1
 fi
 

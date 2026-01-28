@@ -1,0 +1,9 @@
+#!/bin/sh
+
+if [ ! -e /dev/mmc0.root ]; then
+	if [ ! -e /dev/mmc1.root ]; then
+		global.autoboot=abort
+	fi
+fi
+
+exit 0

@@ -442,9 +442,9 @@ static int __init diasom_rk3568_init(void)
 
 		if (diasom_rk3568_load_overlay(evb_ovl))
 			do_probe = true;
-	} else 	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc-evb")) {
+	} else if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc-evb")) {
 		of_register_fixup(diasom_rk3568_smarc_evb_fixup, NULL);
-	} else 	if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm-evb")) {
+	} else if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm-evb")) {
 		//TODO:
 	} else
 		pr_warn("Unknown board variant!\n");

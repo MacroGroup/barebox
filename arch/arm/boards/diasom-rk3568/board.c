@@ -164,7 +164,7 @@ static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 		return -ENODEV;
 
 	if (diasom_rk3568_probe_i2c(adapter, 0x10)) {
-		pr_warn("ES8388 codec not found, disabling soundcard.\n");
+		pr_warn("ES8388 codec not found, disabling soundcard!\n");
 		of_register_set_status_fixup("sound0", false);
 	}
 

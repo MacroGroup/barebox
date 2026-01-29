@@ -51,7 +51,7 @@ static int diasom_imx8m_evb_fixup(struct device_node *, void *)
 		}
 	}
 
-	pr_warn("Camera not detected. All camera nodes are disabled.\n");
+	pr_warn("Camera not detected. All camera nodes are disabled!\n");
 
 	return 0;
 }

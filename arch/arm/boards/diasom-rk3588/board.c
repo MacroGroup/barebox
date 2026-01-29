@@ -173,7 +173,8 @@ static int __init diasom_rk3588_init(void)
 	if (of_machine_is_compatible("diasom,ds-rk3588-btb-evb")) {
 		pr_info("EVB version 1.0.0+ detected.\n");
 		//TODO:
-	}
+	} else
+		pr_warn("Unknown board variant!\n");
 
 	if (do_probe) {
 		struct device_node *root = of_get_root_node();

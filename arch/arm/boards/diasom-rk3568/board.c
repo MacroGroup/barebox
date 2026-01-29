@@ -446,7 +446,8 @@ static int __init diasom_rk3568_init(void)
 		of_register_fixup(diasom_rk3568_smarc_evb_fixup, NULL);
 	} else 	if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm-evb")) {
 		//TODO:
-	}
+	} else
+		pr_warn("Unknown board variant!\n");
 
 out:
 	if (do_probe) {

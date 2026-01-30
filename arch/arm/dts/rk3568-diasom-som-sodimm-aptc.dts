@@ -1,0 +1,60 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+
+#include "rk3568-diasom-som-sodimm.dtsi"
+
+/ {
+	model = "Diasom DS-RK3568-SODIMM-APTC";
+	compatible = "diasom,ds-rk3568-som-sodimm-aptc",
+		     "diasom,ds-rk3568-som-sodimm",
+		     "diasom,ds-rk3568-som",
+		     "rockchip,rk3568";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&gpu {
+	status = "disabled";
+};
+
+&pcie30phy {
+	status = "okay";
+};
+
+&pcie3x2 {
+	status = "okay";
+};
+
+&rga {
+	status = "disabled";
+};
+
+&uart3 {
+	pinctrl-0 = <&uart3m0_xfer>;
+	status = "okay";
+};
+
+&uart4 {
+	pinctrl-0 = <&uart4m0_xfer>;
+	status = "okay";
+};
+
+&vpu {
+	status = "disabled";
+};
+
+&vdpu_mmu {
+	status = "disabled";
+};
+
+&vepu {
+	status = "disabled";
+};
+
+&vepu_mmu {
+	status = "disabled";
+};

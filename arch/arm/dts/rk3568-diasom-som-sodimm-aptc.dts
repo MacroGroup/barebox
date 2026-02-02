@@ -17,6 +17,19 @@
 	status = "disabled";
 };
 
+&leds {
+	pinctrl-0 = <&leds_pins &system_led_pins>;
+
+	led-sys {
+		label = "brd:sys";
+		gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		color = <LED_COLOR_ID_GREEN>;
+		linux,default-trigger = "timer";
+		led-pattern = <1000 1000>;
+		default-state = "off";
+	};
+};
+
 &pcie30phy {
 	status = "okay";
 };
@@ -66,6 +79,13 @@
 };
 
 &pinctrl {
+	leds {
+		system_led_pins: system-led-pins {
+			rockchip,pins =
+				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* SYSTEM_LED */
+		};
+	};
+
 	uart {
 		uart3_pins: uart3-pins {
 			rockchip,pins =

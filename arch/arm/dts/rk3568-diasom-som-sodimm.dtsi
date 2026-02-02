@@ -20,6 +20,7 @@
 		i2c9 = &i2c9;
 		mmc1 = &sdmmc0;
 		rtc0 = &rtc;
+		rtc1 = &pmic;
 	};
 
 	chosen {

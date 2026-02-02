@@ -13,10 +13,6 @@
 		     "rockchip,rk3568";
 };
 
-&gmac1 {
-	status = "disabled";
-};
-
 &gpu {
 	status = "disabled";
 };
@@ -34,12 +30,22 @@
 };
 
 &uart3 {
-	pinctrl-0 = <&uart3m0_xfer>;
+	/* UART1 */
+	pinctrl-0 = <&uart3m0_xfer &uart3_pins>;
+	linux,rs485-enabled-at-boot-time;
+	rs485-rx-during-tx;
+	rs485-rx-during-tx-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
+	rts-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &uart4 {
-	pinctrl-0 = <&uart4m0_xfer>;
+	/* UART0 */
+	pinctrl-0 = <&uart4m0_xfer &uart4_pins>;
+	linux,rs485-enabled-at-boot-time;
+	rs485-rx-during-tx;
+	rs485-rx-during-tx-gpios = <&gpio2 RK_PD2 GPIO_ACTIVE_LOW>;
+	rts-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -57,4 +63,20 @@
 
 &vepu_mmu {
 	status = "disabled";
+};
+
+&pinctrl {
+	uart {
+		uart3_pins: uart3-pins {
+			rockchip,pins =
+				<3 RK_PC0 RK_FUNC_GPIO &pcfg_output_low>,	/* RS485_DE_CPU_2 */
+				<3 RK_PB7 RK_FUNC_GPIO &pcfg_output_low>;	/* RS485_RE_CPU_2 */
+		};
+
+		uart4_pins: uart4-pins {
+			rockchip,pins =
+				<1 RK_PB3 RK_FUNC_GPIO &pcfg_output_low>,	/* RS485_DE_CPU_1 */
+				<2 RK_PD2 RK_FUNC_GPIO &pcfg_output_low>;	/* RS485_RE_CPU_1 */
+		};
+	};
 };

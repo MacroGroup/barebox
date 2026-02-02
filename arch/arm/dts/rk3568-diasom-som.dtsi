@@ -186,7 +186,7 @@
 	clock-frequency = <1000000>;
 	status = "okay";
 
-	pmic@20 {
+	pmic: pmic@20 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_pins &pmic_int_pins &clk32k_in>;
 		compatible = "rockchip,rk809";

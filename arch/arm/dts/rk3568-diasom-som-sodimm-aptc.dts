@@ -25,7 +25,7 @@
 		gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 		color = <LED_COLOR_ID_GREEN>;
 		linux,default-trigger = "timer";
-		led-pattern = <1000 1000>;
+		led-pattern = <500 500>;
 		default-state = "off";
 	};
 };

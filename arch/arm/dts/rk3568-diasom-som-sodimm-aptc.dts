@@ -62,6 +62,18 @@
 	status = "okay";
 };
 
+&usb_host0_ehci {
+	status = "disabled";
+};
+
+&usb_host0_ohci {
+	status = "disabled";
+};
+
+&usb_host0_xhci {
+	dr_mode = "peripheral";
+};
+
 &vpu {
 	status = "disabled";
 };

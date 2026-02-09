@@ -21,6 +21,7 @@
 		i2c8 = &i2c8;
 		i2c9 = &i2c9;
 		rtc0 = &rtc;
+		rtc1 = &pmic;
 	};
 
 	gpio-keys {

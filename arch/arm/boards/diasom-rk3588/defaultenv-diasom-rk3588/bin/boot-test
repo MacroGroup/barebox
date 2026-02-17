@@ -1,0 +1,8 @@
+#!/bin/sh
+
+global.linux.bootargs.base="$global.linux.bootargs.base boot-test"
+global.linux.bootargs.console="$global.linux.bootargs.console printk.time=1"
+
+boot
+
+exit 0

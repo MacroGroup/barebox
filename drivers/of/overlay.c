@@ -351,6 +351,9 @@ int of_overlay_apply_dtbo(struct device_node *root, const void *dtbo)
 	int ret;
 
 	overlay = of_unflatten_dtb(dtbo, INT_MAX);
+	if (IS_ERR(overlay))
+		return PTR_ERR(overlay);
+
 	ret = of_overlay_apply_tree(root, overlay);
 	of_delete_node(overlay);
 
@@ -537,7 +540,7 @@ static int of_overlay_global_fixup_fit(struct device_node *root,
 	enum bootm_verify verify = bootm_get_verify_mode();
 	struct device_node *conf_node;
 	struct fit_handle *fit;
-	int ret;
+	int ret = 0;
 
 	if (!IS_ENABLED(CONFIG_FITIMAGE)) {
 		pr_err("FIT based overlay handling requested while CONFIG_FITIMAGE=n\n");

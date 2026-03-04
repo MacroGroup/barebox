@@ -153,6 +153,8 @@ static int fit_digest(struct fit_handle *handle, struct digest *digest,
 		case FDT_END_NODE:
 			dt_struct = dt_struct_advance(&f, dt_struct, FDT_TAGSIZE);
 
+			if (depth < 0)
+				return -ESPIPE;
 			include = want;
 			want = stack[depth--];
 			while (end > path && *--end != '/')
@@ -860,7 +862,7 @@ static int fit_find_last_unit(struct fit_handle *handle,
 	const char *unit = NULL;
 
 	if (!conf_node)
-		return 0;
+		return -ENOENT;
 
 	for_each_child_of_node(conf_node, child)
 		unit = child->name;
@@ -1020,6 +1022,7 @@ struct fit_handle *fit_open(const char *_filename, bool verbose,
 
 	handle = fit_get_handle(filename);
 	if (handle) {
+		free(filename);
 		refcount_inc(&handle->users);
 		return handle;
 	}
@@ -1053,10 +1056,10 @@ struct fit_handle *fit_open(const char *_filename, bool verbose,
 	return handle;
 }
 
-static void __fit_close(struct fit_handle *handle)
+static bool __fit_close(struct fit_handle *handle)
 {
 	if (!refcount_dec_and_test(&handle->users))
-		return;
+		return false;
 
 	if (handle->root)
 		of_delete_node(handle->root);
@@ -1066,12 +1069,13 @@ static void __fit_close(struct fit_handle *handle)
 
 	free(handle->filename);
 	free(handle->fit_alloc);
+	return true;
 }
 
 void fit_close(struct fit_handle *handle)
 {
-	__fit_close(handle);
-	free(handle);
+	if (__fit_close(handle))
+		free(handle);
 }
 
 static int do_bootm_fit(struct image_data *data)
@@ -1081,10 +1085,19 @@ static int do_bootm_fit(struct image_data *data)
 	return -EINVAL;
 }
 
+static bool fitimage_check(struct image_handler *handler,
+			   struct image_data *data,
+			   enum filetype detected_filetype)
+{
+	return detected_filetype == filetype_oftree ||
+		detected_filetype == filetype_fit;
+}
+
 static struct image_handler fit_handler = {
 	.name = "FIT image",
 	.bootm = do_bootm_fit,
-	.filetype = filetype_oftree,
+	.filetype = filetype_fit,
+	.check_image = fitimage_check,
 };
 
 static int bootm_fit_register(void)
@@ -1108,6 +1121,8 @@ static int fuzz_fit(const u8 *data, size_t size)
 	handle.size = size;
 	handle.fit = data;
 	handle.fit_alloc = NULL;
+
+	refcount_set(&handle.users, 1);
 
 	ret = fit_do_open(&handle);
 	if (ret)

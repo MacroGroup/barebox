@@ -20,6 +20,7 @@
 #include <shell.h>
 #include <init.h>
 #include <command.h>
+#include <poweroff.h>
 #include <malloc.h>
 #include <debug_ll.h>
 #include <fs.h>
@@ -396,19 +397,6 @@ static int run_init(void)
 	hang();
 }
 
-typedef void (*ctor_fn_t)(void);
-
-/* Call all constructor functions linked into the kernel. */
-static void do_ctors(void)
-{
-#ifdef CONFIG_CONSTRUCTORS
-	ctor_fn_t *fn = (ctor_fn_t *) __ctors_start;
-
-	for (; fn < (ctor_fn_t *) __ctors_end; fn++)
-		(*fn)();
-#endif
-}
-
 int (*barebox_main)(void)
 	= !IS_ENABLED(CONFIG_SHELL_NONE) &&
            IS_ENABLED(CONFIG_COMMAND_SUPPORT) ? run_init : NULL;
@@ -417,8 +405,6 @@ void __noreturn start_barebox(void)
 {
 	initcall_t *initcall;
 	int result;
-
-	do_ctors();
 
 	for (initcall = __barebox_initcalls_start;
 			initcall < __barebox_initcalls_end; initcall++) {
@@ -440,8 +426,8 @@ void __noreturn start_barebox(void)
 		barebox_main();
 
 	if (IS_ENABLED(CONFIG_SHELL_NONE)) {
-		pr_err("Nothing left to do\n");
-		hang();
+		pr_crit("Nothing left to do\n");
+		poweroff_machine(0);
 	} else {
 		while (1)
 			run_shell();

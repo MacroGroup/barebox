@@ -21,11 +21,12 @@ if match is None or int(match.group(1)) < 25:
 class Status(enum.Enum):
     unknown = 0
     off = 1
-    barebox = 2
-    qemu_dry_run = 3
-    qemu_interactive = 4
-    qemu_dump_dtb = 5
-    shell = 6
+    on = 2
+    barebox = 3
+    qemu_dry_run = 4
+    qemu_interactive = 5
+    qemu_dump_dtb = 6
+    shell = 7
 
 
 @target_factory.reg_driver
@@ -63,11 +64,13 @@ class BareboxTestStrategy(Strategy):
             self.target.deactivate(self.console)
             self.target.activate(self.power)
             self.power.off()
-        elif status == Status.barebox:
+        elif status == Status.on:
             self.transition(Status.off)  # pylint: disable=missing-kwoa
             self.target.activate(self.console)
             # cycle power
             self.power.cycle()
+        elif status == Status.barebox:
+            self.transition(Status.on)  # pylint: disable=missing-kwoa
             # interrupt barebox
             self.target.activate(self.barebox)
         elif status == Status.shell:
@@ -83,17 +86,47 @@ class BareboxTestStrategy(Strategy):
             )
         self.status = status
 
+    def barebox_bootm(self, image=None):
+        self.barebox._run(f"global.loglevel={self.barebox.saved_log_level}",
+                          adjust_log_level=False)
+        if image:
+            self.console.sendline(f"bootm -v {image}")
+        else:
+            self.console.sendline("bootm -v")
+
     @contextmanager
-    def boot(self, boottarget=None):
+    def boot_barebox(self, boottarget=None, bootm=False):
         self.transition(Status.barebox)
 
         try:
-            self.barebox.boot(boottarget)
+            if bootm:
+                self.barebox_bootm(boottarget)
+            else:
+                self.barebox.boot(boottarget)
+
             self.target.deactivate(self.barebox)
             self.target.activate(self.barebox)
-            yield
+            yield self.barebox
         finally:
             self.target.deactivate(self.barebox)
+            self.power.cycle()
+            self.target.activate(self.barebox)
+
+    @contextmanager
+    def boot_kernel(self, boottarget=None, bootm=False):
+        self.transition(Status.barebox)
+
+        try:
+            if bootm:
+                self.barebox_bootm(boottarget)
+            else:
+                self.barebox.boot(boottarget)
+
+            self.barebox.await_boot()
+            self.target.activate(self.shell)
+            yield self.shell
+        finally:
+            self.target.deactivate(self.shell)
             self.power.cycle()
             self.target.activate(self.barebox)
 

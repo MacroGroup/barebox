@@ -138,9 +138,10 @@ static int init_boot(void)
 		global_boot_default = xstrdup(
 			IF_ENABLED(CONFIG_EFI_LOADER_BOOTMGR,  "efibootmgr ")
 			IF_ENABLED(CONFIG_BOOT_DEFAULTS,       "bootsource ")
-			IF_ENABLED(CONFIG_BOOT_DEFAULTS,       "storage.builtin ")
-			IF_ENABLED(CONFIG_BOOT_DEFAULTS,       "storage.removable ")
-			"net"
+			IF_ENABLED(CONFIG_BOOT_DEFAULTS,       "storage.builtin.nonbootsource ")
+			IF_ENABLED(CONFIG_BOOT_DEFAULTS,       "storage.removable.nonbootsource ")
+			IF_ENABLED(CONFIG_NET,                 "net")
+			""
 		);
 
 	globalvar_add_simple_string("boot.default", &global_boot_default);
@@ -174,13 +175,13 @@ int boot_entry(struct bootentry *be, int verbose, int dryrun)
 		}
 	}
 
-	old = bootm_set_overrides(be->overrides);
+	old = bootm_save_overrides(be->overrides);
 
 	ret = be->boot(be, verbose, dryrun);
 	if (ret && ret != -ENOMEDIUM)
 		pr_err("Booting entry '%s' failed: %pe\n", be->title, ERR_PTR(ret));
 
-	bootm_set_overrides(old);
+	bootm_restore_overrides(old);
 
 	globalvar_set_match("linux.bootargs.dyn.", "");
 

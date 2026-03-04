@@ -84,7 +84,8 @@ efi_status_t efi_var_to_file(void)
 		goto error;
 	}
 
-	return 0;
+	efiret = EFI_SUCCESS;
+	goto out;
 
 error:
 	if (efiret != EFI_SUCCESS)
@@ -179,7 +180,7 @@ efi_status_t efi_var_from_file(int dirfd, const char *filename)
 		goto error;
 	}
 
-	return EFI_SUCCESS;
+	ret = EFI_SUCCESS;
 error:
 	free(buf);
 	return ret;

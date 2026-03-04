@@ -23,6 +23,7 @@
 		camera4 = &imx415_i2c4;
 		camera5 = &imx415_i2c7;
 		camera6 = &imx327;
+		camera7 = &ar0234;
 		can0 = &can1;
 		can1 = &can2;
 		ethernet0 = &gmac0;
@@ -302,44 +303,50 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			imx327_in: endpoint@0 {
+			ar0234_in: endpoint@0 {
 				reg = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&ar0234_out>;
+			};
+
+			imx327_in: endpoint@1 {
+				reg = <1>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&imx327_out>;
 			};
 
-			imx335_i2c4_in: endpoint@1 {
-				reg = <1>;
+			imx335_i2c4_in: endpoint@2 {
+				reg = <2>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&imx335_i2c4_out>;
 			};
 
-			imx335_i2c7_in: endpoint@2 {
-				reg = <2>;
+			imx335_i2c7_in: endpoint@3 {
+				reg = <3>;
 				data-lanes = <1 2>;
 				remote-endpoint = <&imx335_i2c7_out>;
 			};
 
-			imx415_i2c4_in: endpoint@3 {
-				reg = <3>;
+			imx415_i2c4_in: endpoint@4 {
+				reg = <4>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&imx415_i2c4_out>;
 			};
 
-			imx415_i2c7_in: endpoint@4 {
-				reg = <4>;
+			imx415_i2c7_in: endpoint@5 {
+				reg = <5>;
 				data-lanes = <1 2>;
 				remote-endpoint = <&imx415_i2c7_out>;
 			};
 
-			ub954_csi_in: endpoint@5 {
-				reg = <5>;
+			ub954_csi_in: endpoint@6 {
+				reg = <6>;
 				data-lanes = <1 2>;
 				remote-endpoint = <&ub954_csi_out>;
 			};
 
-			xc7160_in: endpoint@6 {
-				reg = <6>;
+			xc7160_in: endpoint@7 {
+				reg = <7>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&xc7160_out>;
 			};
@@ -540,6 +547,25 @@
 		HPVDD-supply = <&vcc3v3_sys>;
 
 		#sound-dai-cells = <0>;
+	};
+
+	ar0234: camera@18 {
+		compatible = "onnn,ar0234cs";
+		reg = <0x18>;
+		clocks = <&clk27m>;
+		power-domains = <&power RK3568_PD_VI>;
+		vana-supply = <&vcc_cam0>;
+		vdig-supply = <&vcc_cam0>;
+		vddl-supply = <&vcc_cam0>;
+		status = "disabled";
+
+		port {
+			ar0234_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&ar0234_in>;
+				link-frequencies = /bits/ 64 <450000000>;
+			};
+		};
 	};
 
 	imx327: camera-0@1a {

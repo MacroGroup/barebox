@@ -51,6 +51,7 @@ static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const int nr)
 		camera4 = IMX415/I2C4
 		camera5 = IMX415/I2C7
 		camera6 = IMX327/I2C4
+		camera7 = AR0234/I2C4
 	SOM-SMARC-EVB:
 		camera0 = IMX335/I2C7
 		camera1 = IMX415/I2C7
@@ -170,6 +171,12 @@ static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 
 	if (!diasom_rk3568_sony_camera_detect(adapter, cameras))
 		return 0;
+
+	if (!diasom_rk3568_probe_i2c(adapter, 0x18)) {
+		pr_info("Camera AR0234 detected.\n");
+		of_register_set_status_fixup("camera7", true);
+		return 0;
+	}
 
 	pr_info("Assume camera XC7160 is used.\n");
 	of_register_set_status_fixup("camera0", true);

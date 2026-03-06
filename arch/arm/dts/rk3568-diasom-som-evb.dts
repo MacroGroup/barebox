@@ -554,9 +554,9 @@
 		reg = <0x18>;
 		clocks = <&clk27m>;
 		power-domains = <&power RK3568_PD_VI>;
-		vana-supply = <&vcc_cam0>;
-		vdig-supply = <&vcc_cam0>;
-		vddl-supply = <&vcc_cam0>;
+		vaa-supply = <&vcc_cam0>;
+		vdd-supply = <&vcc_cam0>;
+		vddio-supply = <&vcc_cam0>;
 		status = "disabled";
 
 		port {

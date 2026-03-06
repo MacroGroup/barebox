@@ -563,7 +563,7 @@
 			ar0234_out: endpoint {
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&ar0234_in>;
-				link-frequencies = /bits/ 64 <450000000>;
+				link-frequencies = /bits/ 64 <360000000 450000000>;
 			};
 		};
 	};

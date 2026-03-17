@@ -24,6 +24,7 @@
 		camera5 = &imx415_i2c7;
 		camera6 = &imx327;
 		camera7 = &ar0234;
+		camera8 = &imx662;
 		can0 = &can1;
 		can1 = &can2;
 		ethernet0 = &gmac0;
@@ -339,14 +340,20 @@
 				remote-endpoint = <&imx415_i2c7_out>;
 			};
 
-			ub954_csi_in: endpoint@6 {
+			imx662_in: endpoint@6 {
 				reg = <6>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx662_out>;
+			};
+
+			ub954_csi_in: endpoint@7 {
+				reg = <7>;
 				data-lanes = <1 2>;
 				remote-endpoint = <&ub954_csi_out>;
 			};
 
-			xc7160_in: endpoint@7 {
-				reg = <7>;
+			xc7160_in: endpoint@8 {
+				reg = <8>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&xc7160_out>;
 			};
@@ -623,6 +630,25 @@
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&imx415_i2c4_in>;
 				link-frequencies = /bits/ 64 <891000000>;
+			};
+		};
+	};
+
+	imx662: camera-3@1a {
+		compatible = "sony,imx662aaqr";
+		reg = <0x1a>;
+		clocks = <&xin24m>;
+		power-domains = <&power RK3568_PD_VI>;
+		avdd-supply = <&vcc_cam0>;
+		dvdd-supply = <&vcc_cam0>;
+		ovdd-supply = <&vcc_cam0>;
+		status = "disabled";
+
+		port {
+			imx662_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx662_in>;
+				link-frequencies = /bits/ 64 <360000000>;
 			};
 		};
 	};

@@ -4,6 +4,9 @@ if [ -f /env/data/logo.png ]; then
 	# Check for HDMI on /dev/fb0
 	[ -e /dev/fb0 ] || exit 0
 
+	# Check HDMI is connected
+	[ "$fb0.mode_name" = "invalid:0" ] && exit 0
+
 	# Enable framebuffer on HDMI output
 	fb0.enable=1
 

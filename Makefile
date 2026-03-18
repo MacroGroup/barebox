@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 2026
-PATCHLEVEL = 02
-SUBLEVEL = 0
+PATCHLEVEL = 03
+SUBLEVEL = 1
 EXTRAVERSION =
 NAME = None
 
@@ -618,9 +618,9 @@ export KBUILD_DEFCONFIG CC_VERSION_TEXT
 endif
 
 %_efiloader_defconfig: FORCE
-	$(call merge_into_defconfig,$*_defconfig,efi-loader)
+	$(call merge_into_defconfig_named,$*_defconfig,efi-loader,$@)
 %_efi_defconfig: FORCE
-	$(call merge_into_defconfig,$*_defconfig,efi-loader efi-payload)
+	$(call merge_into_defconfig_named,$*_defconfig,efi-loader efi-payload,$@)
 
 config: outputmakefile scripts_basic FORCE
 	$(Q)$(MAKE) $(build)=scripts/kconfig KCONFIG_DEFCONFIG_LIST= $@
@@ -1083,7 +1083,7 @@ endif
 	fi
 	@echo
 	@# This is intentionally not @suppressed, to make it easier to reproduce
-	(cd $(srctree); $(PYTEST))
+	(cd $(srctree); KBUILD_OUTPUT=$(abs_objtree) $(PYTEST))
 
 PHONY += check
 
@@ -1461,7 +1461,7 @@ quiet_cmd_gen_compile_commands = GEN     $@
       cmd_gen_compile_commands = $(PYTHON3) $< -a $(AR) -o $@ $(filter-out $<, $(real-prereqs))
 
 compile_commands.json: scripts/clang-tools/gen_compile_commands.py \
-	$(BAREBOX_OBJS) $(if $(CONFIG_PBL_IMAGE),$(BAREBOX_PBL_OBJS),) FORCE
+	$(BAREBOX_OBJS) $(if $(CONFIG_PBL_IMAGE),$(BAREBOX_PBL_OBJS),) scripts/ FORCE
 	$(call if_changed,gen_compile_commands)
 
 PHONY += compile_commands.json

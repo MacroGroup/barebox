@@ -67,6 +67,14 @@ static inline bool is_reserved_name(const char *name)
 	return *name == '$';
 }
 
+static inline bool is_allowed_input_name(const char *name)
+{
+	/* We are stricter on input than on output, because we assume barebox
+	 * code won't attempt naming nodes bogously.
+	 */
+	return !is_reserved_name(name) && !strchr(name, '/');
+}
+
 static int of_reservemap_num_entries(const struct fdt_header *fdt)
 {
 	/*
@@ -248,7 +256,7 @@ static struct device_node *__of_unflatten_dtb(const void *infdt, int size,
 				node = root;
 			} else {
 				/* Only the root node may have an empty name */
-				if (!*pathp || is_reserved_name(pathp)) {
+				if (!*pathp || !is_allowed_input_name(pathp)) {
 					ret = -EINVAL;
 					goto err;
 				}
@@ -285,7 +293,7 @@ static struct device_node *__of_unflatten_dtb(const void *infdt, int size,
 			nodep = fdt_prop->data;
 
 			name = dt_string(&f, dt_strings, fdt32_to_cpu(fdt_prop->nameoff));
-			if (!name || !node ||  is_reserved_name(name)) {
+			if (!name || !node ||  !is_allowed_input_name(name)) {
 				ret = -ESPIPE;
 				goto err;
 			}
@@ -652,6 +660,30 @@ int of_add_reserve_entry(resource_size_t start, resource_size_t end)
 	return 0;
 }
 
+void of_del_reserve_entry(resource_size_t start, resource_size_t end)
+{
+	int i, index = -1;
+
+	/* Find the entry with matching start and end addresses */
+	for (i = 0; i < of_reserve_map.num_entries; i++) {
+		if (of_reserve_map.start[i] == start && of_reserve_map.end[i] == end) {
+			index = i;
+			break;
+		}
+	}
+
+	if (index < 0)
+		return;
+
+	/* Shift all subsequent entries up to close the gap */
+	for (i = index; i < of_reserve_map.num_entries - 1; i++) {
+		of_reserve_map.start[i] = of_reserve_map.start[i + 1];
+		of_reserve_map.end[i] = of_reserve_map.end[i + 1];
+	}
+
+	of_reserve_map.num_entries--;
+}
+
 struct of_reserve_map *of_get_reserve_map(void)
 {
 	return &of_reserve_map;
@@ -801,6 +833,9 @@ int fdt_machine_is_compatible(const struct fdt_header *fdt, size_t fdt_size, con
 
 		case FDT_PROP:
 			fdt_prop = (const void *)fdt + dt_struct;
+			if (!dt_ptr_ok(fdt, fdt_prop))
+				return 0;
+
 			len = fdt32_to_cpu(fdt_prop->len);
 
 			name = dt_string(&f, dt_strings, fdt32_to_cpu(fdt_prop->nameoff));

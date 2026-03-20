@@ -386,6 +386,12 @@ static int __init diasom_rk3568_init(void)
 			diasom_rk3568_i2c_get_adapter(3);
 		void *smarc_ovl;
 
+		if (!adapter) {
+			pr_err("Cannot determine SMARC revision.\n");
+			ret = -ENOTSUPP;
+			goto out;
+		}
+
 		if (!diasom_rk3568_probe_i2c(adapter, 0x68)) {
 			/* Rev 1.1.1: i2c3 has EEPROM@50,51 and RTC@68 */
 			extern char __dtbo_rk3568_diasom_som_smarc_ver1_1_1_start[];

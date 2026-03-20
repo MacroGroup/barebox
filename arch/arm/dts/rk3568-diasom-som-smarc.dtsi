@@ -41,6 +41,38 @@
 		};
 	};
 
+	gpio_mdio: gpio-mdio {
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_mdio_pins>;
+		compatible = "virtual,mdio-gpio";
+		gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH
+			 &gpio4 RK_PB7 GPIO_ACTIVE_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: phy@2 {
+			/* RTL8211F */
+			pinctrl-names = "default";
+			pinctrl-0 = <&gmac0_rst_pins>;
+			compatible = "ethernet-phy-id001c.c916";
+			reg = <0x2>;
+			reset-assert-us = <20000>;
+			reset-deassert-us = <100000>;
+			reset-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
+		};
+
+		phy1: phy@4 {
+			/* RTL8211F */
+			pinctrl-names = "default";
+			pinctrl-0 = <&gmac1_rst_pins>;
+			compatible = "ethernet-phy-id001c.c916";
+			reg = <0x4>;
+			reset-assert-us = <20000>;
+			reset-deassert-us = <100000>;
+			reset-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	pps: pps {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pps_pins>;
@@ -232,7 +264,7 @@
 		&gmac0_rgmii_clk &gmac0_rgmii_bus
 	>;
 	clock_in_out = "output";
-	phy-handle = <&rgmii_phy0>;
+	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;
 };
@@ -248,7 +280,7 @@
 		&gmac1m1_rgmii_clk &gmac1m1_rgmii_bus
 	>;
 	clock_in_out = "output";
-	phy-handle = <&rgmii_phy1>;
+	phy-handle = <&phy1>;
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc3v3_sys>;
 };
@@ -347,27 +379,7 @@
 };
 
 &mdio1 {
-	rgmii_phy0: phy@2 {
-		/* RTL8211F */
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac0_rst_pins>;
-		compatible = "ethernet-phy-id001c.c916";
-		reg = <0x2>;
-		reset-assert-us = <20000>;
-		reset-deassert-us = <100000>;
-		reset-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
-	};
-
-	rgmii_phy1: phy@4 {
-		/* RTL8211F */
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac1_rst_pins>;
-		compatible = "ethernet-phy-id001c.c916";
-		reg = <0x4>;
-		reset-assert-us = <20000>;
-		reset-deassert-us = <100000>;
-		reset-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
-	};
+	status = "disabled";
 };
 
 &pcie2x1 {
@@ -508,7 +520,7 @@
 
 &pinctrl {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim &rstout_pins>;
+	pinctrl-0 = <&rstout_pins>;
 
 	exp {
 		exp_pins: exp-pins {
@@ -539,6 +551,12 @@
 		gmac1_rst_pins: gmac1-rst-pins {
 			rockchip,pins =
 				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;	/* GMAC1_RST */
+		};
+
+		gpio_mdio_pins: gpio-mdio-pins {
+			rockchip,pins =
+				<4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>,	/* MDC */
+				<4 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;	/* MDIO */
 		};
 	};
 

@@ -293,16 +293,10 @@ static void __init diasom_rk3568_check_adc(void)
 		}
 	}
 
-	if (diasom_rk3568_get_adc_value("aiodev0.in_value1_mV", &val))
-		return;
+	if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm")) {
+		if (diasom_rk3568_get_adc_value("aiodev0.in_value1_mV", &val))
+			return;
 
-	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc")) {
-		if (val <= 100) {
-			module_revision = 0x111;
-		} else {
-			pr_warn("Unhandled SMARC revision ADC value: %i!\n", val);
-		}
-	} else if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm")) {
 		if (val <= 100) {
 			module_revision = 0x111;
 		} else {
@@ -388,17 +382,27 @@ static int __init diasom_rk3568_init(void)
 		return 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc")) {
-		switch (module_revision) {
-			case 0x111:
-				break;
-			default:
-				pr_err("Cannot determine SMARC revision.\n");
-				ret = -ENOTSUPP;
-				goto out;
+		struct i2c_adapter *adapter =
+			diasom_rk3568_i2c_get_adapter(3);
+		void *smarc_ovl;
+
+		if (!diasom_rk3568_probe_i2c(adapter, 0x68)) {
+			/* Rev 1.1.1: i2c3 has EEPROM@50,51 and RTC@68 */
+			extern char __dtbo_rk3568_diasom_som_smarc_ver1_1_1_start[];
+
+			pr_info("SMARC version 1.1.1 detected.\n");
+
+			smarc_ovl = __dtbo_rk3568_diasom_som_smarc_ver1_1_1_start;
+		} else {
+			extern char __dtbo_rk3568_diasom_som_smarc_ver3_start[];
+
+			pr_info("SMARC version 3 used.\n");
+
+			smarc_ovl = __dtbo_rk3568_diasom_som_smarc_ver3_start;
 		}
 
-		pr_info("SMARC revision: %i.%d.%d\n", module_revision >> 8,
-			(module_revision & 0xff) >> 4, module_revision & 0xf);
+		if (diasom_rk3568_load_overlay(smarc_ovl))
+			do_probe = true;
 	} else if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm")) {
 		switch (module_revision) {
 			case 0x111:

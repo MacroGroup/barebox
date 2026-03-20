@@ -1,0 +1,91 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+&{/} {
+	aliases {
+		rtc0 = &rtc;
+	};
+};
+
+&i2c9 {
+	clock-frequency = <400000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* 24aa025e48 */
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc3v3_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac0: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+
+	/* 24aa025e48 */
+	eeprom@51 {
+		compatible = "atmel,24c02";
+		reg = <0x51>;
+		pagesize = <16>;
+		vcc-supply = <&vcc3v3_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac1: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+
+	/* m41t62lc6f */
+	rtc: rtc@68 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_pins>;
+		compatible = "st,m41t62";
+		reg = <0x68>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
+		wakeup-source;
+		#clock-cells = <0>;
+	};
+};
+
+&gmac0 {
+	nvmem-cells = <&mac0>;
+	nvmem-cell-names = "mac-address";
+	status = "okay";
+};
+
+&gmac1 {
+	nvmem-cells = <&mac1>;
+	nvmem-cell-names = "mac-address";
+	status = "okay";
+};
+
+&pinctrl {
+	rtc {
+		rtc_pins: rtc-pins {
+			rockchip,pins =
+				<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_IRQ */
+		};
+	};
+};

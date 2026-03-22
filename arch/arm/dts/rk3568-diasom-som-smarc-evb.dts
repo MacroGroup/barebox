@@ -72,6 +72,15 @@
 	status = "okay";
 };
 
+&gmac0 {
+	status = "okay";
+};
+
+&gmac1 {
+	status = "okay";
+};
+
+
 &hdmi {
 	status = "okay";
 };

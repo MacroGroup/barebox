@@ -4,6 +4,7 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
@@ -11,10 +12,21 @@
 	aliases {
 		rtc0 = &rtc;
 	};
+
+	vcc3v3_pcie30_clk_en: vcc3v3-pcie30-clk-en-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie30_clk_en_pins>;
+		compatible = "regulator-fixed";
+		gpio = <&gpio1 RK_PB0 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc3v3_pcie30_clk_en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
 };
 
 &i2c9 {
-	clock-frequency = <400000>;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -79,7 +91,27 @@
 	nvmem-cell-names = "mac-address";
 };
 
+&pcie30phy {
+	phy-supply = <&vcc3v3_pcie30_clk_en>;
+};
+
+&pcie3x1 {
+	vpcie3v3-supply = <&vcc3v3_pcie30_clk_en>;
+};
+
+&pcie3x2 {
+	vpcie3v3-supply = <&vcc3v3_pcie30_clk_en>;
+};
+
+
 &pinctrl {
+	pci {
+		pcie30_clk_en_pins: pcie30-clk-en-pins {
+			rockchip,pins =
+				<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_CLK_EN */
+		};
+	};
+
 	rtc {
 		rtc_pins: rtc-pins {
 			rockchip,pins =

@@ -104,6 +104,38 @@
 	nvmem-cell-names = "mac-address";
 };
 
+&gpio1 {
+	gpio-line-names =
+		/* GPIO1 A0-A7 */
+		"I2C3_SDA", "I2C3_SCL", "GPIO0/CAM0_PWR#", "LCD0_BKLT_EN",
+		"UART4_RX", "UART4_RTSn", "UART4_TX", "UART4_CTSn",
+		/* GPIO1 B0-B7 */
+		"PCIE30_CLK_IC_OE", "PIC20_WAKEn_M2", "GPIO1/CAM1_PWR#", "GPIO3/CAM1_RST#",
+		"eMMC_D0", "eMMC_D1", "eMMC_D2", "eMMC_D3",
+		/* GPIO1 C0-C7 */
+		"eMMC_D4", "eMMC_D5", "eMMC_D6", "eMMC_D7",
+		"eMMC_CMD", "eMMC_CLK", "eMMC_DS", "eMMC_RESET#",
+		/* GPIO1 D0-D7 */
+		"", "", "", "",
+		"", "SDMMC_D0", "SDMMC_D1", "SDMMC0_D2";
+};
+
+&gpio2 {
+	gpio-line-names =
+		/* GPIO2 A0-A7 */
+		"SDMMC0_D3", "SDMMC0_CMD", "SDMMC0_CLK", "GMAC0_RXD2",
+		"GMAC0_RXD3", "GMAC0_RXCLK", "GMAC0_TXD2", "GMAC0_TXD3",
+		/* GPIO2 B0-B7 */
+		"GMAC0_TXCLK", "CAN2_RX", "CAN2_TX", "GMAC0_TXD0",
+		"GMAC0_TXD1", "GMAC0_TXEN", "GMAC0_RXD0", "GMAC0_RXD1",
+		/* GPIO2 C0-C7 */
+		"GMAC0_RXDV_CRS", "SPI2_CK", "SPI2_DIN", "SPI2_DO",
+		"SPI2_CS0#", "SPI2_CS1#", "PCIE30X2_PERSTn", "",
+		/* GPIO2 D0-D7 */
+		"PCIE30_CLK_IC_PDN", "GPIO_EXP_INT", "PCIE30X1_CLKREQn_M1", "PCIE30X1_WAKEn_M1",
+		"PCIE30X2_CLKREQn_M1", "PCIE30X2_WAKEn_M1", "GPIO4/HDA_RST#", "UART8_TX";
+};
+
 &pcie30phy {
 	phy-supply = <&vcc3v3_pcie30_clk_run>;
 };

@@ -400,7 +400,7 @@
 
 &pinctrl {
 	pinctrl-names = "default";
-	pinctrl-0 = <&rstout_pins>;
+	pinctrl-0 = <&rstout_pins &smarc_pins>;
 
 	exp {
 		exp_pins: exp-pins {
@@ -472,6 +472,14 @@
 		rstout_pins: rst-pins {
 			rockchip,pins =
 				<3 RK_PD4 RK_FUNC_GPIO &pcfg_output_high>;	/* RESET_OUT */
+		};
+	};
+
+	smarc {
+		/* Unused */
+		smarc_pins: smarc-pins {
+			rockchip,pins =
+				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;	/* SMB_ALERT# */
 		};
 	};
 

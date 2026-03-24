@@ -36,6 +36,19 @@
 		startup-delay-us = <20000>;
 		vin-supply = <&vcc3v3_pcie30_clk_oe>;
 	};
+
+	vcc_sdmmc0: vcc-sdmmc0-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc0_vcc_pins>;
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc_sdmmc0";
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
 };
 
 &exp {
@@ -209,7 +222,24 @@
 	vpcie3v3-supply = <&vcc3v3_pcie30_clk_run>;
 };
 
+&pps {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pps_pins>;
+	gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+};
+
+&sdmmc0 {
+	vmmc-supply = <&vcc_sdmmc0>;
+};
+
 &pinctrl {
+	mmc {
+		sdmmc0_vcc_pins: sdmmc0-vcc-pins {
+			rockchip,pins =
+				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;	/* SDMMC0_PWR_EN */
+		};
+	};
+
 	pci {
 		pcie30_clk_oe_pins: pcie30-clk-oe-pins {
 			rockchip,pins =
@@ -219,6 +249,13 @@
 		pcie30_clk_run_pins: pcie30-clk-run-pins {
 			rockchip,pins =
 				<2 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_CLK_IC_PDN */
+		};
+	};
+
+	pps {
+		pps_pins: pps-pins {
+			rockchip,pins =
+				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_SQW */
 		};
 	};
 

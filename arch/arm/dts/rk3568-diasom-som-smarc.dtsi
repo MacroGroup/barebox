@@ -74,10 +74,7 @@
 	};
 
 	pps: pps {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pps_pins>;
 		compatible = "pps-gpio";
-		gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
 
@@ -88,19 +85,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <2500000>;
 		regulator-max-microvolt = <2500000>;
-		vin-supply = <&vcc3v3_sys>;
-	};
-
-	vcc_sdmmc0: vcc-sdmmc0-regulator {
-		pinctrl-names = "default";
-		pinctrl-0 = <&sdmmc0_vcc_pins>;
-		compatible = "regulator-fixed";
-		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
-		regulator-name = "vcc_sdmmc0";
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		startup-delay-us = <20000>;
 		vin-supply = <&vcc3v3_sys>;
 	};
 
@@ -317,7 +301,6 @@
 	bus-width = <4>;
 	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
-	vmmc-supply = <&vcc_sdmmc0>;
 };
 
 &spi2 {
@@ -410,11 +393,6 @@
 	};
 
 	mmc {
-		sdmmc0_vcc_pins: sdmmc0-vcc-pins {
-			rockchip,pins =
-				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;	/* SDMMC0_PWR_EN */
-		};
-
 		sdmmc0_wp: sdmmc0-wp-pins {
 			rockchip,pins =
 				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;		/* SDMMC0_WP */
@@ -458,13 +436,6 @@
 				<2 RK_PD4 4 &pcfg_pull_none>,			/* pcie30x2_clkreqnm1 */
 				<2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>,		/* PCIE30X2_PERSTN */
 				<2 RK_PD5 4 &pcfg_pull_none>;			/* pcie30x2_wakenm1 */
-		};
-	};
-
-	pps {
-		pps_pins: pps-pins {
-			rockchip,pins =
-				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_SQW */
 		};
 	};
 

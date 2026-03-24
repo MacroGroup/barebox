@@ -44,10 +44,10 @@
 	gpio-line-names =
 		/* P0_0-7 */
 		"GPIO8", "GPIO9", "GPIO10", "GPIO11",
-		"GPIO12", "GPIO13", "WDT_TIME_OUT#", "LID#",
+		"GPIO12", "GPIO13", "GPIO4/HDA_RST#", "LID#",
 		/* P1_0-7 */
-		"SLEEP#", "CHARGING#", "CHARGER_PRSNT#", "CARRIER_STBY#",
-		"BATLOW#", "TEST#", "LCD0_VDD_EN", "",
+		"SLEEP#", "CHARGING#", "CHARGER_PRSNT#", "GPIO7",
+		"BATLOW#", "TEST#", "SATA_ACT#", "",
 		/* P2_0-7 */
 		"", "", "", "",
 		"", "", "", "";
@@ -137,7 +137,7 @@
 &gpio1 {
 	gpio-line-names =
 		/* GPIO1 A0-A7 */
-		"I2C3_SDA", "I2C3_SCL", "GPIO0/CAM0_PWR#", "LCD0_BKLT_EN",
+		"I2C3_SDA", "I2C3_SCL", "GPIO0/CAM0_PWR#", "CARRIER_STBY#",
 		"UART4_RX", "UART4_RTSn", "UART4_TX", "UART4_CTSn",
 		/* GPIO1 B0-B7 */
 		"PCIE30_CLK_EN", "PIC20_WAKEn_M2", "GPIO1/CAM1_PWR#", "GPIO3/CAM1_RST#",
@@ -162,8 +162,8 @@
 		"GMAC0_RXDV_CRS", "SPI2_CK", "SPI2_DIN", "SPI2_DO",
 		"SPI2_CS0#", "SPI2_CS1#", "PCIE30X2_PERSTn", "",
 		/* GPIO2 D0-D7 */
-		"", "GPIO_EXP_INT", "PCIE30X1_CLKREQn_M1", "PCIE30X1_WAKEn_M1",
-		"PCIE30X2_CLKREQn_M1", "PCIE30X2_WAKEn_M1", "GPIO4/HDA_RST#", "UART8_TX";
+		"LCD0_VDD_EN", "GPIO_EXP_INT", "PCIE30X1_CLKREQn_M1", "PCIE30X1_WAKEn_M1",
+		"PCIE30X2_CLKREQn_M1", "PCIE30X2_WAKEn_M1", "WDT_TIME_OUT#", "UART8_TX";
 };
 
 &gpio3 {
@@ -191,7 +191,7 @@
 		"GMAC1_RXD1_M1", "GMAC1_RXDV_CRS_M1", "I2C4_SDA", "I2C4_SCL",
 		"I2C2_SDA", "I2C2_SCL", "MDC", "MDIO",
 		/* GPIO4 C0-C7 */
-		"CAM_MCK", "GPIO7", "SPI3_CK", "SPI3_DO",
+		"CAM_MCK", "LCD0_BKLT_EN", "SPI3_CK", "SPI3_DO",
 		"RTC_IRQ#", "SPI3_DIN", "SPI3_CS0#", "HDMI_I2C_SCL",
 		/* GPIO4 D0-D7 */
 		"HDMI_I2C_SDA", "SPI3_CS1#", "SDMMC0_WP", "",
@@ -255,13 +255,15 @@
 		/* Unused */
 		smarc_pins: smarc-pins {
 			rockchip,pins =
-				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>,	/* SMB_ALERT# */
 				<1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO0 */
 				<3 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO2 */
-				<2 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO4 */
 				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO5 */
 				<3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO6 */
-				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;	/* GPIO7 */
+				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>,	/* SMB_ALERT# */
+				<4 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* CAM_MCK */
+				<3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD1_BKLT_EN */
+				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD1_VDD_EN */
+				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;	/* eDP0_HPD/DSI0_TE */
 		};
 	};
 };

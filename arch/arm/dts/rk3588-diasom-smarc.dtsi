@@ -127,6 +127,8 @@
 	};
 };
 
+/delete-node/ &xin32k;
+
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0>;
 };
@@ -553,7 +555,13 @@
 		wakeup-source;
 
 		clock {
-			/* Skip registering SQW, used as xin32k */
+			compatible = "fixed-clock";
+			pinctrl-names = "default";
+			pinctrl-0 = <&clk32k_in>;
+			clock-accuracy = <2000>;
+			clock-frequency = <32768>;
+			clock-output-names = "xin32k";
+			#clock-cells = <0>;
 		};
 	};
 };
@@ -711,13 +719,6 @@
 
 &uart9 {
 	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn &uart9m2_rtsn>;
-};
-
-&xin32k {
-	/* Clock comes from M41T62LC6F */
-	pinctrl-names = "default";
-	pinctrl-0 = <&clk32k_in>;
-	clock-accuracy = <2000>;
 };
 
 &pinctrl {

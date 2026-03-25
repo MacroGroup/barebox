@@ -16,6 +16,7 @@
 		can1 = &can2;
 		ethernet0 = &gmac0;
 		ethernet1 = &gmac1;
+		mdio-gpio0 = &gpio_mdio;
 		i2c6 = &i2c6;
 		i2c7 = &i2c7;
 		i2c8 = &i2c8;

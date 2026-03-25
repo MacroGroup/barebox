@@ -69,7 +69,7 @@
 		regulator-name = "vcc_pcie2";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		clocks = <&sqw32k>;
+		clocks = <&rtc>;
 		vin-supply = <&vcc3v3_sys>;
 		barebox,allow-dummy-supply;
 	};
@@ -188,13 +188,7 @@
 				interrupt-parent = <&gpio0>;
 				interrupts = <RK_PB6 IRQ_TYPE_LEVEL_LOW>;
 				wakeup-source;
-
-				sqw32k: clock {
-					compatible = "fixed-clock";
-					clock-output-names = "sqw32k";
-					clock-frequency = <32768>;
-					#clock-cells = <0>;
-				};
+				#clock-cells = <0>;
 			};
 		};
 	};

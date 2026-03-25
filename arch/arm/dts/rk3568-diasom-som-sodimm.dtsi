@@ -64,6 +64,16 @@
 		};
 	};
 
+	vcc_pcie2: vcc-pcie2-regulator {
+		compatible = "regulator-fixed-clock";
+		regulator-name = "vcc_pcie2";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		clocks = <&sqw32k>;
+		vin-supply = <&vcc3v3_sys>;
+		barebox,allow-dummy-supply;
+	};
+
 	vcc2v5_sys: vcc2v5-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "2v5_sys";
@@ -94,7 +104,7 @@
 
 &combphy2 {
 	/* PCI-E 2.0 */
-	phy-supply = <&vcc3v3_sys>;
+	phy-supply = <&vcc_pcie2>;
 };
 
 &i2c4 {
@@ -179,8 +189,11 @@
 				interrupts = <RK_PB6 IRQ_TYPE_LEVEL_LOW>;
 				wakeup-source;
 
-				clock {
-					/* Skip registering SQW, used as CLK32K_OUT */
+				sqw32k: clock {
+					compatible = "fixed-clock";
+					clock-output-names = "sqw32k";
+					clock-frequency = <32768>;
+					#clock-cells = <0>;
 				};
 			};
 		};
@@ -259,7 +272,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie20_pins>;
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
-	vpcie3v3-supply = <&vcc3v3_sys>;
+	vpcie3v3-supply = <&vcc_pcie2>;
 };
 
 &pcie30phy {

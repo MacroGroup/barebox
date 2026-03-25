@@ -4,6 +4,11 @@ usbgadget -d
 
 global.autoboot_timeout=2
 
+# Temporary solution to use with JETSON-IO-BASE-B
+if of_compatible -k diasom,ds-rk3568-som-sodimm-evb ; then
+	recover=1
+fi
+
 if [ "$global.board.bootsource" = "usb" ]; then
 	recover=1
 	global.autoboot=abort

@@ -330,6 +330,10 @@
 	status = "okay";
 };
 
+&usb2phy1_host {
+	status = "okay";
+};
+
 &vpu {
 	status = "okay";
 };

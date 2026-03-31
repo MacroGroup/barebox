@@ -56,6 +56,8 @@ static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const int nr)
 	SOM-SMARC-EVB:
 		camera0 = IMX335/I2C7
 		camera1 = IMX415/I2C7
+	SOM-SODIMM-EVB:
+		camera0 = IMX335/I2C1
 */
 
 #define SONY_CAMERA_I2C_ADDR	0x1a
@@ -191,6 +193,22 @@ static int diasom_rk3568_smarc_evb_fixup(struct device_node *root, void *unused)
 	const struct cameras cameras[] = {
 		{ "camera0", diasom_rk3568_sony_imx335_detect },
 		{ "camera1", diasom_rk3568_sony_imx415_detect },
+		{ }
+	};
+
+	if (!adapter)
+		return -ENODEV;
+
+	diasom_rk3568_sony_camera_detect(adapter, cameras);
+
+	return 0;
+}
+
+static int diasom_rk3568_sodimm_evb_fixup(struct device_node *root, void *unused)
+{
+	struct i2c_adapter *adapter = diasom_rk3568_i2c_get_adapter(1);
+	const struct cameras cameras[] = {
+		{ "camera0", diasom_rk3568_sony_imx335_detect },
 		{ }
 	};
 
@@ -463,7 +481,7 @@ static int __init diasom_rk3568_init(void)
 	} else if (of_machine_is_compatible("diasom,ds-rk3568-som-smarc-evb")) {
 		of_register_fixup(diasom_rk3568_smarc_evb_fixup, NULL);
 	} else if (of_machine_is_compatible("diasom,ds-rk3568-som-sodimm-evb")) {
-		//TODO:
+		of_register_fixup(diasom_rk3568_sodimm_evb_fixup, NULL);
 	} else
 		pr_warn("Unknown board variant!\n");
 

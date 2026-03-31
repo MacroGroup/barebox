@@ -69,6 +69,46 @@
 	status = "okay";
 };
 
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			imx335_in: endpoint@0 {
+				reg = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx335_out>;
+			};
+
+			imx415_in: endpoint@1 {
+				reg = <1>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&imx415_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			csi_out: endpoint {
+				remote-endpoint = <&isp_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&csi2_dphy_hw {
+	status = "okay";
+};
+
 &display_subsystem {
 	status = "okay";
 };
@@ -178,46 +218,6 @@
 			remote-endpoint = <&csi_out>;
 		};
 	};
-};
-
-&csi2_dphy0 {
-	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			imx335_in: endpoint@0 {
-				reg = <0>;
-				data-lanes = <1 2 3 4>;
-				remote-endpoint = <&imx335_out>;
-			};
-
-			imx415_in: endpoint@1 {
-				reg = <1>;
-				data-lanes = <1 2 3 4>;
-				remote-endpoint = <&imx415_out>;
-			};
-		};
-
-		port@1 {
-			reg = <1>;
-
-			csi_out: endpoint {
-				remote-endpoint = <&isp_in>;
-				data-lanes = <1 2 3 4>;
-			};
-		};
-	};
-};
-
-&csi2_dphy_hw {
-	status = "okay";
 };
 
 &pcie2x1 {

@@ -15,6 +15,7 @@
 		     "rockchip,rk3568";
 
 	aliases {
+		camera0 = &imx335;
 		can0 = &can2;
 	};
 
@@ -36,6 +37,40 @@
 };
 
 &combphy2 {
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			imx335_in: endpoint@0 {
+				reg = <0>;
+				data-lanes = <1 2>;
+				remote-endpoint = <&imx335_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			csi_out: endpoint {
+				remote-endpoint = <&isp_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&csi2_dphy_hw {
 	status = "okay";
 };
 
@@ -65,6 +100,25 @@
 
 &i2c1 {
 	clock-frequency = <400000>;
+
+	imx335: camera-0@1a {
+		compatible = "sony,imx335";
+		reg = <0x1a>;
+		clocks = <&xin24m>;
+		power-domains = <&power RK3568_PD_VI>;
+		avdd-supply = <&vcc_cam0>;
+		dvdd-supply = <&vcc_cam0>;
+		ovdd-supply = <&vcc_cam0>;
+		status = "disabled";
+
+		port {
+			imx335_out: endpoint {
+				data-lanes = <1 2>;
+				remote-endpoint = <&imx335_in>;
+				link-frequencies = /bits/ 64 <594000000>;
+			};
+		};
+	};
 };
 
 &i2s0_8ch {
@@ -78,6 +132,28 @@
 
 &i2s2_2ch {
 	status = "okay";
+};
+
+&isp {
+	status = "okay";
+};
+
+&isp_mmu {
+	status = "okay";
+};
+
+&isp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&csi_out>;
+		};
+	};
 };
 
 &gmac1 {

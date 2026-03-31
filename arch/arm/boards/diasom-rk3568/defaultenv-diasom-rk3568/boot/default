@@ -1,14 +1,27 @@
 #!/bin/sh
 
 if [ -f /mnt/mmc1.2/boot/Image.gz ]; then
-	echo "Booting from SD"
+	echo "Booting from SD (Image.gz)"
 
 	DTB=/mnt/mmc1.2/boot/rk3568-diasom-som-evb.dtb
 
 	global.bootm.image=/mnt/mmc1.2/boot/Image.gz
 	global.linux.bootargs.dyn.root="root=/dev/mmcblk1p3 ro rootdelay=3"
+elif [ -f /mnt/mmc1.2/boot/vmlinuz ]; then
+	echo "Booting from SD (vmlinuz)"
+
+	DTB=/mnt/mmc1.2/boot/rk3568-diasom-som-evb.dtb
+
+	global.bootm.image=/mnt/mmc1.2/boot/vmlinuz
+
+	if [ -f /mnt/mmc1.2/boot/initrd.img ]; then
+		global.bootm.initrd=/mnt/mmc1.2/boot/initrd.img
+		global.linux.bootargs.dyn.root="root=/dev/mmcblk1p3 ro rootwait"
+	else
+		global.linux.bootargs.dyn.root="root=/dev/mmcblk1p3 ro rootdelay=3"
+	fi
 elif [ -f /mnt/mmc0.2/boot/Image.gz ]; then
-	echo "Booting from eMMC"
+	echo "Booting from eMMC (Image.gz)"
 
 	DTB=/mnt/mmc0.2/boot/rk3568-diasom-som-evb.dtb
 

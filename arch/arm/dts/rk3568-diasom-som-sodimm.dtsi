@@ -69,6 +69,7 @@
 		regulator-name = "vcc_pcie2";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
 		clocks = <&rtc>;
 		vin-supply = <&vcc3v3_sys>;
 		barebox,allow-dummy-supply;

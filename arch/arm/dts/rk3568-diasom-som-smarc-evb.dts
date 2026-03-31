@@ -46,6 +46,7 @@
 		};
 	};
 
+	/* Should be moved to base smarc.dtsi */
 	vcc_cam1: vcc-cam1-regulator {
 		pinctrl-names = "default";
 		pinctrl-0 = <&csi1_pwr>;

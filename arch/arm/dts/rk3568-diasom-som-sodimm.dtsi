@@ -64,6 +64,28 @@
 		};
 	};
 
+	vcc_cam0: vcc-cam0-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi0_pwr>;
+		compatible = "regulator-fixed";
+		/* Used by RAW probe for cameras connected via I2C */
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio2 RK_PD1 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_cam0";
+		startup-delay-us = <250000>;
+	};
+
+	vcc_cam1: vcc-cam1-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi1_pwr>;
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_cam1";
+		startup-delay-us = <250000>;
+	};
+
 	vcc_pcie2: vcc-pcie2-regulator {
 		compatible = "regulator-fixed-clock";
 		regulator-name = "vcc_pcie2";
@@ -106,6 +128,11 @@
 &combphy2 {
 	/* PCI-E 2.0 */
 	phy-supply = <&vcc_pcie2>;
+};
+
+&i2c1 {
+	/* CAM_I2C */
+	status = "okay";
 };
 
 &i2c4 {
@@ -361,6 +388,18 @@
 &pinctrl {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep_mod_pins>;
+
+	csi {
+		csi0_pwr: csi0-pwr-pins {
+			rockchip,pins =
+				<2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;		/* CAM0_PWDN */
+		};
+
+		csi1_pwr: csi1-pwr-pins {
+			rockchip,pins =
+				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;		/* CAM1_PWDN */
+		};
+	};
 
 	i2s {
 		i2s1_pins: i2s1-pins {

@@ -183,7 +183,7 @@
 			imx415_out: endpoint {
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&imx415_in>;
-				link-frequencies = /bits/ 64 <891000000>;
+				link-frequencies = /bits/ 64 <445500000>;
 			};
 		};
 	};

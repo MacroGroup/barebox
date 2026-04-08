@@ -35,7 +35,7 @@ struct rockchip_dmc_drvdata {
 	resource_size_t internal_registers_start;
 };
 
-static resource_size_t rockchip_sdram_size(u32 sys_reg2, u32 sys_reg3)
+resource_size_t rockchip_sdram_size(u32 sys_reg2, u32 sys_reg3)
 {
 	u32 rank, cs0_col, bk, cs0_row, cs1_row, bw, row_3_4;
 	resource_size_t chipsize_mb, size_mb = 0;

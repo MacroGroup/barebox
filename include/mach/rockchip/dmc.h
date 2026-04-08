@@ -83,6 +83,7 @@ enum {
 #define SYS_REG_CS1_COL_SHIFT(ch)		(0 + (ch) * 2)
 #define SYS_REG_CS1_COL_MASK			3
 
+resource_size_t rockchip_sdram_size(u32 sys_reg2, u32 sys_reg3);
 resource_size_t rk3399_ram0_size(void);
 resource_size_t rk3568_ram0_size(void);
 resource_size_t rk3588_ram0_size(void);

@@ -13,9 +13,38 @@
 #include <mci.h>
 #include <i2c/i2c.h>
 #include <mach/rockchip/bbu.h>
+#include <mach/rockchip/dmc.h>
+#include <mach/rockchip/rk3568-regs.h>
 
 #define KEY_DOWN_MIN_VAL	0
 #define KEY_DOWN_MAX_VAL	40
+
+#define RK3568_PMUGRF_OS_REG2           0x208
+#define RK3568_PMUGRF_OS_REG3           0x20c
+
+
+static u64 rk3568_real_ddr_size(void)
+{
+	void __iomem *pmugrf = IOMEM(RK3568_PMUGRF_BASE);
+	u32 sys_reg2 = readl(pmugrf + RK3568_PMUGRF_OS_REG2);
+	u32 sys_reg3 = readl(pmugrf + RK3568_PMUGRF_OS_REG3);
+
+	return rockchip_sdram_size(sys_reg2, sys_reg3);
+}
+
+static int diasom_fixup_real_ddr(struct device_node *root, void *ctx)
+{
+	struct device_node *chosen;
+	u64 ddr = rk3568_real_ddr_size();
+	__be64 val = cpu_to_be64(ddr);
+
+	chosen = of_create_node(root, "/chosen");
+	if (!chosen)
+		return -ENOMEM;
+
+	return of_set_property(chosen, "diasom,real-ddr-size",
+			       &val, sizeof(val), true);
+}
 
 static int diasom_rk3568_probe_i2c(struct i2c_adapter *adapter, const int addr)
 {
@@ -187,6 +216,8 @@ static int __init diasom_rk3568_init(void)
 	bool do_probe = false;
 	int ret = 0;
 
+	of_register_fixup(diasom_fixup_real_ddr, NULL);
+	
 	if (of_machine_is_compatible("diasom,ds-rk3568-som")) {
 		struct i2c_adapter *adapter =
 			diasom_rk3568_i2c_get_adapter("i2c0", 0);

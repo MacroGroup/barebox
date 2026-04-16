@@ -688,6 +688,9 @@ int bootm_boot(struct bootm_data *bootm_data)
 		} else {
 			char *rootarg;
 
+			if (rootopts && !strcmp(rootopts, "<NULL>"))
+				rootopts = NULL;
+
 			rootarg = format_root_bootarg(bootm_data->root_param, root, rootopts);
 			pr_info("Adding \"%s\" to Kernel commandline\n", rootarg);
 			globalvar_add_simple("linux.bootargs.bootm.appendroot",

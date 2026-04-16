@@ -306,6 +306,44 @@ Additional notes about keys in the bootloader spec entries:
    different devices without having to specify a different ``root=`` option each
    time.
 
+.. _extlinux_conf:
+
+extlinux.conf Support
+^^^^^^^^^^^^^^^^^^^^^
+
+In addition to the Boot Loader Specification, barebox also supports the
+extlinux configuration format, commonly used by the Syslinux bootloader and
+many Linux distributions. This format is often found on SD cards, USB drives,
+or disk partitions prepared with tools like ``extlinux --install``.
+
+The configuration file is named ``extlinux.conf`` and can be located at:
+* ``/boot/extlinux/extlinux.conf``
+
+The file uses a simple key-value syntax with sections labeled by ``LABEL``.
+A typical example looks like:
+
+.. code-block:: none
+
+  DEFAULT linux
+  LABEL linux
+    KERNEL /boot/vmlinuz
+    INITRD /boot/initrd.img
+    FDT /boot/board.dtb
+    APPEND console=ttyS0,115200 root=PARTUUID=deadbeef-01
+
+When booting an extlinux entry, barebox automatically strips any ``root=``
+parameter from the ``APPEND`` line and injects the correct ``root=`` based on
+the boot device (similar to the ``linux-appendroot`` feature in blspec). This
+makes the same root filesystem image usable across different storage media.
+
+To use extlinux support, enable ``CONFIG_EXTLINUX`` in your barebox
+configuration. Entries are automatically discovered by the :ref:`command_boot`
+command when scanning a device or mount point. For example:
+
+.. code-block:: sh
+
+  boot mmc1.2
+
 .. _booting_linux_net:
 
 Network boot

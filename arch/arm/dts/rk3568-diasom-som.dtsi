@@ -205,7 +205,7 @@
 		vcc9-supply = <&vcc3v3_sys>;
 		clock-output-names = "xin32k";
 		wakeup-source;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 
 		regulators {
 			vdd_logic: DCDC_REG1 {

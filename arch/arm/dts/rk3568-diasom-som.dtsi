@@ -462,6 +462,7 @@
 
 &uart2 {
 	/delete-property/ dmas;
+	wakeup-source;
 	status = "okay";
 };
 

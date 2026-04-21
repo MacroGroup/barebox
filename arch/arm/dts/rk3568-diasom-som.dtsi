@@ -470,10 +470,6 @@
 	status = "okay";
 };
 
-&usb_host0_ohci {
-	status = "okay";
-};
-
 &usb_host0_xhci {
 	hnp-disable;
 	srp-disable;

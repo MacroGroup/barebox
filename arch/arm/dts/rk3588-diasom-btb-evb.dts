@@ -598,12 +598,7 @@
 };
 
 &usb_host0_ehci {
-	/* USB3_HOST0 EHCI-mode X25.2 (Upper) */
-	status = "okay";
-};
-
-&usb_host0_ohci {
-	/* USB3_HOST0 OHCI-mode X25.2 (Upper) */
+	/* USB3_HOST0 OHCI/EHCI-mode X25.2 (Upper) */
 	status = "okay";
 };
 
@@ -644,12 +639,7 @@
 };
 
 &usb_host1_ehci {
-	/* USB20_HOST1 EHCI-mode X27 */
-	status = "okay";
-};
-
-&usb_host1_ohci {
-	/* USB20_HOST1 OHCI-mode X27 */
+	/* USB20_HOST1 OHCI/EHCI-mode X27 */
 	status = "okay";
 };
 

@@ -218,11 +218,6 @@
 };
 
 /* Temporary solution to use with JETSON-IO-BASE-B */
-&usb_host0_ohci {
-	status = "disabled";
-};
-
-/* Temporary solution to use with JETSON-IO-BASE-B */
 &usb_host0_xhci {
 	dr_mode = "peripheral";
 };

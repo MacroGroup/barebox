@@ -244,6 +244,7 @@
 
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1100000>;
 				};
 			};
 
@@ -267,7 +268,9 @@
 				regulator-max-microvolt = <1800000>;
 
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					/* VDD1 LPDDR4 */
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
 				};
 			};
 

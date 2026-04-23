@@ -8,6 +8,23 @@ config UNCOMPRESS
 	bool
 	select FILETYPE
 
+config LOADABLE
+	bool "Lazy loadable resource infrastructure" if COMPILE_TEST
+	help
+	  Provides infrastructure for lazy-loadable resources that can be
+	  queried for metadata without loading data, and extracted to memory
+	  on demand.
+	  Used mainly by bootm for managing kernel/initrd/fdt loading.
+
+config LOADABLE_DECOMPRESS
+	bool "Decompression support for loadable resources" if COMPILE_TEST
+	depends on LOADABLE
+	depends on UNCOMPRESS
+	help
+	  Enables transparent decompression of loadable resources.
+	  Compressed loadables can be wrapped with loadable_decompress()
+	  to provide decompressed access on demand.
+
 config JSMN
 	bool "JSMN JSON Parser" if COMPILE_TEST
 	help
@@ -242,5 +259,12 @@ config GENERIC_ALLOCATOR
 
 config IDR
 	bool
+
+config TOOLS_SUPPORT_RELR
+	def_bool $(success,env "CC=$(CC)" "LD=$(LD)" "NM=$(NM)" "OBJCOPY=$(OBJCOPY)" $(srctree)/scripts/tools-support-relr.sh)
+
+config LIBRELOC
+	bool
+	default RELOCATABLE || ELF
 
 endmenu

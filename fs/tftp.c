@@ -79,6 +79,10 @@
 /* allocate this number of blocks more than needed in the fifo */
 #define TFTP_EXTRA_BLOCKS	2
 
+/* Maximum UDP payload that fits in a PKTSIZE packet buffer */
+#define TFTP_MAX_UDP_PAYLOAD	(PKTSIZE - ETHER_HDR_SIZE - \
+				 sizeof(struct iphdr) - sizeof(struct udphdr))
+
 /* marker for an emtpy 'tftp_cache' */
 #define TFTP_CACHE_NO_ID	(-1)
 
@@ -218,7 +222,9 @@ static int tftp_send(struct file_priv *priv)
 
 	switch (priv->state) {
 	case STATE_RRQ:
-	case STATE_WRQ:
+	case STATE_WRQ: {
+		int room, n;
+
 		if (priv->push || priv->is_getattr)
 			/* atm, windowsize is supported only for RRQ and there
 			   is no need to request a full window when we are
@@ -235,7 +241,9 @@ static int tftp_send(struct file_priv *priv)
 		else
 			*s++ = htons(TFTP_WRQ);
 		pkt = (unsigned char *)s;
-		pkt += sprintf((unsigned char *)pkt,
+		room = TFTP_MAX_UDP_PAYLOAD - (pkt - xp);
+
+		n = snprintf(pkt, room,
 				"%s%c"
 				"octet%c"
 				"timeout%c"
@@ -250,24 +258,38 @@ static int tftp_send(struct file_priv *priv)
 				/* use only a minimal blksize for getattr
 				   operations, */
 				priv->is_getattr ? TFTP_BLOCK_SIZE : TFTP_MTU_SIZE);
-		pkt++;
+		if (n >= room)
+			return -ENAMETOOLONG;
+		pkt += n + 1;
+		room -= n + 1;
 
-		if (!priv->push)
+		if (!priv->push) {
 			/* we do not know the filesize in WRQ requests and
 			   'priv->filesize' will always be zero */
-			pkt += sprintf((unsigned char *)pkt,
+			n = snprintf(pkt, room,
 				       "tsize%c%lld%c",
 				       '\0', priv->filesize,
 				       '\0');
+			if (n >= room)
+				return -ENAMETOOLONG;
+			pkt += n;
+			room -= n;
+		}
 
-		if (window_size > 1)
-			pkt += sprintf((unsigned char *)pkt,
+		if (window_size > 1) {
+			n = snprintf(pkt, room,
 				       "windowsize%c%u%c",
 				       '\0', window_size,
 				       '\0');
+			if (n >= room)
+				return -ENAMETOOLONG;
+			pkt += n;
+			room -= n;
+		}
 
 		len = pkt - xp;
 		break;
+	}
 
 	case STATE_RDATA:
 		xp = pkt;
@@ -348,7 +370,7 @@ static int tftp_parse_oack(struct file_priv *priv, unsigned char *pkt, int len)
 	while (s < pkt + len) {
 		opt = s;
 		val = s + strlen(s) + 1;
-		if (val > s + len)
+		if (val >= pkt + len)
 			break;
 		if (!strcmp(opt, "tsize"))
 			priv->filesize = simple_strtoull(val, NULL, 10);
@@ -360,7 +382,8 @@ static int tftp_parse_oack(struct file_priv *priv, unsigned char *pkt, int len)
 		s = val + strlen(val) + 1;
 	}
 
-	if (priv->blocksize > TFTP_MTU_SIZE ||
+	if (priv->blocksize == 0 ||
+	    priv->blocksize > TFTP_MTU_SIZE ||
 	    priv->windowsize > TFTP_MAX_WINDOW_SIZE ||
 	    priv->windowsize == 0) {
 		pr_warn("tftp: invalid oack response\n");
@@ -608,7 +631,9 @@ static void tftp_recv(struct file_priv *priv,
 		break;
 
 	case TFTP_ERROR:
-		pr_debug("error: '%s' (%d)\n", pkt + 2, ntohs(*(uint16_t *)pkt));
+		pr_debug("error: '%.*s' (%d)\n",
+			 len > 2 ? len - 2 : 0, pkt + 2,
+			 ntohs(*(uint16_t *)pkt));
 		switch (ntohs(*(uint16_t *)pkt)) {
 		case 1:
 			priv->err = -ENOENT;
@@ -628,11 +653,12 @@ static void tftp_recv(struct file_priv *priv,
 static void tftp_handler(void *ctx, char *packet, unsigned len)
 {
 	struct file_priv *priv = ctx;
-	char *pkt = net_eth_to_udp_payload(packet);
-	struct udphdr *udp = net_eth_to_udphdr(packet);
+	struct net_udp_pkt udp;
 
-	(void)len;
-	tftp_recv(priv, pkt, net_eth_to_udplen(packet), udp->uh_sport);
+	if (net_eth_to_udp(packet, len, &udp))
+		return;
+
+	tftp_recv(priv, udp.payload, udp.len, udp.udp->uh_sport);
 }
 
 static int tftp_start_transfer(struct file_priv *priv)
@@ -822,6 +848,9 @@ static int tftp_close(struct inode *inode, struct file *f)
 {
 	struct file_priv *priv = f->private_data;
 
+	if (!priv)
+		return 0;
+
 	return tftp_do_close(priv);
 }
 
@@ -830,6 +859,9 @@ static int tftp_write(struct file *f, const void *inbuf, size_t insize)
 	struct file_priv *priv = f->private_data;
 	size_t size, now;
 	int ret;
+
+	if (!priv)
+		return -EREMOTEIO;
 
 	pr_vdebug("%s: %zu\n", __func__, insize);
 
@@ -865,6 +897,9 @@ static int tftp_read(struct file *f, void *buf, size_t insize)
 	struct file_priv *priv = f->private_data;
 	size_t outsize = 0, now;
 	int ret = 0;
+
+	if (!priv)
+		return -EREMOTEIO;
 
 	pr_vdebug("%s %zu\n", __func__, insize);
 
@@ -902,42 +937,73 @@ static int tftp_read(struct file *f, void *buf, size_t insize)
 
 static int tftp_lseek(struct file *f, loff_t pos)
 {
-	/* We cannot seek backwards without reloading or caching the file */
+	struct file_priv *priv = f->private_data;
+	static loff_t seek_discard_total;
+	int ret = 0;
+	char *buf;
 	loff_t f_pos = f->f_pos;
 
-	if (pos >= f_pos) {
-		int ret = 0;
-		char *buf = xmalloc(1024);
+	if (!priv)
+		return -EREMOTEIO;
 
-		while (pos > f_pos) {
-			size_t len = min_t(size_t, 1024, pos - f_pos);
+	/* We cannot seek backwards without reloading or caching the file */
+	if (pos < f_pos) {
+		/* We can reopen read streams, but not write streams */
+		if (priv->push)
+			return -ENOSYS;
 
-			ret = tftp_read(f, buf, len);
+		tftp_do_close(priv);
 
-			if (!ret)
-				/* EOF, so the desired pos is invalid. */
-				ret = -EINVAL;
-			if (ret < 0)
-				goto out_free;
-
-			f_pos += ret;
+		priv = tftp_do_open(&f->fsdev->dev, f->f_flags,
+				    f->f_path.dentry, false);
+		if (IS_ERR(priv)) {
+			f->private_data = NULL;
+			return PTR_ERR(priv);
 		}
 
-out_free:
-		free(buf);
-		if (ret < 0) {
-			/*
-			 * Update f->pos even if the overall request
-			 * failed since we can't move backwards
-			 */
-			f->f_pos = f_pos;
-			return ret;
-		}
-
-		return 0;
+		f->private_data = priv;
+		f->f_pos = 0;
+		f_pos = 0;
 	}
 
-	return -ENOSYS;
+	if (pos == f_pos)
+		return 0;
+
+	buf = xmalloc(1024);
+
+	while (pos > f_pos) {
+		size_t len = min_t(size_t, 1024, pos - f_pos);
+
+		ret = tftp_read(f, buf, len);
+
+		if (!ret)
+			/* EOF, so the desired pos is invalid. */
+			ret = -EINVAL;
+		if (ret < 0)
+			goto out_free;
+
+		f_pos += ret;
+	}
+
+out_free:
+	free(buf);
+
+	seek_discard_total += f_pos - f->f_pos;
+	if (seek_discard_total > SZ_4M)
+		pr_warn_once("excessive seeking (%lld bytes discarded so far);"
+			     " consider copying file to RAM first?\n",
+			     seek_discard_total);
+
+	if (ret < 0) {
+		/*
+		 * Update f->pos even if the overall request
+		 * failed since we can't move backwards
+		 */
+		f->f_pos = f_pos;
+		return ret;
+	}
+
+	return 0;
 }
 
 static const struct inode_operations tftp_file_inode_operations;

@@ -23,6 +23,7 @@
 #include <linux/log2.h>
 #include <linux/sizes.h>
 #include <dma.h>
+#include <tee/optee.h>
 
 #define MAX_BUFFER_NUMBER 0xffffffff
 
@@ -977,6 +978,8 @@ retry_scr:
 		break;
 	case 2:
 		mci->version = SD_VERSION_2;
+		if ((mci->scr[0] >> 15) & 0x1)
+			mci->version = SD_VERSION_3;
 		break;
 	default:
 		mci->version = SD_VERSION_1_0;
@@ -1155,6 +1158,9 @@ static void mci_correct_version_from_ext_csd(struct mci *mci)
 {
 	if (!IS_SD(mci) && (mci->version >= MMC_VERSION_4) && mci->ext_csd) {
 		switch (mci->ext_csd[EXT_CSD_REV]) {
+		case 0:
+			mci->version = MMC_VERSION_4;
+			break;
 		case 1:
 			mci->version = MMC_VERSION_4_1;
 			break;
@@ -1175,6 +1181,12 @@ static void mci_correct_version_from_ext_csd(struct mci *mci)
 			break;
 		case 8:
 			mci->version = MMC_VERSION_5_1;
+			break;
+		case 9:
+			mci->version = MMC_VERSION_5_1B;
+			break;
+		default:
+			mci->version = MMC_VERSION_MAX;
 			break;
 		}
 	}
@@ -1436,7 +1448,7 @@ static char *mci_version_string(struct mci *mci)
 	n = sprintf(version, "%u.%u", major, minor);
 	/* Omit zero micro versions */
 	if (micro)
-		sprintf(version + n, "%u", micro);
+		sprintf(version + n, "%X", micro);
 
 	return version;
 }
@@ -2541,6 +2553,12 @@ static int mci_mmc_decode_cid(struct mci *card)
 			card->cid.year += 16;
 	}
 
+	if (card->version >= MMC_VERSION_5_1B) {
+		/* eMMC 5.1b: y field rolls over again after 2025 */
+		if (card->cid.year < 2023)
+			card->cid.year += 16;
+	}
+
 	return 0;
 }
 
@@ -2967,6 +2985,9 @@ static int mci_card_probe(struct mci *mci)
 
 	mci_parse_cid(mci);
 
+	if (mci->rpmb_part)
+		optee_rpmb_detected();
+
 	dev_dbg(&mci->dev, "Card successfully added\n");
 
 on_error:
@@ -3091,6 +3112,8 @@ int mci_register(struct mci_host *host)
 	if (IS_ENABLED(CONFIG_MCI_INFO))
 		devinfo_add(&mci->dev, mci_info);
 
+	class_add_device(&mmc_class, &mci->dev);
+
 	/* if enabled, probe the attached card immediately */
 	if (IS_ENABLED(CONFIG_MCI_STARTUP) ||
 	   (IS_ENABLED(CONFIG_MCI_STARTUP_NONREMOVABLE) &&
@@ -3103,8 +3126,6 @@ int mci_register(struct mci_host *host)
 
 		of_register_fixup(of_broken_cd_fixup, host);
 	}
-
-	class_add_device(&mmc_class, &mci->dev);
 
 	return 0;
 

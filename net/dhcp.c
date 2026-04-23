@@ -158,8 +158,8 @@ static void bootp_copy_net_params(struct bootp *bp)
 	dhcp_result->ip = net_read_ip(&bp->bp_yiaddr);
 	dhcp_result->serverip = net_read_ip(&bp->bp_siaddr);
 
-	if (strlen(bp->bp_file) > 0)
-		dhcp_result->bootfile = xstrdup(bp->bp_file);
+	if (bp->bp_file[0] != '\0')
+		dhcp_result->bootfile = xstrndup(bp->bp_file, sizeof(bp->bp_file));
 }
 
 static int dhcp_set_string_options(int option, const char *str, u8 *e)
@@ -172,6 +172,10 @@ static int dhcp_set_string_options(int option, const char *str, u8 *e)
 	str_len = strlen(str);
 	if (!str_len)
 		return 0;
+
+	/* DHCP option length field is a single byte per RFC2132 */
+	if (str_len > 255)
+		str_len = 255;
 
 	*e++ = option;
 	*e++ = str_len;
@@ -318,15 +322,19 @@ static void dhcp_options_handle(unsigned char option, void *popt,
 	}
 }
 
-static void dhcp_options_process(unsigned char *popt, struct bootp *bp)
+static void dhcp_options_process(unsigned char *popt, struct bootp *bp,
+				 unsigned int len)
 {
-	unsigned char *end = popt + sizeof(*bp) + OPT_SIZE;
+	unsigned char *end = (unsigned char *)bp + len;
 	int oplen;
 	unsigned char option;
 
-	while (popt < end && *popt != 0xff) {
+	while (popt + 1 < end && *popt != 0xff) {
 		oplen = *(popt + 1);
 		option = *popt;
+
+		if (popt + 2 + oplen > end)
+			break;
 
 		dhcp_options_handle(option, popt + 2, oplen, bp);
 
@@ -334,14 +342,19 @@ static void dhcp_options_process(unsigned char *popt, struct bootp *bp)
 	}
 }
 
-static int dhcp_message_type(unsigned char *popt)
+static int dhcp_message_type(unsigned char *popt, unsigned int len)
 {
+	unsigned char *end = popt + len;
+
+	if (len < 4)
+		return -1;
+
 	if (net_read_uint32((uint32_t *)popt) != htonl(BOOTP_VENDOR_MAGIC))
 		return -1;
 
 	popt += 4;
-	while (*popt != 0xff) {
-		if (*popt == 53)	/* DHCP Message Type */
+	while (popt + 1 < end && *popt != 0xff) {
+		if (*popt == 53 && popt + 2 < end)
 			return *(popt + 2);
 		popt += *(popt + 1) + 2;	/* Scan through all options */
 	}
@@ -391,16 +404,18 @@ static void dhcp_send_request_packet(struct bootp *bp_offer)
  */
 static void dhcp_handler(void *ctx, char *packet, unsigned int len)
 {
-	char *pkt = net_eth_to_udp_payload(packet);
-	struct udphdr *udp = net_eth_to_udphdr(packet);
-	struct bootp *bp = (struct bootp *)pkt;
+	struct net_udp_pkt udp;
+	struct bootp *bp;
 
-	len = net_eth_to_udplen(packet);
+	if (net_eth_to_udp(packet, len, &udp))
+		return;
 
-	debug("DHCPHandler: got packet: (len=%d) state: %d\n",
-		len, dhcp_state);
+	bp = udp.payload;
 
-	if (bootp_check_packet(pkt, ntohs(udp->uh_sport), len)) /* Filter out pkts we don't want */
+	debug("DHCPHandler: got packet: (len=%u) state: %d\n",
+		udp.len, dhcp_state);
+
+	if (bootp_check_packet(udp.payload, ntohs(udp.udp->uh_sport), udp.len))
 		return;
 
 	switch (dhcp_state) {
@@ -415,7 +430,7 @@ static void dhcp_handler(void *ctx, char *packet, unsigned int len)
 		dhcp_state = REQUESTING;
 
 		if (net_read_uint32(&bp->bp_vend[0]) == htonl(BOOTP_VENDOR_MAGIC))
-			dhcp_options_process((u8 *)&bp->bp_vend[4], bp);
+			dhcp_options_process((u8 *)&bp->bp_vend[4], bp, len);
 
 		bootp_copy_net_params(bp); /* Store net params from reply */
 
@@ -426,9 +441,10 @@ static void dhcp_handler(void *ctx, char *packet, unsigned int len)
 	case REQUESTING:
 		debug("%s: State REQUESTING\n", __func__);
 
-		if (dhcp_message_type((u8 *)bp->bp_vend) == DHCP_ACK ) {
+		if (dhcp_message_type((u8 *)bp->bp_vend,
+				      len - offsetof(struct bootp, bp_vend)) == DHCP_ACK) {
 			if (net_read_uint32(&bp->bp_vend[0]) == htonl(BOOTP_VENDOR_MAGIC))
-				dhcp_options_process(&bp->bp_vend[4], bp);
+				dhcp_options_process(&bp->bp_vend[4], bp, len);
 			bootp_copy_net_params(bp); /* Store net params from reply */
 			dhcp_state = BOUND;
 			dev_info(&dhcp_edev->dev, "DHCP client bound to address %pI4\n", &dhcp_result->ip);

@@ -23,6 +23,7 @@
 #include <pe.h>
 #include <qsort.h>
 #include <linux/err.h>
+#include <linux/overflow.h>
 
 static int machines[] = {
 #if defined(__aarch64__)
@@ -107,7 +108,8 @@ void efi_print_image_infos(void *pc)
  */
 static efi_status_t efi_loader_relocate(const IMAGE_BASE_RELOCATION *rel,
 			unsigned long rel_size, void *efi_reloc,
-			unsigned long pref_address)
+			unsigned long pref_address,
+			unsigned long image_size)
 {
 	unsigned long delta = (unsigned long)efi_reloc - pref_address;
 	const IMAGE_BASE_RELOCATION *end;
@@ -119,6 +121,10 @@ static efi_status_t efi_loader_relocate(const IMAGE_BASE_RELOCATION *rel,
 	end = (const IMAGE_BASE_RELOCATION *)((const char *)rel + rel_size);
 	while (rel + 1 < end && rel->SizeOfBlock) {
 		const uint16_t *relocs = (const uint16_t *)(rel + 1);
+
+		if (rel->SizeOfBlock < sizeof(*rel))
+			return EFI_LOAD_ERROR;
+
 		i = (rel->SizeOfBlock - sizeof(*rel)) / sizeof(uint16_t);
 		while (i--) {
 			uint32_t offset = (uint32_t)(*relocs & 0xfff) +
@@ -127,6 +133,11 @@ static efi_status_t efi_loader_relocate(const IMAGE_BASE_RELOCATION *rel,
 			uint64_t *x64 = efi_reloc + offset;
 			uint32_t *x32 = efi_reloc + offset;
 			uint16_t *x16 = efi_reloc + offset;
+
+			if (size_add(offset, sizeof(uint64_t)) > image_size) {
+				pr_err("Relocation offset exceeds image size\n");
+				return EFI_LOAD_ERROR;
+			}
 
 			switch (type) {
 			case IMAGE_REL_BASED_ABSOLUTE:
@@ -636,9 +647,15 @@ efi_status_t efi_load_pe(struct efi_loaded_image_obj *handle,
 	/* Calculate upper virtual address boundary */
 	for (i = num_sections - 1; i >= 0; i--) {
 		IMAGE_SECTION_HEADER *sec = &sections[i];
+		unsigned long vs;
 
-		virt_size = max_t(unsigned long, virt_size,
-				  sec->VirtualAddress + section_size(sec));
+		if (check_add_overflow((unsigned long)sec->VirtualAddress,
+				       (unsigned long)section_size(sec), &vs)) {
+			pr_err("Section %d virtual address overflow\n", i);
+			return EFI_LOAD_ERROR;
+		}
+
+		virt_size = max(virt_size, vs);
 	}
 
 	/* Read 32/64bit specific header bits */
@@ -699,6 +716,11 @@ efi_status_t efi_load_pe(struct efi_loaded_image_obj *handle,
 			memset(efi_reloc + sec->VirtualAddress, 0,
 			       sec->Misc.VirtualSize);
 		}
+		if (size_add(sec->PointerToRawData, copy_size) > efi_size) {
+			pr_err("Section %d exceeds image size\n", i);
+			ret = EFI_LOAD_ERROR;
+			goto err;
+		}
 		memcpy(efi_reloc + sec->VirtualAddress,
 		       efi + sec->PointerToRawData,
 		       copy_size);
@@ -706,7 +728,8 @@ efi_status_t efi_load_pe(struct efi_loaded_image_obj *handle,
 
 	/* Run through relocations */
 	if (efi_loader_relocate(rel, rel_size, efi_reloc,
-				(unsigned long)image_base) != EFI_SUCCESS) {
+				(unsigned long)image_base,
+				virt_size) != EFI_SUCCESS) {
 		efi_free_pages((uintptr_t) efi_reloc,
 			       (virt_size + EFI_PAGE_MASK) >> EFI_PAGE_SHIFT);
 		ret = EFI_LOAD_ERROR;

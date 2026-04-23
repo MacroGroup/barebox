@@ -891,7 +891,7 @@ static int fit_find_compatible_unit(struct fit_handle *handle,
 
 	ret = of_property_read_string(barebox_root, "compatible", &machine);
 	if (ret)
-		return -ENOENT;
+		goto default_unit;
 
 	for_each_child_of_node(conf_node, child) {
 		int score;
@@ -993,6 +993,12 @@ void *fit_open_configuration(struct fit_handle *handle, const char *name,
 		return ERR_PTR(ret);
 
 	return conf_node;
+}
+
+const char *fit_config_get_name(struct fit_handle *handle, void *config)
+{
+	struct device_node *node = config;
+	return node->name;
 }
 
 static struct fit_handle *fit_get_handle(const char *filename)

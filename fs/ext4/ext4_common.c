@@ -38,6 +38,29 @@
 
 #include "ext4_common.h"
 
+/*
+ * Validate that eh_entries does not exceed the capacity of the buffer
+ * holding the extent block.  Returns 0 if valid, -EINVAL otherwise.
+ */
+static int ext4_check_eh_entries(struct ext4_extent_header *ext_block,
+				 char *buf, int blksz)
+{
+	int max_entries;
+	/* ext4_extent and ext4_extent_idx are both 12 bytes */
+	const int entry_size = sizeof(struct ext4_extent);
+
+	if ((char *)ext_block == buf)
+		max_entries = (blksz - sizeof(*ext_block)) / entry_size;
+	else
+		max_entries = (sizeof(((struct ext2_inode *)0)->b) -
+			       sizeof(*ext_block)) / entry_size;
+
+	if (le16_to_cpu(ext_block->eh_entries) > max_entries)
+		return -EINVAL;
+
+	return 0;
+}
+
 static struct ext4_extent_header *ext4fs_get_extent_block(struct ext2_data *data,
 		char *buf, struct ext4_extent_header *ext_block,
 		uint32_t fileblock, int log2_blksz)
@@ -57,6 +80,10 @@ static struct ext4_extent_header *ext4fs_get_extent_block(struct ext2_data *data
 
 		if (ext_block->eh_depth == 0)
 			return ext_block;
+
+		if (ext4_check_eh_entries(ext_block, buf, blksz))
+			return NULL;
+
 		i = -1;
 		do {
 			i++;
@@ -188,6 +215,11 @@ long int read_allocated_block(struct ext2fs_node *node, int fileblock)
 		}
 
 		extent = (struct ext4_extent *)(ext_block + 1);
+
+		if (ext4_check_eh_entries(ext_block, buf, blksz)) {
+			free(buf);
+			return -EINVAL;
+		}
 
 		for (i = 0; i < le16_to_cpu(ext_block->eh_entries); i++) {
 			startblock = le32_to_cpu(extent[i].ee_block);
@@ -359,6 +391,8 @@ int ext4fs_iterate_dir(struct ext2fs_node *dir, char *name,
 
 			free(fdiro);
 		}
+		if (le16_to_cpu(dirent.direntlen) < sizeof(struct ext2_dirent))
+			return -EINVAL;
 		fpos += le16_to_cpu(dirent.direntlen);
 	}
 	return -ENOENT;
@@ -514,6 +548,14 @@ int ext4fs_mount(struct ext_filesystem *fs)
 		goto fail;
 	}
 
+	if (le32_to_cpu(data->sblock.log2_block_size) >
+	    EXT2_MAX_BLOCK_LOG_SIZE - EXT2_MIN_BLOCK_LOG_SIZE) {
+		dev_err(fs->dev, "invalid block size %u\n",
+			le32_to_cpu(data->sblock.log2_block_size));
+		ret = -EINVAL;
+		goto fail;
+	}
+
 	if (le32_to_cpu(data->sblock.revision_level) == 0) {
 		fs->inodesz = 128;
 		fs->gdsize = 32;
@@ -532,6 +574,15 @@ int ext4fs_mount(struct ext_filesystem *fs)
 	dev_info(fs->dev, "EXT2 rev %d, inode_size %d, descriptor size %d\n",
 	      le32_to_cpu(data->sblock.revision_level),
 	      fs->inodesz, fs->gdsize);
+
+	if (!fs->inodesz || !fs->gdsize ||
+	    !le32_to_cpu(data->sblock.inodes_per_group)) {
+		dev_err(fs->dev, "invalid superblock: inodesz=%u gdsize=%u inodes_per_group=%u\n",
+			fs->inodesz, fs->gdsize,
+			le32_to_cpu(data->sblock.inodes_per_group));
+		ret = -EINVAL;
+		goto fail;
+	}
 
 	data->diropen.data = data;
 	data->diropen.ino = 2;

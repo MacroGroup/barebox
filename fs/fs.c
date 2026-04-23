@@ -874,7 +874,8 @@ static void fs_remove(struct device *dev)
 	list_for_each_entry_safe(inode, tmp, &sb->s_inodes, i_sb_list)
 		destroy_inode(inode);
 
-	mntput(fsdev->vfsmount.parent);
+	if (&fsdev->vfsmount != fsdev->vfsmount.parent)
+		mntput(fsdev->vfsmount.parent);
 
 	free(fsdev->backingstore);
 }
@@ -2100,9 +2101,12 @@ static void putname(struct filename *name)
 
 static struct fs_device *get_fsdevice_by_dentry(struct dentry *dentry)
 {
-	struct super_block *sb;
+	struct super_block *sb = NULL;
 
-	sb = dentry->d_sb;
+	if (dentry)
+		sb = dentry->d_sb;
+	if (!sb)
+		return NULL;
 
 	return container_of(sb, struct fs_device, sb);
 }
@@ -2140,6 +2144,14 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		name++;
 	if (!*name)
 		return 0;
+
+	/*
+	 * If we are starting from a TFTP dentry (e.g. CWD is on a TFTP
+	 * mount), switch to the TFTP separator immediately so the first
+	 * component isn't mistakenly looked up as a directory.
+	 */
+	if (dentry_is_tftp(nd->path.dentry))
+		separator = 0x1;
 
 	/* At this point we know we have a real path component. */
 	for(;;) {

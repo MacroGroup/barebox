@@ -70,6 +70,10 @@ static int dns_send(const char *name)
 	unsigned char *packet = net_udp_get_payload(dns_con);
 	unsigned char *p, *s, *fullname, *dotptr;
 	const unsigned char *domain;
+	int namelen;
+	/* max UDP payload minus header and query trailer (5 bytes) */
+	const int maxlen = PKTSIZE - ETHER_HDR_SIZE - sizeof(struct iphdr) -
+			   sizeof(struct udphdr) - offsetof(struct header, data) - 5;
 
 	/* generate "difficult" to predict transaction id */
 	dns_req_id = dns_timer_start + (dns_timer_start >> 16);
@@ -90,6 +94,14 @@ static int dns_send(const char *name)
 	else
 		fullname = basprintf(".%s.", name);
 
+	namelen = strlen(fullname);
+	if (namelen > maxlen) {
+		pr_err("hostname too long for DNS query (%d > %d)\n",
+		       namelen, maxlen);
+		free(fullname);
+		return -ENAMETOOLONG;
+	}
+
 	/* replace dots in fullname with chunk len */
 	dotptr = fullname;
 	do {
@@ -104,11 +116,10 @@ static int dns_send(const char *name)
 	} while (*(dotptr + 1));
 	*dotptr = 0;
 
-	strcpy(header->data, fullname);
+	memcpy(header->data, fullname, namelen);
 
-	p = header->data + strlen(fullname);
+	p = header->data + namelen;
 
-	*p++ = 0;			/* Mark end of host name */
 	*p++ = 0;			/* Some servers require double null */
 	*p++ = (unsigned char)qtype;	/* Query Type */
 
@@ -155,8 +166,13 @@ static void dns_recv(struct header *header, unsigned len)
 		continue;
 
 	/* We sent query class 1, query type 1 */
+	if (&p[5] > e) {
+		pr_debug("DNS response too short\n");
+		return;
+	}
+
 	tmp = p[1] | (p[2] << 8);
-	if (&p[5] > e || ntohs(tmp) != DNS_A_RECORD) {
+	if (ntohs(tmp) != DNS_A_RECORD) {
 		pr_debug("DNS response was not A record\n");
 		return;
 	}
@@ -206,9 +222,12 @@ static void dns_recv(struct header *header, unsigned len)
 
 static void dns_handler(void *ctx, char *packet, unsigned len)
 {
-	(void)ctx;
-	dns_recv((struct header *)net_eth_to_udp_payload(packet),
-		net_eth_to_udplen(packet));
+	struct net_udp_pkt udp;
+
+	if (net_eth_to_udp(packet, len, &udp))
+		return;
+
+	dns_recv(udp.payload, udp.len);
 }
 
 int resolv(const char *host, IPaddr_t *ip)

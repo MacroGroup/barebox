@@ -117,19 +117,15 @@ static char *remove_param(const char *params, const char *param)
 static struct extlinux_entry *parse_extlinux_conf(const char *abspath,
 						  const char *rootpath)
 {
-	char *buf, *bufptr, *line, *p, *default_label = NULL;
+	char *buf, *bufptr, *line, *default_label = NULL;
 	struct extlinux_entry *entry = NULL;
 
 	bufptr = read_file(abspath, NULL);
 	if (!bufptr)
 		return ERR_PTR(-errno);
 
-	for (p = bufptr; *p; p++)
-		if (*p == '\r')
-			*p = '\n';
-
 	buf = bufptr;
-	while ((line = strsep(&buf, "\n")) != NULL) {
+	while ((line = strsep(&buf, "\n\r")) != NULL) {
 		char *key, *val;
 
 		line = skip_spaces(line);
@@ -159,8 +155,9 @@ static struct extlinux_entry *parse_extlinux_conf(const char *abspath,
 				entry = xzalloc(sizeof(*entry));
 				entry->label = xstrdup(val);
 				entry->rootpath = dirname(xstrdup(abspath));
-			} else if (entry)
+			} else if (entry) {
 				break;
+			}
 			continue;
 		}
 
@@ -182,7 +179,7 @@ static struct extlinux_entry *parse_extlinux_conf(const char *abspath,
 			else if (!strcasecmp(key, "APPEND"))
 				entry->append = remove_param(val, "ROOT=");
 			else
-				pr_debug("Unhandled key: %s\n", key);
+				pr_warn("Unhandled key: %s\n", key);
 		}
 	}
 
@@ -198,19 +195,15 @@ static struct extlinux_entry *parse_extlinux_conf(const char *abspath,
 	return entry;
 }
 
-static int extlinux_scan_file(struct bootscanner *scanner,
-			      struct bootentries *bootentries,
-			      const char *configname)
+static int _extlinux_scan_file(struct bootscanner *scanner,
+			       struct bootentries *bootentries,
+			       const char *configname,
+			       const char *rootpath)
 {
 	struct extlinux_entry *e;
-	const char *rootpath;
 
 	if (!strends(configname, "extlinux.conf"))
 		return 0;
-
-	rootpath = get_mounted_path(configname);
-	if (IS_ERR(rootpath))
-		return PTR_ERR(rootpath);
 
 	e = parse_extlinux_conf(configname, rootpath);
 	if (IS_ERR(e))
@@ -218,7 +211,7 @@ static int extlinux_scan_file(struct bootscanner *scanner,
 
 	e->entry.boot = extlinux_boot;
 	e->entry.release = extlinux_entry_free;
-	e->entry.path = xstrdup(configname);
+	e->entry.path = xstrdup_const(configname);
 	e->entry.title = basprintf("extlinux: %s", e->label);
 	e->entry.description = basprintf("extlinux entry \'%s\" on %s",
 					 e->label, rootpath);
@@ -227,6 +220,17 @@ static int extlinux_scan_file(struct bootscanner *scanner,
 	bootentries_add_entry(bootentries, &e->entry);
 
 	return 1;
+}
+
+static int extlinux_scan_file(struct bootscanner *scanner,
+			      struct bootentries *bootentries,
+			      const char *configname)
+{
+	const char *rootpath = get_mounted_path(configname);
+	if (IS_ERR(rootpath))
+		return PTR_ERR(rootpath);
+
+	return _extlinux_scan_file(scanner, bootentries, configname, rootpath);
 }
 
 static int extlinux_scan_directory(struct bootscanner *scanner,
@@ -238,14 +242,20 @@ static int extlinux_scan_directory(struct bootscanner *scanner,
 	int ret;
 
 	path = basprintf("%s/boot/extlinux/extlinux.conf", rootpath);
-
 	ret = stat(path, &s);
 	if (!ret && S_ISREG(s.st_mode))
-		ret = extlinux_scan_file(scanner, bootentries, path);
+		ret = _extlinux_scan_file(scanner, bootentries, path, rootpath);
+	free(path);
+	if (ret > 0)
+		return ret;
 
+	path = basprintf("%s/extlinux/extlinux.conf", rootpath);
+	ret = stat(path, &s);
+	if (!ret && S_ISREG(s.st_mode))
+		ret = _extlinux_scan_file(scanner, bootentries, path, rootpath);
 	free(path);
 
-	return ret < 1 ? ret : 1;
+	return ret;
 }
 
 static struct bootscanner extlinux_scanner = {
@@ -262,6 +272,7 @@ static int extlinux_generate(struct bootentries *bootentries, const char *name)
 static struct bootentry_provider extlinux_provider = {
 	.name = "extlinux",
 	.generate = extlinux_generate,
+	.priority = -25,
 };
 
 static int extlinux_init(void)

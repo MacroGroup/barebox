@@ -36,6 +36,21 @@
 		nvmem-cell-names = "cpu-version";
 	};
 
+	cpus {
+		idle-states {
+			entry-method = "psci";
+
+			cpu_sleep: cpu-sleep {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <120>;
+				exit-latency-us = <250>;
+				min-residency-us = <900>;
+			};
+		};
+	};
+
 	adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;
@@ -152,6 +167,22 @@
 &combphy0 {
 	/* USB3.0 OTG0 */
 	status = "okay";
+};
+
+&cpu0 {
+	cpu-idle-states = <&cpu_sleep>;
+};
+
+&cpu1 {
+	cpu-idle-states = <&cpu_sleep>;
+};
+
+&cpu2 {
+	cpu-idle-states = <&cpu_sleep>;
+};
+
+&cpu3 {
+	cpu-idle-states = <&cpu_sleep>;
 };
 
 &cpu0_opp_table {

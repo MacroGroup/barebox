@@ -26,6 +26,34 @@ struct extlinux_entry {
 	char *append;
 };
 
+static char *remove_param(const char *params, const char *param)
+{
+	char *result, *dst;
+	const char *src;
+
+	result = xmalloc(strlen(params) + 1);
+
+	src = params;
+	dst = result;
+
+	while (*src) {
+		if (!strncasecmp(src, param, strlen(param))) {
+			while (*src && *src != ' ')
+				src++;
+
+			src = skip_spaces(src);
+
+			continue;
+		}
+
+		*dst++ = *src++;
+	}
+
+	*dst = '\0';
+
+	return result;
+}
+
 static int extlinux_boot(struct bootentry *be, int verbose, int dryrun)
 {
 	struct extlinux_entry *e =
@@ -38,7 +66,6 @@ static int extlinux_boot(struct bootentry *be, int verbose, int dryrun)
 
 	data.dryrun = max_t(int, dryrun, data.dryrun);
 	data.verbose = max(verbose, data.verbose);
-	data.appendroot = true;
 
 	kernel_abs = basprintf("%s/%s", e->rootpath, e->kernel);
 	data.os_file = kernel_abs;
@@ -55,8 +82,24 @@ static int extlinux_boot(struct bootentry *be, int verbose, int dryrun)
 		data.oftree_file = fdt_abs;
 	}
 
-	if (e->append)
-		globalvar_add_simple("linux.bootargs.dyn.extlinux", e->append);
+	if (e->append) {
+		char *append;
+
+		/*
+		 * The same rootfs image may be launched from eMMC or SD card.
+		 * Remove any hardcoded root= parameter from "append" to avoid
+		 * conflicts, then let barebox automatically add the correct
+		 * root= (via global.bootm.appendroot) based on the boot device.
+		 */
+		if (data.appendroot)
+			append = remove_param(e->append, "ROOT=");
+		else
+			append = xstrdup(e->append);
+
+		globalvar_add_simple("linux.bootargs.dyn.extlinux", append);
+
+		free(append);
+	}
 
 	pr_info("Booting extlinux label '%s'\n", e->label);
 
@@ -86,34 +129,6 @@ static void extlinux_entry_free(struct bootentry *be)
 	free(e);
 }
 
-static char *remove_param(const char *params, const char *param)
-{
-	char *result, *dst;
-	const char *src;
-
-	result = xmalloc(strlen(params) + 1);
-
-	src = params;
-	dst = result;
-
-	while (*src) {
-		if (!strncasecmp(src, param, strlen(param))) {
-			while (*src && *src != ' ')
-				src++;
-
-			src = skip_spaces(src);
-
-			continue;
-		}
-
-		*dst++ = *src++;
-	}
-
-	*dst = '\0';
-
-	return result;
-}
-
 static struct extlinux_entry *parse_extlinux_conf(const char *abspath,
 						  const char *rootpath)
 {
@@ -133,14 +148,9 @@ static struct extlinux_entry *parse_extlinux_conf(const char *abspath,
 		if (*line == '#' || *line == '\0')
 			continue;
 
-		key = line;
-		val = strchr(line, ' ');
-		if (!val)
-			val = strchr(line, '\t');
-		if (val) {
-			*val++ = '\0';
-			val = skip_spaces(val);
-		} else
+		key = strsep(&line, " \t");
+		val = isempty(line) ? NULL : skip_spaces(line);
+		if (!key || !val)
 			continue;
 
 		if (!default_label) {
@@ -161,12 +171,6 @@ static struct extlinux_entry *parse_extlinux_conf(const char *abspath,
 			continue;
 		}
 
-		/*
-		 * The same rootfs image may be launched from eMMC or SD card.
-		 * Remove any hardcoded root= parameter from "append" to avoid
-		 * conflicts, then let barebox automatically add the correct
-		 * root= (via appendroot) based on the boot device.
-		 */
 		if (entry) {
 			if (!strcasecmp(key, "KERNEL"))
 				entry->kernel = xstrdup(val);
@@ -177,7 +181,7 @@ static struct extlinux_entry *parse_extlinux_conf(const char *abspath,
 			else if (!strcasecmp(key, "FDT"))
 				entry->fdt = xstrdup(val);
 			else if (!strcasecmp(key, "APPEND"))
-				entry->append = remove_param(val, "ROOT=");
+				entry->append = xstrdup(val);
 			else
 				pr_warn("Unhandled key: %s\n", key);
 		}

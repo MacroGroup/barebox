@@ -1,19 +1,21 @@
 #!/bin/sh
 
+global.linux.bootargs.dyn.root="ro rootdelay=3"
+
 if [ -f /mnt/mmc1.2/boot/Image.gz ]; then
 	echo "Booting from SD"
 
 	DTB=/mnt/mmc1.2/boot/rk3588-diasom-btb-evb.dtb
 
+	global.bootm.root_dev=mmc1.2
 	global.bootm.image=/mnt/mmc1.2/boot/Image.gz
-	global.linux.bootargs.dyn.root="root=/dev/mmcblk1p3 ro rootdelay=3"
 elif [ -f /mnt/mmc0.2/boot/Image.gz ]; then
 	echo "Booting from eMMC"
 
 	DTB=/mnt/mmc0.2/boot/rk3588-diasom-btb-evb.dtb
 
+	global.bootm.root_dev=mmc0.2
 	global.bootm.image=/mnt/mmc0.2/boot/Image.gz
-	global.linux.bootargs.dyn.root="root=/dev/mmcblk0p3 ro rootdelay=3"
 else
 	echo "Boot image not found!"
 	exit 1

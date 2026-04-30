@@ -917,6 +917,7 @@
 	pinctrl-0 = <&pcie20_pins>;
 	reset-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
+	supports-clkreq;
 	status = "okay";
 };
 

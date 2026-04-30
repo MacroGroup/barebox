@@ -501,6 +501,7 @@
 	pinctrl-0 = <&pcie2x1l0_pins &pcie30x1m1_0_clkreqn>;
 	/* &pcie30x1m1_0_waken disabled (swapped with rst) */
 	reset-gpios = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+	supports-clkreq;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
 	status = "okay";
 
@@ -528,6 +529,7 @@
 	pinctrl-0 = <&pcie2x1l2_pins &pcie20x1m1_clkreqn>;
 	/* &pcie20x1m1_waken disabled (swapped with rst) */
 	reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_HIGH>;
+	supports-clkreq;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
 	status = "okay";
 

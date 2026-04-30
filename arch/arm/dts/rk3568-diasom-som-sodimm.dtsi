@@ -294,6 +294,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie20_pins>;
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	supports-clkreq;
 	vpcie3v3-supply = <&vcc_pcie2>;
 };
 

@@ -29,6 +29,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie30_clk_run_pins>;
 		compatible = "regulator-fixed";
+		/* Fixup for PCI-e in the bootloader */
+		regulator-always-on;
+		regulator-boot-on;
 		gpio = <&gpio2 RK_PD0 GPIO_ACTIVE_LOW>;
 		regulator-name = "vcc3v3_pcie30_clk_run";
 		regulator-min-microvolt = <3300000>;
@@ -208,18 +211,6 @@
 		/* GPIO4 D0-D7 */
 		"HDMI_I2C_SDA", "SPI3_CS1#", "SDMMC0_WP", "",
 		"", "", "", "";
-};
-
-&pcie30phy {
-	phy-supply = <&vcc3v3_pcie30_clk_run>;
-};
-
-&pcie3x1 {
-	vpcie3v3-supply = <&vcc3v3_pcie30_clk_run>;
-};
-
-&pcie3x2 {
-	vpcie3v3-supply = <&vcc3v3_pcie30_clk_run>;
 };
 
 &pps {

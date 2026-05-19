@@ -212,7 +212,8 @@
 };
 
 &pinctrl {
-	pinctrl-0 = <&rstout_pins &smarc_pins>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&smarc_pins>;
 
 	mmc {
 		sdmmc0_vcc_pins: sdmmc0-vcc-pins {

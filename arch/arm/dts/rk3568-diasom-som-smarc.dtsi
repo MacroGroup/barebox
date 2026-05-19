@@ -74,6 +74,16 @@
 		};
 	};
 
+	gpio-restart {
+		pinctrl-names = "default";
+		pinctrl-0 = <&rstout_pins>;
+		compatible = "gpio-restart";
+		gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_LOW>;
+		active-delay = <250>;
+		inactive-delay = <100>;
+		wait-delay = <1>;
+	};
+
 	pps: pps {
 		compatible = "pps-gpio";
 		status = "disabled";
@@ -379,9 +389,6 @@
 };
 
 &pinctrl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&rstout_pins>;
-
 	exp {
 		exp_pins: exp-pins {
 			rockchip,pins =
@@ -439,7 +446,7 @@
 	rst {
 		rstout_pins: rst-pins {
 			rockchip,pins =
-				<3 RK_PD4 RK_FUNC_GPIO &pcfg_output_high>;	/* RESET_OUT */
+				<3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;	/* RESET_OUT */
 		};
 	};
 

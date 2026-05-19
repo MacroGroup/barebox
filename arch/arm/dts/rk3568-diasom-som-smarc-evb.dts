@@ -232,12 +232,14 @@
 
 &pcie3x1 {
 	vpcie3v3-supply = <&vcc3v3_sys>;
+	supports-clkreq;
 	status = "okay";
 };
 
 &pcie3x2 {
 	num-lanes = <1>;
 	vpcie3v3-supply = <&vcc3v3_sys>;
+	supports-clkreq;
 	status = "okay";
 };
 

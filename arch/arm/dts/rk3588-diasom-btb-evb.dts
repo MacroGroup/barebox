@@ -568,6 +568,7 @@
 		      "ref";
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_pcie30>;
+	supports-clkreq;
 	status = "okay";
 };
 

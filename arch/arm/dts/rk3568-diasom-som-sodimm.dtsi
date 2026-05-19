@@ -309,6 +309,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie30_pins>;
 	reset-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	supports-clkreq;
 	vpcie3v3-supply = <&vcc3v3_sys>;
 };
 

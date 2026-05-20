@@ -12,6 +12,7 @@
 #ifndef _BAREBOX_RISCV_H_
 #define _BAREBOX_RISCV_H_
 
+#include <pbl.h>
 #include <linux/sizes.h>
 #include <asm-generic/memory_layout.h>
 #include <linux/kernel.h>
@@ -54,13 +55,7 @@ static inline unsigned long riscv_mem_stack(unsigned long membase,
 static inline unsigned long riscv_mem_early_malloc(unsigned long membase,
 						   unsigned long endmem)
 {
-	return riscv_mem_stack(membase, endmem) - SZ_128K;
-}
-
-static inline unsigned long riscv_mem_early_malloc_end(unsigned long membase,
-						       unsigned long endmem)
-{
-	return riscv_mem_stack(membase, endmem);
+	return riscv_mem_stack(membase, endmem) - PBL_MALLOC_SIZE;
 }
 
 static inline unsigned long riscv_mem_ramoops(unsigned long membase,
@@ -79,9 +74,13 @@ static inline unsigned long riscv_mem_barebox_image(unsigned long membase,
 						    unsigned long endmem,
 						    unsigned long size)
 {
+#ifdef __PBL__
 	endmem = riscv_mem_ramoops(membase, endmem);
 
 	return ALIGN_DOWN(endmem - size, SZ_1M);
+#else
+	return (unsigned long)__image_start;
+#endif
 }
 
 #define ENTRY_FUNCTION(name, arg0, arg1, arg2)                          \

@@ -10,9 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
-
-extern unsigned long free_mem_ptr;
-extern unsigned long free_mem_end_ptr;
+#include <linux/sizes.h>
 
 void pbl_barebox_uncompress(void *dest, void *compressed_start, unsigned int len);
 int pbl_dtbz_uncompress(void *dest, void *compressed_start, unsigned long len);
@@ -32,6 +30,12 @@ fdt_device_get_match_data(const void *fdt, const char *nodepath,
 int pbl_barebox_verify(const void *compressed_start, unsigned int len,
 		       const void *hash, unsigned int hash_len);
 int pbl_load_fdt(const void *fdt, void *dest, int destsize);
+
+#define PBL_MALLOC_SIZE SZ_128K
+
+void *pbl_malloc(int size);
+void pbl_free(void *where);
+void pbl_malloc_init(unsigned long base, size_t size);
 
 #endif
 

@@ -14,6 +14,7 @@
 #include <linux/bitfield.h>
 #include <asm/barebox-arm.h>
 #include <asm/memory.h>
+#include <mach/imx/generic.h>
 #include <mach/imx/esdctl.h>
 #include <mach/imx/esdctl-v4.h>
 #include <mach/imx/imx6-mmdc.h>
@@ -264,7 +265,7 @@ static int imx_esdctl_v4_add_mem(void *esdctlbase, const struct imx_esdctl_data 
 }
 
 /*
- * On i.MX6 the adress space reserved for SDRAM is 0x10000000 to 0xFFFFFFFF
+ * On i.MX6 the address space reserved for SDRAM is 0x10000000 to 0xFFFFFFFF
  * which makes the maximum supported RAM size 0xF0000000.
  */
 #define IMX6_MAX_SDRAM_SIZE 0xF0000000
@@ -334,6 +335,9 @@ static int vf610_ddrmc_add_mem(void *mmdcbase, const struct imx_esdctl_data *dat
 #define DDRC_MSTR_ACTIVE_RANKS			GENMASK(27, 24)
 #define DDRC_MSTR_DEVICE_CONFIG		GENMASK(31, 30)
 
+#define DDRC_ECCCFG0				0x0070
+#define DDRC_ECCCFG0_ECC_MODE			GENMASK(2, 0)
+
 #define DDRC_ADDRMAP0_CS_BIT1			GENMASK(12,  8)
 
 #define DDRC_ADDRMAP1_BANK_B2			GENMASK(20, 16)
@@ -364,6 +368,11 @@ static int vf610_ddrmc_add_mem(void *mmdcbase, const struct imx_esdctl_data *dat
 
 #define DDRC_ADDRMAP_LENGTH			9
 
+static inline int imx_esdctl_ecc_enabled(void __iomem *ddrc)
+{
+	return FIELD_GET(DDRC_ECCCFG0_ECC_MODE, readl(ddrc + DDRC_ECCCFG0));
+}
+
 static unsigned int
 imx_ddrc_count_bits(unsigned int bits, const u8 config[],
 		     unsigned int config_num)
@@ -382,7 +391,7 @@ static resource_size_t
 imx_ddrc_sdram_size(void __iomem *ddrc, const u32 addrmap[DDRC_ADDRMAP_LENGTH],
 		    u8 col_max, const u8 col_b[], unsigned int col_b_num,
 		    u8 row_max, const u8 row_b[], unsigned int row_b_num,
-		    bool reduced_adress_space, unsigned int mstr)
+		    bool reduced_address_space, unsigned int mstr)
 {
 	unsigned int banks, ranks, columns, rows, active_ranks, width;
 	resource_size_t size;
@@ -461,7 +470,7 @@ imx_ddrc_sdram_size(void __iomem *ddrc, const u32 addrmap[DDRC_ADDRMAP_LENGTH],
 		size = memory_sdram_size(columns, rows, 1 << banks, 1) >> 1;
 	size <<= ranks;
 
-	return reduced_adress_space ? size * 3 / 4 : size;
+	return reduced_address_space ? size * 3 / 4 : size;
 }
 
 static void imx_ddrc_set_mstr_device_config(u32 *mstr, unsigned bits)
@@ -508,7 +517,7 @@ resource_size_t imx8m_ddrc_sdram_size(unsigned buswidth)
 		FIELD_GET(DDRC_ADDRMAP6_ROW_B12, addrmap[6]),
 		FIELD_GET(DDRC_ADDRMAP5_ROW_B11, addrmap[5]),
 	};
-	const bool reduced_adress_space =
+	const bool reduced_address_space =
 		FIELD_GET(DDRC_ADDRMAP6_LPDDR4_6GB_12GB_24GB, addrmap[6]);
 	u32 mstr = readl(ddrc + DDRC_MSTR);
 
@@ -519,7 +528,36 @@ resource_size_t imx8m_ddrc_sdram_size(unsigned buswidth)
 	return imx_ddrc_sdram_size(ddrc, addrmap,
 				   12, ARRAY_AND_SIZE(col_b),
 				   18, ARRAY_AND_SIZE(row_b),
-				   reduced_adress_space, mstr);
+				   reduced_address_space, mstr);
+}
+
+static resource_size_t imx8m_ddrc_ecc_sdram_size(unsigned int *chunks,
+						 resource_size_t *stride,
+						 unsigned int buswidth)
+{
+	void __iomem *ddrc = IOMEM(MX8M_DDRC_CTL_BASE_ADDR);
+	resource_size_t size = imx8m_ddrc_sdram_size(buswidth);
+	const bool reduced_address_space = FIELD_GET(
+		DDRC_ADDRMAP6_LPDDR4_6GB_12GB_24GB, readl(ddrc + DDRC_ADDRMAP(6)));
+
+	/* ECC divides the accessible address space into 1 or 3 contiguous
+	 * regions depending on reduced_address_space. For simplicity, give
+	 * barebox only one contiguous region to use.
+	 * Each region is only 7/8th the raw size due to ECC data.
+	 */
+	if (chunks)
+		*chunks = 1;
+	if (imx_esdctl_ecc_enabled(ddrc)) {
+		if (reduced_address_space) {
+			size /= 3;
+			if (chunks)
+				*chunks = 3;
+			if (stride)
+				*stride = size;
+		}
+		size = (size * 7) / 8;
+	}
+	return size;
 }
 
 static int _imx8m_ddrc_add_mem(const struct imx_esdctl_data *data,
@@ -560,6 +598,29 @@ static int _imx8m_ddrc_add_mem(const struct imx_esdctl_data *data,
 static int imx8m_ddrc_add_mem(void *mmdcbase, const struct imx_esdctl_data *data)
 {
 	return _imx8m_ddrc_add_mem(data, 32);
+}
+
+static int imx8mp_ddrc_add_mem(void *mmdcbase, const struct imx_esdctl_data *data)
+{
+	unsigned int chunks;
+	unsigned long base;
+	resource_size_t chunksize = 0, stride = 0;
+	int ret = -ENOMEM;
+	int i;
+	char name[5];
+
+	chunksize = imx8m_ddrc_ecc_sdram_size(&chunks, &stride, 32);
+
+	base = data->base0;
+	for (i = 0; i < chunks; i++) {
+		snprintf(name, sizeof(name), "ram%d", i);
+		ret = arm_add_mem_device(name, base, chunksize);
+		if (ret)
+			break;
+		base += stride;
+	}
+
+	return ret;
 }
 
 static int imx8mn_ddrc_add_mem(void *mmdcbase, const struct imx_esdctl_data *data)
@@ -633,7 +694,7 @@ static resource_size_t imx7d_ddrc_sdram_size(void __iomem *ddrc)
 		FIELD_GET(DDRC_ADDRMAP6_ROW_B12, addrmap[6]),
 		FIELD_GET(DDRC_ADDRMAP5_ROW_B11, addrmap[5]),
 	};
-	const bool reduced_adress_space =
+	const bool reduced_address_space =
 		FIELD_GET(DDRC_ADDRMAP6_LPDDR3_6GB_12GB, addrmap[6]);
 	u32 mstr = readl(ddrc + DDRC_MSTR);
 
@@ -642,8 +703,8 @@ static resource_size_t imx7d_ddrc_sdram_size(void __iomem *ddrc)
 
 	return imx_ddrc_sdram_size(ddrc, addrmap,
 				   11, ARRAY_AND_SIZE(col_b),
-				   15, ARRAY_AND_SIZE(row_b),
-				   reduced_adress_space, mstr);
+				   16, ARRAY_AND_SIZE(row_b),
+				   reduced_address_space, mstr);
 }
 
 static int imx7d_ddrc_add_mem(void *mmdcbase, const struct imx_esdctl_data *data)
@@ -745,6 +806,11 @@ static __maybe_unused const struct imx_esdctl_data imx8mn_data = {
 	.add_mem = imx8mn_ddrc_add_mem,
 };
 
+static __maybe_unused const struct imx_esdctl_data imx8mp_data = {
+	.base0 = MX8M_DDR_CSD1_BASE_ADDR,
+	.add_mem = imx8mp_ddrc_add_mem,
+};
+
 static __maybe_unused const struct imx_esdctl_data imx9_data = {
 	.base0 = MX9_DDR_CSD1_BASE_ADDR,
 	.add_mem = imx9_ddrc_add_mem,
@@ -825,6 +891,9 @@ static __maybe_unused struct of_device_id imx_esdctl_dt_ids[] = {
 	}, {
 		.compatible = "fsl,imx8mn-ddrc",
 		.data = &imx8mn_data
+	}, {
+		.compatible = "fsl,imx8mp-ddrc",
+		.data = &imx8mp_data
 	}, {
 		.compatible = "fsl,imx93-ddrc",
 		.data = &imx9_data
@@ -1024,10 +1093,9 @@ imx6_barebox_entry(unsigned long membase, void *boarddata)
 	    IS_ENABLED(CONFIG_PBL_OPTEE) && imx6_can_access_tzasc()) {
 		void *fdto;
 		unsigned int fdto_size;
-		int tee_size;
-		void *tee;
+		struct fwobj tee;
 
-		get_builtin_firmware(imx6_optee_bin, &tee, &tee_size);
+		get_builtin_firmware(imx6_optee_bin, &tee);
 
 		imx_init_scratch_space(membase + memsize, 1);
 		fdto = imx_scratch_get_fdt(&fdto_size);
@@ -1037,7 +1105,7 @@ imx6_barebox_entry(unsigned long membase, void *boarddata)
 		} else if (fdto == NULL)
 			pr_warn("No space configured for OP-TEE devicetree\n");
 
-		start_optee_early(fdto, tee);
+		start_optee_early(fdto, tee.data);
 		if (!IS_ERR(fdto))
 			optee_handoff_overlay(fdto, fdto_size);
 	}
@@ -1084,7 +1152,14 @@ resource_size_t imx8m_barebox_earlymem_size(unsigned buswidth)
 {
 	resource_size_t size;
 
-	size = imx8m_ddrc_sdram_size(buswidth);
+	/* NOTE: This expects that imx_set_cpu_type() has been called beforehand,
+	 * which the common entry points in atf.c all do. If this didn't happen,
+	 * we assume ECC to not be available, which is a safe bet.
+	 */
+	if (cpu_is_mx8mp() && imx_esdctl_ecc_enabled(IOMEM(MX8M_DDRC_CTL_BASE_ADDR)))
+		size = imx8m_ddrc_ecc_sdram_size(NULL, NULL, buswidth);
+	else
+		size = imx8m_ddrc_sdram_size(buswidth);
 	/*
 	 * We artificially limit detected memory size to force malloc
 	 * pool placement to be within 4GiB address space, so as to

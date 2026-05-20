@@ -23,14 +23,14 @@ static __noreturn inline void start_rk3588_diasom(void *fdt)
 
 ENTRY_FUNCTION(start_rk3588_diasom_btb_evb, r0, r1, r2)
 {
-	extern char __dtb_rk3588_diasom_btb_evb_start[];
+	extern char __dtb_z_rk3588_diasom_btb_evb_start[];
 
-	start_rk3588_diasom(__dtb_rk3588_diasom_btb_evb_start);
+	start_rk3588_diasom(__dtb_z_rk3588_diasom_btb_evb_start);
 }
 
 ENTRY_FUNCTION(start_rk3588_diasom_smarc_evb, r0, r1, r2)
 {
-	extern char __dtb_rk3588_diasom_smarc_evb_start[];
+	extern char __dtb_z_rk3588_diasom_smarc_evb_start[];
 
-	start_rk3588_diasom(__dtb_rk3588_diasom_smarc_evb_start);
+	start_rk3588_diasom(__dtb_z_rk3588_diasom_smarc_evb_start);
 }

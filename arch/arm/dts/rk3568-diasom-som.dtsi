@@ -66,6 +66,8 @@
 	};
 
 	csi: csi@fdfb0000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clk>;
 		compatible = "rockchip,rk3568-mipi-csi2";
 		reg = <0x0 0xfdfb0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
@@ -131,6 +133,8 @@
 	};
 
 	isp: rkisp@fdff0000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clk>;
 		compatible = "rockchip,rk3568-rkisp";
 		reg = <0x0 0xfdff0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,

@@ -252,7 +252,6 @@
 				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO5 */
 				<3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO6 */
 				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>,	/* SMB_ALERT# */
-				<4 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* CAM_MCK */
 				<3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD1_BKLT_EN */
 				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD1_VDD_EN */
 				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;	/* eDP0_HPD/DSI0_TE */

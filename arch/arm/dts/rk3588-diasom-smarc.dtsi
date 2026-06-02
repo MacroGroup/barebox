@@ -258,8 +258,8 @@
 				regulator-name = "vdd_logic";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <675000>;
-				regulator-max-microvolt = <825000>;
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <750000>;
 				regulator-ramp-delay = <12500>;
 
 				regulator-state-mem {
@@ -271,8 +271,8 @@
 				regulator-name = "vdd_vdenc";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <675000>;
-				regulator-max-microvolt = <825000>;
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <750000>;
 				regulator-ramp-delay = <12500>;
 
 				regulator-state-mem {
@@ -284,12 +284,13 @@
 				regulator-name = "vdd_ddr";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <675000>;
-				regulator-max-microvolt = <935000>;
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <850000>;
 				regulator-ramp-delay = <12500>;
 
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <750000>;
 				};
 			};
 
@@ -443,11 +444,12 @@
 				regulator-name = "vdda_ddr_pll";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <675000>;
-				regulator-max-microvolt = <892500>;
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <850000>;
 
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <750000>;
 				};
 			};
 
@@ -496,7 +498,7 @@
 		regulator-name = "vdd_cpu_big0";
 		regulator-boot-on;
 		regulator-min-microvolt = <675000>;
-		regulator-max-microvolt = <1050000>;
+		regulator-max-microvolt = <950000>;
 		regulator-ramp-delay = <2300>;
 		vin-supply = <&vdd_in>;
 
@@ -512,7 +514,7 @@
 		regulator-name = "vdd_cpu_big1";
 		regulator-boot-on;
 		regulator-min-microvolt = <675000>;
-		regulator-max-microvolt = <1050000>;
+		regulator-max-microvolt = <950000>;
 		regulator-ramp-delay = <2300>;
 		vin-supply = <&vdd_in>;
 

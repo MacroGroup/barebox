@@ -183,15 +183,15 @@
 	status = "okay";
 
 	pmic@23 {
-		compatible = "rockchip,rk806";
-		reg = <0x23>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PA7 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <
 			&pmic_pins &rk806_dvs1_null
 			&rk806_dvs2_null &rk806_dvs3_null
 		>;
+		compatible = "rockchip,rk806";
+		reg = <0x23>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA7 IRQ_TYPE_LEVEL_LOW>;
 		system-power-controller;
 		rockchip,reset-mode = <RK806_RESTART>;
 

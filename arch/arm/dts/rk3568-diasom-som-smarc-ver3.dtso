@@ -202,8 +202,6 @@
 };
 
 &pps {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pps_pins>;
 	gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 };
 
@@ -229,17 +227,11 @@
 		};
 	};
 
-	pps {
-		pps_pins: pps-pins {
-			rockchip,pins =
-				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;		/* RTC_SQW */
-		};
-	};
-
 	rtc {
 		rtc_pins: rtc-pins {
 			rockchip,pins =
-				<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_IRQ */
+				<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* RTC_IRQ */
+				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;		/* RTC_SQW */
 		};
 	};
 

@@ -461,6 +461,7 @@
 		vcca-supply = <&vcc4v0_sys>;
 
 		gpio-controller;
+		wakeup-source;
 		#gpio-cells = <2>;
 
 		rk806_dvs1_null: dvs1-null-pins {

@@ -340,13 +340,13 @@
 
 	/* m41t62lc6f */
 	rtc: rtc@68 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_pins>;
 		compatible = "st,m41t62";
 		reg = <0x68>;
 
 		clock {
 			compatible = "fixed-clock";
-			pinctrl-names = "default";
-			pinctrl-0 = <&clk32k_in>;
 			clock-accuracy = <2000>;
 			clock-frequency = <32768>;
 			clock-output-names = "xin32k";
@@ -791,6 +791,13 @@
 		leds_som_pins: leds-som-pins {
 			rockchip,pins =
 				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;	/* VD2 */
+		};
+	};
+
+	rtc {
+		rtc_pins: rtc-pins {
+			rockchip,pins =
+				<0 RK_PB2 1 &pcfg_pull_up>;			/* clk32k_in */
 		};
 	};
 };

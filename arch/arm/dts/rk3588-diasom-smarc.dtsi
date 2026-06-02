@@ -554,8 +554,6 @@
 
 		clock {
 			compatible = "fixed-clock";
-			pinctrl-names = "default";
-			pinctrl-0 = <&clk32k_in>;
 			clock-accuracy = <2000>;
 			clock-frequency = <32768>;
 			clock-output-names = "xin32k";
@@ -771,7 +769,8 @@
 	rtc {
 		rtc_pins: rtc-pins {
 			rockchip,pins =
-				<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* RTC_INT */
+				<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>,	/* RTC_INT */
+				<0 RK_PB2 1 &pcfg_pull_up>;			/* clk32k_in */
 		};
 	};
 };

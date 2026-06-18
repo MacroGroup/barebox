@@ -3,6 +3,7 @@
 #ifndef __INPUT_H
 #define __INPUT_H
 
+#include <linux/bitmap.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <dt-bindings/input/linux-event-codes.h>
@@ -24,6 +25,7 @@ int input_device_register(struct input_device *);
 void input_device_unregister(struct input_device *);
 
 void input_key_get_status(unsigned long *keys, int bits);
+bool input_is_key_pressed(int key);
 
 struct input_notifier {
 	void (*notify)(struct input_notifier *in, struct input_event *event);

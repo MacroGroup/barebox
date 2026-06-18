@@ -144,6 +144,8 @@ def pytest_addoption(parser):
                      help=('Pass all remaining options to QEMU as is'))
     parser.addoption('--bootarg', action='append', dest='bootarg', default=[],
                      help=('Pass boot arguments to barebox for debugging purposes'))
+    parser.addoption('--port-forward', metavar="PORT", action='append', dest='qemu_port', default=[],
+                     help=('Forward incoming TCP or UDP connections on specified PORT'))
 
 
 @pytest.fixture(scope="session")
@@ -168,13 +170,15 @@ def strategy(request, target, pytestconfig):  # noqa: max-complexity=30
     try:
         main = target.env.config.data["targets"]["main"]
         qemu_bin = main["drivers"]["QEMUDriver"]["qemu_bin"]
+        features.append("qemu")
     except KeyError:
-        qemu_bin = None
+        pass
 
     virtio = None
 
     if "virtio-mmio" in features:
         virtio = "device"
+        strategy.append_qemu_args('-global virtio-mmio.force-legacy=false')
     if "virtio-pci" in features:
         virtio = "pci,disable-modern=off"
         features.append("pci")
@@ -201,7 +205,7 @@ def strategy(request, target, pytestconfig):  # noqa: max-complexity=30
         else:
             pytest.exit("barebox currently supports only a single extra virtio console\n", 1)
 
-    if qemu_bin is not None:
+    if "qemu" in features:
         if not pytestconfig.option.qemu_graphics:
             graphics = '-nographic'
         elif qemu_bin == "qemu-system-x86_64":
@@ -210,8 +214,13 @@ def strategy(request, target, pytestconfig):  # noqa: max-complexity=30
             graphics = '-device VGA'
         elif virtio:
             graphics = '-vga none -device ramfb'
+            graphics += f' -device virtio-keyboard-{virtio}'
         else:
             pytest.exit("--graphics unsupported for target\n", 1)
+
+        if graphics is not None and \
+                pytestconfig.option.lg_initial_state != 'qemu_interactive':
+            graphics += ' -display none'
 
         strategy.append_qemu_args(graphics)
 
@@ -224,25 +233,17 @@ def strategy(request, target, pytestconfig):  # noqa: max-complexity=30
         else:
             pytest.exit("--blk unsupported for target\n", 1)
 
+    envopts = {}
+
     for i, fw_cfg in enumerate(pytestconfig.option.qemu_fw_cfg):
+        value = fw_cfg.pop()
+        envpath = fw_cfg.pop() if fw_cfg else f"data/fw_cfg{i}"
+
+        envopts[envpath] = value
+
+    for envpath, value in (yaml_env | envopts).items():
         if virtio:
-            value = fw_cfg.pop()
-            envpath = fw_cfg.pop() if fw_cfg else f"data/fw_cfg{i}"
-
-            if value.startswith('@'):
-                source = f"file='{value[1:]}'"
-            else:
-                source = f"string='{value}'"
-
-            strategy.append_qemu_args(
-                '-fw_cfg', f'name=opt/org.barebox.env/{envpath},{source}'
-            )
-        else:
-            pytest.exit("--env unsupported for target\n", 1)
-
-    for envpath, value in yaml_env.items():
-        if virtio:
-            if value.startswith('@'):
+            if isinstance(value, str) and value.startswith('@'):
                 source = f"file='{value[1:]}'"
             else:
                 source = f"string='{value}'"
@@ -259,12 +260,21 @@ def strategy(request, target, pytestconfig):  # noqa: max-complexity=30
     for arg in pytestconfig.option.qemu_arg:
         strategy.append_qemu_args(arg)
 
+    qemu_nic = "user,id=net0"
+
+    for port in pytestconfig.option.qemu_port:
+        qemu_nic += f",hostfwd=udp:127.0.0.2:{port}-:{port}"
+        qemu_nic += f",hostfwd=tcp:127.0.0.2:{port}-:{port}"
+
     if "testfs" in features:
         if not any(fs and fs[0] == "testfs" for fs in pytestconfig.option.qemu_fs):
             testfs_path = os.path.join(os.environ["LG_BUILDDIR"], "testfs")
             pytestconfig.option.qemu_fs.append(["testfs", testfs_path])
             os.makedirs(testfs_path, exist_ok=True)
-            strategy.append_qemu_args("-nic", f"user,id=net0,tftp={testfs_path}")
+            qemu_nic += f",tftp={testfs_path}"
+
+    if "qemu" in features:
+        strategy.append_qemu_args("-nic", qemu_nic)
 
     for i, fs in enumerate(pytestconfig.option.qemu_fs):
         if virtio:

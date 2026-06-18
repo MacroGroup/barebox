@@ -12,6 +12,30 @@
 #include <mach/socfpga/soc64-sdram.h>
 #include <mach/socfpga/soc64-system-manager.h>
 
+static void socfpga_agilex5_qspi_init(void)
+{
+	unsigned long master_ref_clk = 0;
+	int ret;
+
+	ret = socfpga_mailbox_s10_init();
+	if (ret) {
+		pr_warn("Failed to init s10 mailbox: %d\n", ret);
+		return;
+	}
+
+	ret = socfpga_mailbox_s10_qspi_open(&master_ref_clk);
+	if (ret) {
+		pr_warn("Failed to request QSPI access: %d\n", ret);
+		return;
+	}
+
+	ret = socfpga_agilex5_write_qspi_refclk(master_ref_clk);
+	if (ret) {
+		pr_warn("Failed to store reference clock: %d\n", ret);
+		return;
+	}
+}
+
 static void __noreturn agilex5_load_and_start_image_via_tfa(void)
 {
 	void *bl31 = (void *)AGILEX5_ATF_BL31_BASE_ADDR;
@@ -37,28 +61,29 @@ static void __noreturn agilex5_load_and_start_image_via_tfa(void)
 	__builtin_unreachable();
 }
 
+static void agilex5_el3_init(void)
+{
+	int ret;
+
+	agilex5_initialize_security_policies();
+	pr_debug("Security policies initialized\n");
+
+	ret = agilex5_ddr_init_full();
+	if (ret)
+		panic("DDR initialization failed\n");
+
+	socfpga_agilex5_qspi_init();
+
+	agilex5_load_and_start_image_via_tfa();
+}
+
 void __noreturn agilex5_barebox_entry(void *fdt)
 {
 	phys_addr_t membase;
 	phys_size_t memsize;
 
 	if (current_el() == 3) {
-		agilex5_initialize_security_policies();
-		pr_debug("Security policies initialized\n");
-
-		/*
-		 * need to set the bank select enable before the
-		 * agilex5_ddr_init_full() otherwise the serial doesn't show
-		 * anything.
-		 */
-		if (!IS_ENABLED(CONFIG_DEBUG_LL))
-			writel(LCR_BKSE, SOCFPGA_UART0_ADDRESS + LCR);
-		agilex5_ddr_init_full();
-
-		socfpga_mailbox_s10_init();
-		socfpga_mailbox_s10_qspi_open();
-
-		agilex5_load_and_start_image_via_tfa();
+		agilex5_el3_init();
 		__builtin_unreachable();
 	}
 

@@ -296,8 +296,47 @@ config MALLOC_BASE
 
 config MALLOC_SIZE
 	hex
-	default 0x400000
-	prompt "malloc area size"
+	default 0x400000 if ARCH_HAS_MALLOC_SIZE
+	default 0
+	prompt "malloc area size" if ARCH_HAS_MALLOC_SIZE
+
+config BAREBOX_MEMORY_OFFSET
+	hex
+	default 0
+	prompt "relative malloc base offset (optional)"
+	depends on ARCH_HAS_BAREBOX_MEMORY_OFFSET
+	help
+	  Most boards should just leave this at the default zero and barebox
+	  will dynamically determine the offset, from the start of the initial
+	  memory bank in DRAM, at which the barebox runtime region begins.
+
+	  Memory below this offset is reserved as the OS load region, used for
+	  placement of the kernel, initrd and device tree before boot.
+
+	  barebox itself, the relocated binary, BSS, stack and malloc area
+	  all live at and above this offset and will not allocate into the
+	  OS load region.
+
+	  When set to zero, following heuristic will be used:
+
+	    - If the prebootloader reports 2GiB of initial memory or more,
+	      start the barebox runtime region at offset 1GiB from
+	      start of initial memory.
+
+	    - Otherwise, start the barebox runtimer region right in the
+	      middle of the initial memory region.
+
+          This heuristic should be suitable for most boards with modern DRAM
+	  sizes. If you run into problems with it, adapt this option, so
+          it is large enough to hold the biggest OS image you expect to boot,
+	  plus initramfs and DTB.
+
+	  Note that this affects only the split in the initial memory reported
+	  by the bootloader. Placement of final boot artifacts can happen
+	  outside of the malloc area and are not restricted to this initial
+	  memory or even the first SDRAM bank.
+
+	  If unsure, keep the default of 0x0.
 
 config SCRATCH_SIZE
 	hex
@@ -788,7 +827,7 @@ config MMCBLKDEV_ROOTARG
 	  kernel doesn't contain commit [1]. The first linux kernel release
 	  containing that commit is v5.10-rc1.
 
-	  The appending only happens if barebox' 'linux.bootargs.bootm.appendroot'
+	  The appending only happens if barebox' 'global.bootm.appendroot'
 	  variable is set or the used blspec entry contains 'linux-appendroot'.
 
 	  Note: It is crucial that the kernel device tree and the barebox device
@@ -1005,6 +1044,20 @@ config ENV_HANDLING
 
 	  A safe use of the mutable environment may be possible if board code only
 	  mounts it after verifying a JSON Web Token that enables a debug mode.
+
+config ENV_HANDLING_AUTOPROBE
+	depends on ENV_HANDLING
+	bool "Autoprobe for environment devices"
+	default INSECURE
+	help
+	  There are two ways for specifying where the barebox environment is. The first one
+	  specifies the path explicitly in the device tree or board code. The other one is
+	  to automatically search it on block devices which is enabled with this option.
+	  Here a partition with the barebox environment GUID is searched. If this option
+	  is enabled and no environment is chosen by device tree or board code then a block
+	  device containing a partition with the barebox environment GUID is used for the
+	  environment. A block device barebox has booted from is preferred over other block
+	  devices.
 
 config DEFAULT_ENVIRONMENT
 	select CRC32
@@ -1304,8 +1357,9 @@ config MACHINE_ID
 	  updating barebox the machine id might change.
 
 	  global.bootm.provide_machine_id may be used to automatically set
-	  the linux.bootargs.machine_id global variable with a value of
-	  systemd.machine_id=${global.machine_id}
+	  fix up the kernel command line on boot with 
+
+	    systemd.machine_id=${global.machine_id}
 
 	  Note: if no hashable information is available no machine id will be passed
 	  to the kernel.

@@ -16,7 +16,6 @@
 		     "rockchip,rk3568";
 
 	aliases {
-		camera0 = &xc7160;
 		camera1 = &imx335_i2c4;
 		camera2 = &imx335_i2c7;
 		camera3 = &fpdlink;
@@ -345,12 +344,6 @@
 		data-lanes = <1 2>;
 		remote-endpoint = <&ub954_csi_out>;
 	};
-
-	xc7160_in: endpoint@8 {
-		reg = <8>;
-		data-lanes = <1 2 3 4>;
-		remote-endpoint = <&xc7160_out>;
-	};
 };
 
 &csi2_dphy_hw {
@@ -632,28 +625,6 @@
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&imx662_in>;
 				link-frequencies = /bits/ 64 <360000000>;
-			};
-		};
-	};
-
-	xc7160: camera@1b {
-		pinctrl-names = "default";
-		pinctrl-0 = <&csi0_rst>;
-		compatible = "firefly,xc7160";
-		reg = <0x1b>;
-		clocks = <&cru CLK_CIF_OUT>;
-		clock-names = "xvclk";
-		power-domains = <&power RK3568_PD_VI>;
-		reset-gpios = <&gpio3 RK_PB6 GPIO_ACTIVE_HIGH>;
-		avdd-supply = <&vcc5v0_sys>;
-		dovdd-supply = <&vcc5v0_sys>;
-		dvdd-supply = <&vcc5v0_sys>;
-		status = "disabled";
-
-		port {
-			xc7160_out: endpoint {
-				data-lanes = <1 2 3 4>;
-				remote-endpoint = <&xc7160_in>;
 			};
 		};
 	};

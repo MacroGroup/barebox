@@ -44,7 +44,7 @@ static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const int nr)
 /*
 	Cameras mapping:
 	SOM-EVB:
-		camera0 = XC7160/I2C4
+		REMOVED: camera0 = XC7160/I2C4
 		camera1 = IMX335/I2C4
 		camera2 = IMX335/I2C7
 		camera3 = DS90UB954/I2C7 -> DS90UB953 -> AR0233
@@ -178,11 +178,7 @@ static int diasom_rk3568_evb_fixup(struct device_node *root, void *unused)
 	if (!diasom_rk3568_probe_i2c(adapter, 0x18)) {
 		pr_info("Camera AR0234 detected.\n");
 		of_register_set_status_fixup("camera7", true);
-		return 0;
 	}
-
-	pr_info("Assume camera XC7160 is used.\n");
-	of_register_set_status_fixup("camera0", true);
 
 	return 0;
 }

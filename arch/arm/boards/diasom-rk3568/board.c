@@ -47,7 +47,7 @@ static struct i2c_adapter *diasom_rk3568_i2c_get_adapter(const int nr)
 		REMOVED: camera0 = XC7160/I2C4
 		camera1 = IMX335/I2C4
 		camera2 = IMX335/I2C7
-		camera3 = DS90UB954/I2C7 -> DS90UB953 -> AR0233
+		REMOVED: camera3 = DS90UB954/I2C7 -> DS90UB953 -> AR0233
 		camera4 = IMX415/I2C4
 		camera5 = IMX415/I2C7
 		camera6 = IMX327/I2C4
@@ -229,11 +229,7 @@ static int diasom_rk3568_evb_ver1_3_0_fixup(struct device_node *root,
 	if (!adapter)
 		return -ENODEV;
 	
-	if (!diasom_rk3568_probe_i2c(adapter, 0x30)) {
-		pr_info("FPD-Link deserializer detected.\n");
-		of_register_set_status_fixup("camera3", true);
-	} else
-		diasom_rk3568_sony_camera_detect(adapter, cameras);
+	diasom_rk3568_sony_camera_detect(adapter, cameras);
 	
 	return 0;
 }

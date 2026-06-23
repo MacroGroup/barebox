@@ -11,8 +11,6 @@
 #include <machine_id.h>
 #include <i2c/i2c.h>
 
-static int som_revision = -1;
-
 static int __init diasom_rk3588_probe_i2c(struct i2c_adapter *adapter,
 					  const int addr)
 {
@@ -58,7 +56,7 @@ static int __init diasom_rk3588_get_adc_value(const char *name, int *val)
 	return ret;
 }
 
-static void __init diasom_rk3588_check_adc(void)
+static int __init diasom_rk3588_check_adc(void)
 {
 	struct device *aio_dev;
 	struct i2c_adapter *adapter;
@@ -67,20 +65,20 @@ static void __init diasom_rk3588_check_adc(void)
 	adapter = diasom_rk3588_i2c_get_adapter(2);
 	if (!adapter) {
 		pr_err("Could get I2C2 bus. "
-		       "Probably this is not Diasom board!\n");
-		return;
+		"Probably this is not Diasom board!\n");
+		return 0;
 	}
 
 	if (diasom_rk3588_probe_i2c(adapter, 0x42)) {
 		pr_err("Could get I2C2 device. "
-		       "Probably this is not Diasom board!\n");
-		return;
+		"Probably this is not Diasom board!\n");
+		return 0;
 	}
 
 	aio_dev = of_device_enable_and_register_by_name("adc@fec10000");
 	if (!aio_dev) {
 		pr_err("Unable to get ADC device!\n");
-		return;
+		return 0;
 	}
 
 	if (!diasom_rk3588_get_adc_value("aiodev0.in_value1_mV", &val)) {
@@ -91,13 +89,9 @@ static void __init diasom_rk3588_check_adc(void)
 	}
 
 	if (diasom_rk3588_get_adc_value("aiodev0.in_value7_mV", &val))
-		return;
+		return 0;
 
-	if (val > 150 && val < 350) {
-		som_revision = 0;
-	} else {
-		pr_warn("Unhandled revision ADC value: %i!\n", val);
-	}
+	return val;
 }
 
 static int __init diasom_rk3588_machine_id(void)
@@ -141,28 +135,35 @@ __maybe_unused static bool __init diasom_rk3588_load_overlay(const void *ovl)
 static int __init diasom_rk3588_init(void)
 {
 	bool do_probe = false;
-	int ret = 0;
+	int som_val, som_revision, ret = 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3588-btb")) {
-		diasom_rk3588_check_adc();
+		som_val = diasom_rk3588_check_adc();
 
-		switch (som_revision) {
-		case 0:
+		switch (som_val) {
+		case 151 ... 349:
+			som_revision = 0;
+			break;
+		case 401 ... 549:
+			som_revision = 3;
 			break;
 		default:
-			pr_err("Cannot determine BTB revision.\n");
+			pr_err("Cannot determine BTB revision. ADC = %i\n",
+			       som_val);
 			return -ENOTSUPP;
 		}
 
 		pr_info("BTB revision: %i\n", som_revision);
 	} else if (of_machine_is_compatible("diasom,ds-rk3588-smarc")) {
-		diasom_rk3588_check_adc();
+		som_val = diasom_rk3588_check_adc();
 
-		switch (som_revision) {
-			case 0:
+		switch (som_val) {
+			case 151 ... 349:
+				som_revision = 0;
 				break;
 			default:
-				pr_err("Cannot determine SMARC revision.\n");
+				pr_err("Cannot determine SMARC revision. ADC = %i\n",
+				       som_val);
 				return -ENOTSUPP;
 		}
 

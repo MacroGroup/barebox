@@ -917,6 +917,14 @@
 	status = "okay";
 };
 
+&rknpu {
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "okay";
+};
+
 &sdmmc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd &sdmmc0_det>;
@@ -1034,6 +1042,10 @@
 
 &vpu {
 	status = "okay";
+};
+
+&vdd_npu {
+	regulator-always-on;
 };
 
 &vdpu_mmu {

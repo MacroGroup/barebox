@@ -205,6 +205,71 @@
 			default-state = "off";
 		};
 	};
+	npu_opp_table: npu-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <850000 850000 1000000>;
+		};
+		opp-297000000 {
+			opp-hz = /bits/ 64 <297000000>;
+			opp-microvolt = <850000 850000 1000000>;
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <850000 850000 1000000>;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <850000 850000 1000000>;
+		};
+		opp-700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <875000 875000 1000000>;
+		};
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <925000 925000 1000000>;
+		};
+		opp-900000000 {
+			opp-hz = /bits/ 64 <000000000>;
+			opp-microvolt = <975000 975000 1000000>;
+		};
+	};
+
+	rknpu: npu@fde40000 {
+		compatible = "rockchip,rk3568-rknpu", "rockchip,rknpu";
+		reg = <0x00 0xfde40000 0x00 0xb000>;
+		interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "npu_irq";
+		clocks = <&scmi_clk SCMI_CLK_NPU>,
+			 <&cru CLK_NPU>,
+			 <&cru ACLK_NPU>,
+			 <&cru HCLK_NPU>;
+		clock-names = "scmi_clk", "clk", "aclk", "hclk";
+		assigned-clocks = <&cru CLK_NPU>;
+		assigned-clock-rates = <600000000>;
+		resets = <&cru SRST_A_NPU>, <&cru SRST_H_NPU>;
+		reset-names = "srst_a", "srst_h";
+		power-domains = <&power RK3568_PD_NPU>;
+		operating-points-v2 = <&npu_opp_table>;
+		rknpu-supply = <&vdd_npu>;
+		iommus = <&rknpu_mmu>;
+		status = "disabled";
+	};
+
+	rknpu_mmu: iommu@fde4b000 {
+		compatible = "rockchip,rk3568-iommu";
+		reg = <0x00 0xfde4b000 0x00 0x40>;
+		interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_NPU>, <&cru HCLK_NPU>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3568_PD_NPU>;
+		rockchip,disable-mmu-reset;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
 
 	vcc3v3_sys: vcc3v3-sys-regulator {
 		compatible = "regulator-fixed";
@@ -505,6 +570,16 @@
 	otp_cpu_version: cpu-version@8 {
 		reg = <0x08 0x01>;
 		bits = <0x03 0x03>;
+	};
+};
+&power {
+	pd_npu: power-domain@RK3568_PD_NPU {
+		reg = <RK3568_PD_NPU>;
+		clocks = <&cru ACLK_NPU_PRE>,
+			 <&cru HCLK_NPU_PRE>,
+			 <&cru PCLK_NPU_PRE>;
+		pm_qos = <&qos_npu>;
+		#power-domain-cells = <0>;
 	};
 };
 

@@ -28,6 +28,13 @@ elif [ -f /mnt/mmc0.2/boot/Image.gz ]; then
 
 	global.bootm.root_dev=mmc0.2
 	global.bootm.image=/mnt/mmc0.2/boot/Image.gz
+elif [ -f /mnt/nvme0n1.0/boot/Image.gz ]; then
+	echo "Booting from NVME (Image.gz)"
+
+	DTB=/mnt/nvme0n1.0/boot/rk3568-diasom-som-evb.dtb
+
+	global.bootm.root_dev=nvme0n1.0
+	global.bootm.image=/mnt/nvme0n1.0/boot/Image.gz
 else
 	echo "Boot image not found!"
 	exit 1

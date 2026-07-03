@@ -228,6 +228,20 @@
 
 /delete-node/ &xin32k;
 
+&can0 {
+	assigned-clocks = <&cru CLK_CAN0>;
+	assigned-clock-rates = <150000000>;
+};
+
+&can1 {
+	assigned-clocks = <&cru CLK_CAN1>;
+	assigned-clock-rates = <150000000>;
+};
+&can2 {
+	assigned-clocks = <&cru CLK_CAN2>;
+	assigned-clock-rates = <150000000>;
+};
+
 &combphy0 {
 	/* USB3.0 OTG0 */
 	status = "okay";

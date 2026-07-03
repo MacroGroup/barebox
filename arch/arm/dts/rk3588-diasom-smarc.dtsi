@@ -163,7 +163,6 @@
 
 &gpu {
 	mali-supply = <&vdd_gpu>;
-	sram-supply = <&vdd_gpu>;
 	status = "okay";
 };
 
@@ -190,7 +189,7 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA7 IRQ_TYPE_LEVEL_LOW>;
 		system-power-controller;
-		rockchip,reset-mode = <RK806_RESTART>;
+		rockchip,reset-mode = <RK806_RESET_NOTIFY>;
 
 		vcc1-supply = <&vdd_in>;
 		vcc2-supply = <&vdd_in>;
@@ -243,6 +242,7 @@
 
 			vdd_cpu_lit: dcdc-reg2 {
 				regulator-name = "vdd_cpu_lit";
+				regulator-boot-on;
 				regulator-min-microvolt = <675000>;
 				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <12500>;
@@ -265,10 +265,8 @@
 				};
 			};
 
-			dcdc-reg4 {
+			vdd_vdenc: dcdc-reg4 {
 				regulator-name = "vdd_vdenc";
-				regulator-always-on;
-				regulator-boot-on;
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <750000>;
 				regulator-ramp-delay = <12500>;
@@ -612,6 +610,12 @@
 	domain-supply = <&vdd_npu>;
 };
 
+&power {
+	power-domain@RK3588_PD_VCODEC {
+		domain-supply = <&vdd_vdenc>;
+	};
+};
+
 &rknn_core_0 {
 	npu-supply = <&vdd_npu>;
 	sram-supply = <&vdd_npu>;
@@ -714,6 +718,31 @@
 
 &uart9 {
 	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn &uart9m2_rtsn>;
+};
+
+&vdec0 {
+	/* Missing driver */
+	status = "disabled";
+};
+
+&vdec1 {
+	/* Missing driver */
+	status = "disabled";
+};
+
+&vepu121_1 {
+	/* Missing multi-core support */
+	status = "disabled";
+};
+
+&vepu121_2 {
+	/* Missing multi-core support */
+	status = "disabled";
+};
+
+&vepu121_3 {
+	/* Missing multi-core support */
+	status = "disabled";
 };
 
 &pinctrl {

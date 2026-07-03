@@ -6,8 +6,6 @@
 #include <arm64/rockchip/rk8xx.h>
 #include <arm64/rockchip/rk3588j.dtsi>
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/leds/common.h>
-#include <dt-bindings/soc/rockchip,vop2.h>
 
 #include "rk3588.dtsi"
 
@@ -23,17 +21,6 @@
 		rtc0 = &rtc;
 	};
 
-	/* Fixup for eth0/1, just for information */
-	/* Actually we need to set CPLL clock to 1.5 GHz */
-//	assigned-clocks =
-//		<&cru CLK_GMAC_125M>,
-//		<&cru REFCLKO25M_ETH0_OUT>,
-//		<&cru REFCLKO25M_ETH1_OUT>;
-//	assigned-clock-rates =
-//		<125000000>,
-//		<25000000>,
-//		<25000000>;
-
 	chosen: chosen {
 		stdout-path = "serial2:1500000n8";
 
@@ -41,82 +28,6 @@
 			compatible = "barebox,environment";
 			device-path = &sdhci, "partname:env";
 			status = "disabled";
-		};
-	};
-
-	isp0: rkisp@fdcb0000 {
-		compatible = "rockchip,rk3588-rkisp";
-		reg = <0x0 0xfdcb0000 0x0 0x7f00>;
-		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH 0>,
-			     <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH 0>,
-			     <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH 0>;
-		interrupt-names = "isp_irq", "mi_irq", "mipi_irq";
-		clocks = <&cru ACLK_ISP0>, <&cru HCLK_ISP0>,
-			 <&cru CLK_ISP0_CORE>, <&cru CLK_ISP0_CORE_MARVIN>,
-			 <&cru CLK_ISP0_CORE_VICAP>;
-		clock-names = "aclk_isp", "hclk_isp", "clk_isp_core",
-			      "clk_isp_core_marvin", "clk_isp_core_vicap";
-		power-domains = <&power RK3588_PD_VI>;
-		iommus = <&isp0_mmu>;
-		status = "disabled";
-	};
-
-	isp0_mmu: iommu@fdcb7f00 {
-		compatible = "rockchip,rk3588-iommu", "rockchip,rk3568-iommu";
-		reg = <0x0 0xfdcb7f00 0x0 0x100>;
-		interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH 0>;
-		interrupt-names = "isp0_mmu";
-		clocks = <&cru ACLK_ISP0>, <&cru HCLK_ISP0>;
-		clock-names = "aclk", "iface";
-		power-domains = <&power RK3588_PD_VI>;
-		rockchip,disable-mmu-reset;
-		#iommu-cells = <0>;
-		status = "disabled";
-	};
-
-	isp_vir0: rkisp-vir0 {
-		compatible = "rockchip,rkisp-vir";
-		rockchip,hw = <&isp0>;
-		status = "disabled";
-	};
-
-	hdmi0-con {
-		/* RK628 */
-		compatible = "hdmi-connector";
-		type = "a";
-
-		port {
-			hdmi0_con_in: endpoint {
-				remote-endpoint = <&hdmi0_out_con>;
-			};
-		};
-	};
-
-	hdmi1-con {
-		/* Output to connector */
-		compatible = "hdmi-connector";
-		type = "a";
-
-		port {
-			hdmi1_con_in: endpoint {
-				remote-endpoint = <&hdmi1_out_con>;
-			};
-		};
-	};
-
-	leds: leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&leds_som_pins>;
-
-		led-live {
-			label = "btb:live";
-			gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
-			function = LED_FUNCTION_HEARTBEAT;
-			color = <LED_COLOR_ID_GREEN>;
-			linux,default-trigger = LED_FUNCTION_HEARTBEAT;
-			default-state = "off";
-			panic-indicator;
 		};
 	};
 
@@ -176,7 +87,6 @@
 
 &gpu {
 	mali-supply = <&vdd_gpu>;
-	sram-supply = <&vdd_gpu>;
 	status = "okay";
 };
 
@@ -185,62 +95,6 @@
 		opp-hz = /bits/ 64 <850000000>;
 		opp-microvolt = <787500 787500 850000>;
 	};
-};
-
-&hdptxphy0 {
-	status = "okay";
-};
-
-&hdptxphy1 {
-	status = "okay";
-};
-
-&hdmi0 {
-	/* Pins are not used */
-	/delete-property/ pinctrl-0;
-	/delete-property/ pinctrl-names;
-	status = "okay";
-};
-
-&hdmi0_in {
-	hdmi0_in_vp0: endpoint {
-		remote-endpoint = <&vp0_out_hdmi0>;
-	};
-};
-
-&hdmi0_out {
-	hdmi0_out_con: endpoint {
-		remote-endpoint = <&hdmi0_con_in>;
-	};
-};
-
-&hdmi0_sound {
-	simple-audio-card,name = "HDMI0";
-	status = "okay";
-};
-
-&hdmi1 {
-	/* Disable CEC pin, Enable PWR_ON */
-	pinctrl-0 = <&hdmim1_tx1_hpd &hdmim1_tx1_scl &hdmim1_tx1_sda &hdmi1_tx_on>;
-	enable-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
-	status = "okay";
-};
-
-&hdmi1_in {
-	hdmi1_in_vp1: endpoint {
-		remote-endpoint = <&vp1_out_hdmi1>;
-	};
-};
-
-&hdmi1_out {
-	hdmi1_out_con: endpoint {
-		remote-endpoint = <&hdmi1_con_in>;
-	};
-};
-
-&hdmi1_sound {
-	simple-audio-card,name = "HDMI1";
-	status = "okay";
 };
 
 &i2c0 {
@@ -305,24 +159,24 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	/* 24aa02e48 */
-//	eeprom@50 {
-//		compatible = "atmel,24c02";
-//		reg = <0x50>;
-//		pagesize = <8>;
-//		vcc-supply = <&vcc_3v3>;
-//
-//		nvmem-layout {
-//			compatible = "fixed-layout";
-//			#address-cells = <1>;
-//			#size-cells = <1>;
-//
-//			mac0: mac-address@fa {
-//				reg = <0xfa 0x06>;
-//				read-only;
-//			};
-//		};
-//	};
+	/* 24aa025e48 */
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_3v3>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac0: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
 
 	/* rk628d */
 	brg: hdmi@51 {
@@ -330,8 +184,12 @@
 		pinctrl-0 = <&brg_pins>;
 		compatible = "rockchip,rk628";
 		reg = <0x51>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PD3 IRQ_TYPE_LEVEL_HIGH>;
 		enable-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
 		rk628-hdmi-in;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
@@ -352,22 +210,18 @@
 	};
 };
 
-&i2s5_8ch {
-	/* HDMI0 Sound */
-	status = "okay";
-};
-
-&i2s6_8ch {
-	/* HDMI1 Sound */
-	status = "okay";
-};
-
 &pd_gpu {
 	domain-supply = <&vdd_gpu>;
 };
 
 &pd_npu {
 	domain-supply = <&vdd_npu>;
+};
+
+&power {
+	power-domain@RK3588_PD_VCODEC {
+		domain-supply = <&vdd_vdenc>;
+	};
 };
 
 &rknn_core_0 {
@@ -426,6 +280,8 @@
 };
 
 &spi2 {
+	assigned-clocks = <&cru CLK_SPI2>;
+	assigned-clock-rates = <200000000>;
 	pinctrl-0 = <&spi2m2_cs0 &spi2m2_pins>;
 	num-cs = <1>;
 	status = "okay";
@@ -440,9 +296,9 @@
 		reg = <0x0>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA7 IRQ_TYPE_LEVEL_LOW>;
-		spi-max-frequency = <20000000>;
+		spi-max-frequency = <10000000>;
 		system-power-controller;
-		rockchip,reset-mode = <RK806_RESTART>;
+		rockchip,reset-mode = <RK806_RESET_NOTIFY>;
 
 		vcc1-supply = <&vcc4v0_sys>;
 		vcc2-supply = <&vcc4v0_sys>;
@@ -495,6 +351,7 @@
 
 			vdd_cpu_lit: dcdc-reg2 {
 				regulator-name = "vdd_cpu_lit";
+				regulator-boot-on;
 				regulator-min-microvolt = <675000>;
 				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <12500>;
@@ -517,10 +374,8 @@
 				};
 			};
 
-			dcdc-reg4 {
+			vdd_vdenc: dcdc-reg4 {
 				regulator-name = "vdd_vdenc";
-				regulator-always-on;
-				regulator-boot-on;
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <750000>;
 				regulator-ramp-delay = <12500>;
@@ -745,6 +600,7 @@
 
 &tsadc {
 	rockchip,hw-tshut-mode = <1>;
+	rockchip,hw-tshut-polarity = <0>;
 	status = "okay";
 };
 
@@ -756,40 +612,38 @@
 	status = "okay";
 };
 
-&vop {
-	status = "okay";
+&vdec0 {
+	/* Missing driver */
+	status = "disabled";
 };
 
-&vop_mmu {
-	status = "okay";
+&vdec1 {
+	/* Missing driver */
+	status = "disabled";
 };
 
-&vp0 {
-	vp0_out_hdmi0: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
-		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
-		remote-endpoint = <&hdmi0_in_vp0>;
-	};
+&vepu121_1 {
+	/* Missing multi-core support */
+	status = "disabled";
 };
 
-&vp1 {
-	vp1_out_hdmi1: endpoint@ROCKCHIP_VOP2_EP_HDMI1 {
-		reg = <ROCKCHIP_VOP2_EP_HDMI1>;
-		remote-endpoint = <&hdmi1_in_vp1>;
-	};
+&vepu121_2 {
+	/* Missing multi-core support */
+	status = "disabled";
+};
+
+&vepu121_3 {
+	/* Missing multi-core support */
+	status = "disabled";
 };
 
 &pinctrl {
 	brg {
 		brg_pins: brg-pins {
 			rockchip,pins =
-				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;	/* LVDS_BRG_EN */
-		};
-	};
-
-	leds {
-		leds_som_pins: leds-som-pins {
-			rockchip,pins =
-				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;	/* VD2 */
+				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LVDS_BRG_EN */
+				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>,		/* LVDS_BRG_33_RSTN */
+				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;	/* LVDS_BRG_33_INT */
 		};
 	};
 

@@ -135,22 +135,20 @@ __maybe_unused static bool __init diasom_rk3588_load_overlay(const void *ovl)
 static int __init diasom_rk3588_init(void)
 {
 	bool do_probe = false;
-	int som_val, som_revision, ret = 0;
+	int som_val, som_revision, evb_revision, ret = 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3588-btb")) {
 		som_val = diasom_rk3588_check_adc();
 
 		switch (som_val) {
-		case 151 ... 349:
-			som_revision = 0;
-			break;
-		case 401 ... 549:
+		case 301 ... 549:
 			som_revision = 3;
 			break;
 		default:
 			pr_err("Cannot determine BTB revision. ADC = %i\n",
 			       som_val);
-			return -ENOTSUPP;
+			ret = -ENOTSUPP;
+			goto out;
 		}
 
 		pr_info("BTB revision: %i\n", som_revision);
@@ -164,7 +162,8 @@ static int __init diasom_rk3588_init(void)
 			default:
 				pr_err("Cannot determine SMARC revision. ADC = %i\n",
 				       som_val);
-				return -ENOTSUPP;
+				ret = -ENOTSUPP;
+				goto out;
 		}
 
 		pr_info("SMARC revision: %i\n", som_revision);
@@ -172,11 +171,44 @@ static int __init diasom_rk3588_init(void)
 		return 0;
 
 	if (of_machine_is_compatible("diasom,ds-rk3588-btb-evb")) {
-		pr_info("EVB version 1.0.0+ detected.\n");
+		struct i2c_adapter *adapter = diasom_rk3588_i2c_get_adapter(7);
+		struct i2c_client client;
+		u8 buf;
+
+		if (!adapter || diasom_rk3588_probe_i2c(adapter, 0x22)) {
+			pr_err("Cannot determine EVB variant.\n");
+			ret = -ENOTSUPP;
+			goto out;
+		}
+
+		client.adapter = adapter;
+		client.addr = 0x22;
+
+		if (i2c_read_reg(&client, 0x00, &buf, sizeof(buf)) !=
+		    sizeof(buf)) {
+			pr_err("Cannot read EVB revision.\n");
+			ret = -ENOTSUPP;
+			goto out;
+		}
+
+		switch (buf & 0x0f) {
+		case 0x0:
+			evb_revision = 2;
+			break;
+		default:
+			pr_err("Cannot determine EVB revision. Val = 0x%02x\n",
+			       buf & 0x0f);
+			ret = -ENOTSUPP;
+			goto out;
+		}
+
+		pr_info("EVB revision %i\n", evb_revision);
+	} else if (of_machine_is_compatible("diasom,ds-rk3588-smarc-evb")) {
 		//TODO:
 	} else
-		pr_warn("Unknown board variant!\n");
+		pr_info("RAW module variant used.\n");
 
+out:
 	if (do_probe) {
 		struct device_node *root = of_get_root_node();
 

@@ -719,7 +719,6 @@
 &usb_host0_xhci {
 	/* USB3_HOST0 XHCI-mode X28 */
 	dr_mode = "host";
-	usb-role-switch;
 	status = "okay";
 
 	ports {
@@ -802,7 +801,7 @@
 		port@3 {
 			reg = <3>;
 
-			usbdp_phy0_dp_out: endpoint@3 {
+			usbdp_phy0_dp_out: endpoint {
 				remote-endpoint = <&typec0_sbu>;
 			};
 		};

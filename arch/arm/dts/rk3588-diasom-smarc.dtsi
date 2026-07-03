@@ -129,6 +129,16 @@
 
 /delete-node/ &xin32k;
 
+&av1d {
+	/* Missing driver */
+	/delete-property/ iommus;
+};
+
+&av1d_mmu {
+	/* Missing driver */
+	status = "disabled";
+};
+
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0>;
 };
@@ -609,6 +619,16 @@
 	};
 };
 
+&rga3_core0 {
+	/* Missing driver */
+	status = "disabled";
+};
+
+&rga3_core1 {
+	/* Missing driver */
+	status = "disabled";
+};
+
 &rknn_core_0 {
 	npu-supply = <&vdd_npu>;
 	sram-supply = <&vdd_npu>;
@@ -713,13 +733,8 @@
 	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn &uart9m2_rtsn>;
 };
 
-&vdec0 {
-	/* Missing driver */
-	status = "disabled";
-};
-
 &vdec1 {
-	/* Missing driver */
+	/* Missing multi-core support */
 	status = "disabled";
 };
 

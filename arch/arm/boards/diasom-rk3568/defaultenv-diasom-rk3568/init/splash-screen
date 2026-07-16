@@ -2,16 +2,22 @@
 
 if [ -f /env/data/logo.png ]; then
 	# Check for HDMI on /dev/fb0
-	[ -e /dev/fb0 ] || exit 0
+	if [ -e /dev/fb0 ] && [ "$fb0.mode_name" != "invalid:0" ]; then
+		# Enable framebuffer on HDMI output
+		fb0.enable=1
 
-	# Check HDMI is connected
-	[ "$fb0.mode_name" = "invalid:0" ] && exit 0
+		# Show DIASOM logo
+		splash -f /dev/fb0 /env/data/logo.png
+	fi
 
-	# Enable framebuffer on HDMI output
-	fb0.enable=1
+	# Check for DSI on /dev/fb1
+	if [ -e /dev/fb1 ] && [ "$fb1.mode_name" != "invalid:0" ]; then
+		# Enable framebuffer on DSI output
+		fb1.enable=1
 
-	# Show DIASOM logo
-	splash -f /dev/fb0 /env/data/logo.png
+		# Show DIASOM logo
+		splash -f /dev/fb1 /env/data/logo.png
+	fi
 fi
 
 exit 0

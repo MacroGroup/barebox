@@ -7,8 +7,6 @@
 
 #include "rk3568-diasom-som.dtsi"
 
-#define USBOTG_HOST
-
 / {
 	model = "Diasom DS-RK3568-SOM-EVB";
 	compatible = "diasom,ds-rk3568-som-evb",
@@ -453,11 +451,7 @@
 
 		connector {
 			compatible = "usb-c-connector";
-#ifdef USBOTG_HOST
-			data-role = "host";
-#else
 			data-role = "dual";
-#endif
 			label = "USB-C";
 			pd-disable;
 			power-role = "source";
@@ -842,11 +836,8 @@
 };
 
 &usb_host0_xhci {
-#ifdef USBOTG_HOST
-	dr_mode = "host";
-#else
 	usb-role-switch;
-#endif
+	role-switch-default-mode = "peripheral";
 
 	port {
 		/* Role Switch */

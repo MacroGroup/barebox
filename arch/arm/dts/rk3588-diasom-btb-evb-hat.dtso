@@ -20,6 +20,11 @@
 	status = "okay";
 };
 
+&i2c4 {
+	pinctrl-0 = <&i2c4m4_xfer>;
+	status = "okay";
+};
+
 &pwm1 {
 	pinctrl-0 = <&pwm1m2_pins>;
 	status = "okay";

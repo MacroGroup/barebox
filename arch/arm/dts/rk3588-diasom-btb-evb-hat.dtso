@@ -23,3 +23,12 @@
 &uart6 {
 	status = "okay";
 };
+
+&uart7 {
+	pinctrl-0 = <&uart7m2_xfer>;
+	status = "okay";
+};
+
+&uart9 {
+	status = "okay";
+};

@@ -20,6 +20,26 @@
 	status = "okay";
 };
 
+&pwm1 {
+	pinctrl-0 = <&pwm1m2_pins>;
+	status = "okay";
+};
+
+&pwm3 {
+	pinctrl-0 = <&pwm3m3_pins>;
+	status = "okay";
+};
+
+&pwm4 {
+	pinctrl-0 = <&pwm4m1_pins>;
+	status = "okay";
+};
+
+&pwm15 {
+	pinctrl-0 = <&pwm15m3_pins>;
+	status = "okay";
+};
+
 &uart6 {
 	status = "okay";
 };

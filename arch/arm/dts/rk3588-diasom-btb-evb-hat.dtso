@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pinctrl/rockchip.h>
+
+&{/} {
+	model = "Diasom DS-RK3588-BTB-EVB-HAT";
+	compatible = "diasom,ds-rk3588-btb-evb-hat",
+		     "diasom,ds-rk3588-btb-evb",
+		     "diasom,ds-rk3588-btb",
+		     "rockchip,rk3588";
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1m4_xfer>;
+	clock-frequency = <400000>;
+	status = "okay";
+};

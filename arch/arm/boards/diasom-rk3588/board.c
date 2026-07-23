@@ -7,9 +7,12 @@
 #include <environment.h>
 #include <envfs.h>
 #include <globalvar.h>
+#include <gpio.h>
 #include <init.h>
 #include <machine_id.h>
 #include <i2c/i2c.h>
+
+#define RKGPIO(bank,port,pin)	((bank) * 32 + ((port) - 'A') * 8 + (pin))
 
 static int __init diasom_rk3588_probe_i2c(struct i2c_adapter *adapter,
 					  const int addr)
@@ -117,7 +120,7 @@ static int __init diasom_rk3588_machine_id(void)
 }
 of_populate_initcall(diasom_rk3588_machine_id);
 
-__maybe_unused static bool __init diasom_rk3588_load_overlay(const void *ovl)
+static bool __init diasom_rk3588_load_overlay(const void *ovl)
 {
 	if (ovl) {
 		int ret;
@@ -130,6 +133,24 @@ __maybe_unused static bool __init diasom_rk3588_load_overlay(const void *ovl)
 	}
 
 	return false;
+}
+
+static bool  __init diasom_rk3588_detect_btb_evb_hat(void)
+{
+#	define I2C1_SCL_M4	RKGPIO(1, 'D', 2)
+#	define I2C1_SDA_M4	RKGPIO(1, 'D', 3)
+	int i2c_pull = gpio_get_value(I2C1_SCL_M4) | gpio_get_value(I2C1_SDA_M4);
+	extern char __dtbo_rk3588_diasom_btb_evb_hat_start[];
+	void *hat_ovl;
+
+	if (i2c_pull != 1)
+		return false;
+
+	hat_ovl = __dtbo_rk3588_diasom_btb_evb_hat_start;
+
+	pr_info("EVB HAT Addon detected.\n");
+
+	return diasom_rk3588_load_overlay(hat_ovl);
 }
 
 static int __init diasom_rk3588_init(void)
@@ -202,7 +223,9 @@ static int __init diasom_rk3588_init(void)
 			goto out;
 		}
 
-		pr_info("EVB revision %i\n", evb_revision);
+		pr_info("EVB revision: %i\n", evb_revision);
+
+		do_probe = do_probe || diasom_rk3588_detect_btb_evb_hat();
 	} else if (of_machine_is_compatible("diasom,ds-rk3588-smarc-evb")) {
 		//TODO:
 	} else

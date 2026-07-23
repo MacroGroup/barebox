@@ -19,3 +19,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 };
+
+&uart6 {
+	status = "okay";
+};

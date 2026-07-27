@@ -8,6 +8,14 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
+&fusb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&fusb302_pins>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <RK_PC1 IRQ_TYPE_LEVEL_LOW>;
+	status = "okay";
+};
+
 &gmac0 {
 	status = "okay";
 };
@@ -18,14 +26,6 @@
 
 &i2c4 {
 	clock-frequency = <400000>;
-};
-
-&typec {
-	pinctrl-names = "default";
-	pinctrl-0 = <&fusb302_pins>;
-	interrupt-parent = <&gpio0>;
-	interrupts = <RK_PC1 IRQ_TYPE_LEVEL_LOW>;
-	status = "okay";
 };
 
 &vcc_cam0 {

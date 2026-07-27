@@ -171,8 +171,8 @@
 
 		port {
 			/* Orientation Switch */
-			typec_sbu: endpoint {
-				remote-endpoint = <&fusb_sbu>;
+			gpio_sbu: endpoint {
+				remote-endpoint = <&typec_sbu>;
 			};
 		};
 	};
@@ -443,7 +443,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	typec: usb@22 {
+	fusb: usb@22 {
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
 		vbus-supply = <&vcc5v0_usb3_otg0>;
@@ -465,8 +465,8 @@
 					/* HS */
 					reg = <0>;
 
-					fusb_hs: endpoint {
-						remote-endpoint = <&typec_hs>;
+					typec_hs: endpoint {
+						remote-endpoint = <&usb_host0_xhci_hs>;
 					};
 				};
 
@@ -474,8 +474,8 @@
 					/* SS */
 					reg = <1>;
 
-					fusb_ss: endpoint {
-						remote-endpoint = <&typec_ss>;
+					typec_ss: endpoint {
+						remote-endpoint = <&usb_host0_xhci_ss>;
 					};
 				};
 
@@ -483,8 +483,8 @@
 					/* Orientation Switch */
 					reg = <2>;
 
-					fusb_sbu: endpoint {
-						remote-endpoint = <&typec_sbu>;
+					typec_sbu: endpoint {
+						remote-endpoint = <&gpio_sbu>;
 					};
 				};
 			};
@@ -493,7 +493,7 @@
 		port {
 			/* Role Switch */
 			fusb_role_sw: endpoint {
-				remote-endpoint = <&typec_role_sw>;
+				remote-endpoint = <&usb_host0_xhci_role_sw>;
 			};
 		};
 	};
@@ -839,13 +839,6 @@
 	usb-role-switch;
 	role-switch-default-mode = "peripheral";
 
-	port {
-		/* Role Switch */
-		typec_role_sw: endpoint {
-			remote-endpoint = <&fusb_role_sw>;
-		};
-	};
-
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -854,8 +847,8 @@
 			/* HS */
 			reg = <0>;
 
-			typec_hs: endpoint {
-				remote-endpoint = <&fusb_hs>;
+			usb_host0_xhci_hs: endpoint {
+				remote-endpoint = <&typec_hs>;
 			};
 		};
 
@@ -863,8 +856,17 @@
 			/* SS */
 			reg = <1>;
 
-			typec_ss: endpoint {
-				remote-endpoint = <&fusb_ss>;
+			usb_host0_xhci_ss: endpoint {
+				remote-endpoint = <&typec_ss>;
+			};
+		};
+
+		port@2 {
+			/* Role Switch */
+			reg = <2>;
+
+			usb_host0_xhci_role_sw: endpoint {
+				remote-endpoint = <&fusb_role_sw>;
 			};
 		};
 	};

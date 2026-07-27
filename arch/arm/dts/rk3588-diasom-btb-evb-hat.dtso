@@ -18,31 +18,39 @@
 	pinctrl-0 = <&i2c1m4_xfer>;
 	clock-frequency = <400000>;
 	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
 };
 
 &i2c4 {
 	pinctrl-0 = <&i2c4m4_xfer>;
 	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
 };
 
 &pwm1 {
 	pinctrl-0 = <&pwm1m2_pins>;
 	status = "okay";
+	#pwm-cells = <3>;
 };
 
 &pwm3 {
 	pinctrl-0 = <&pwm3m3_pins>;
 	status = "okay";
+	#pwm-cells = <3>;
 };
 
 &pwm4 {
 	pinctrl-0 = <&pwm4m1_pins>;
 	status = "okay";
+	#pwm-cells = <3>;
 };
 
 &pwm15 {
 	pinctrl-0 = <&pwm15m3_pins>;
 	status = "okay";
+	#pwm-cells = <3>;
 };
 
 &uart6 {

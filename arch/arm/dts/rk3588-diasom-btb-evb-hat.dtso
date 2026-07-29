@@ -4,6 +4,7 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 &{/} {
@@ -53,6 +54,21 @@
 	#pwm-cells = <3>;
 };
 
+&spi0 {
+	pinctrl-0 = <&spi0m1_pins &spi0_cs0>;
+	num-cs = <1>;
+	cs-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_LOW>;
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+	};
+};
+
 &uart6 {
 	status = "okay";
 };
@@ -64,4 +80,13 @@
 
 &uart9 {
 	status = "okay";
+};
+
+&pinctrl {
+	spi-bus {
+		spi0_cs0: spi0-cs0-pins {
+			rockchip,pins =
+				<4 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 };

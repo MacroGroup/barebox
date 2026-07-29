@@ -286,13 +286,16 @@ config STACK_BASE
 
 config STACK_SIZE
 	hex
+	range 0x20000 0xffffffff if EFI_LOADER
+	default 0x20000 if EFI_LOADER
 	default 0x8000
 	prompt "Stack size"
+	help
+	  Size of the barebox call stack.
 
-config MALLOC_BASE
-	depends on MEMORY_LAYOUT_FIXED
-	hex
-	prompt "MALLOC_BASE"
+	  The UEFI specification requires at least 128 KiB of stack space
+	  when calling EFI applications. Enforce that minimum for builds
+	  that provide the EFI loader.
 
 config MALLOC_SIZE
 	hex
@@ -1374,7 +1377,7 @@ config SERIAL_NUMBER_FIXUP_SYSTEMD_HOSTNAME
 	  When a systemd.hostname= kernel command line argument is
 	  fixed up, append a `-${global.serial_number}' suffix.
 
-	  This option without effect if global.bootm.provide_hostname
+	  This option is without effect if global.bootm.provide_hostname
 	  is unset.
 
 config SYSTEMD_OF_WATCHDOG

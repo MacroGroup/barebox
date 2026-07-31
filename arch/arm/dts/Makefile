@@ -33,6 +33,7 @@ lwl-$(CONFIG_MACH_DIASOM_DS_RK3568) += rk3568-diasom-som-sodimm-evb.dtb.o
 lwl-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-btb-evb.dtb.o
 obj-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-btb-evb-hat.dtbo.o
 obj-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-btb-evb-cam0-ar0234.dtbo.o
+obj-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-btb-evb-cam1-ar0234.dtbo.o
 
 lwl-$(CONFIG_MACH_DIASOM_DS_RK3588) += rk3588-diasom-smarc-evb.dtb.o
 

@@ -135,7 +135,7 @@ static bool __init diasom_rk3588_load_overlay(const void *ovl)
 	return false;
 }
 
-static bool  __init diasom_rk3588_detect_btb_evb_hat(void)
+static bool __init diasom_rk3588_detect_btb_evb_hat(void)
 {
 #	define I2C1_SCL_M4	RKGPIO(1, 'D', 2)
 #	define I2C1_SDA_M4	RKGPIO(1, 'D', 3)
@@ -152,6 +152,54 @@ static bool  __init diasom_rk3588_detect_btb_evb_hat(void)
 
 	return diasom_rk3588_load_overlay(hat_ovl);
 }
+
+static bool __init diasom_rk3588_detect_btb_evb_cam0_cameras(void)
+{
+	struct i2c_adapter *adapter = diasom_rk3588_i2c_get_adapter(9);
+	void *cam_ovl;
+
+	if (!adapter)
+		return false;
+
+	if (!diasom_rk3588_probe_i2c(adapter, 0x18)) {
+		extern char __dtbo_rk3588_diasom_btb_evb_cam0_ar0234_start[];
+
+		pr_info("CAM0: Camera AR0234 detected.\n");
+
+		cam_ovl = __dtbo_rk3588_diasom_btb_evb_cam0_ar0234_start;
+
+		return diasom_rk3588_load_overlay(cam_ovl);
+	}
+
+	pr_info("CAM0: No cameras detected.\n");
+
+	return false;
+}
+
+static bool __init diasom_rk3588_detect_btb_evb_cam1_cameras(void)
+{
+	struct i2c_adapter *adapter = diasom_rk3588_i2c_get_adapter(10);
+
+	if (!adapter)
+		return false;
+
+	//TODO:
+
+	pr_info("CAM1: No cameras detected.\n");
+
+	return false;
+}
+
+static int __init diasom_rk3588_late_init(void)
+{
+	if (of_machine_is_compatible("diasom,ds-rk3588-btb-evb")) {
+		diasom_rk3588_detect_btb_evb_cam0_cameras();
+		diasom_rk3588_detect_btb_evb_cam1_cameras();
+	}
+
+	return 0;
+}
+late_initcall(diasom_rk3588_late_init);
 
 static int __init diasom_rk3588_init(void)
 {
@@ -225,7 +273,8 @@ static int __init diasom_rk3588_init(void)
 
 		pr_info("EVB revision: %i\n", evb_revision);
 
-		do_probe = do_probe || diasom_rk3588_detect_btb_evb_hat();
+		if (diasom_rk3588_detect_btb_evb_hat())
+			do_probe = true;
 	} else if (of_machine_is_compatible("diasom,ds-rk3588-smarc-evb")) {
 		//TODO:
 	} else

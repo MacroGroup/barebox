@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-FileCopyrightText: Alexander Shiyan <shc_work@mail.ru> */
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	cam0clk: cam0clk {
+		compatible = "fixed-clock";
+		clock-frequency = <27000000>;
+		#clock-cells = <0>;
+	};
+};
+
+&csi2 {
+	status = "okay";
+};
+
+&csi2_in {
+	ar0234_csi2_in: endpoint {
+		data-lanes = <1 2 3 4>;
+		link-frequencies = /bits/ 64 <360000000 450000000>;
+		remote-endpoint = <&ar0234_csi2_out>;
+	};
+};
+
+&i2c9 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera@18 {
+		compatible = "onnn,ar0234cs";
+		reg = <0x18>;
+		clocks = <&cam0clk>;
+		vaa-supply = <&vcc_cam0>;
+		vdd-supply = <&vcc_cam0>;
+		vddio-supply = <&vcc_cam0>;
+
+		port {
+			ar0234_csi2_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&ar0234_csi2_in>;
+				link-frequencies = /bits/ 64 <360000000 450000000>;
+			};
+		};
+	};
+};

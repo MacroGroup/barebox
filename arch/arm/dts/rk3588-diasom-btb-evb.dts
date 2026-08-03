@@ -237,6 +237,16 @@
 		vin-supply = <&vcc_3v3_sys>;
 	};
 
+	vcc_lcd: vcc-lcd-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&exp 13 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_lcd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_sys>;
+	};
+
 	vcc_pcie30: vcc-pcie30-regulator {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie30_vcc_pins>;
@@ -253,6 +263,7 @@
 &brg {
 	panel-enable-gpios = <&exp 15 GPIO_ACTIVE_HIGH>;
 	panel-reset-gpios = <&exp 14 GPIO_ACTIVE_LOW>;
+	panel-power-supply = <&vcc_lcd>;
 	panel-backlight = <&backlight>;
 	panel-reset-delay-ms = <10>;
 	panel-enable-delay-ms = <10>;

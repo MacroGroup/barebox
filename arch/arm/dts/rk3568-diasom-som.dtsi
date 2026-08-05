@@ -313,7 +313,9 @@
 				regulator-ramp-delay = <6001>;
 
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					/* Proper exit from "suspend to mem" mode */
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 
@@ -387,7 +389,9 @@
 				regulator-max-microvolt = <900000>;
 
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					/* Proper exit from "suspend to mem" mode */
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 

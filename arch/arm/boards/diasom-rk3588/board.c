@@ -14,6 +14,13 @@
 
 #define RKGPIO(bank,port,pin)	((bank) * 32 + ((port) - 'A') * 8 + (pin))
 
+#define SONY_CAMERA_I2C_ADDR	0x1a
+
+struct cameras {
+	int (*detect)(struct i2c_client *, const char *prefix);
+	void *overlay;
+};
+
 static int __init diasom_rk3588_probe_i2c(struct i2c_adapter *adapter,
 					  const int addr)
 {
@@ -153,57 +160,65 @@ static bool __init diasom_rk3588_detect_btb_evb_hat(void)
 	return diasom_rk3588_load_overlay(hat_ovl);
 }
 
-static bool __init diasom_rk3588_detect_btb_evb_cam0_cameras(void)
+static int __init diasom_rk3588_sony_camera_detect(struct i2c_adapter *adapter,
+						   const char *prefix,
+						   const struct cameras *cameras)
 {
-	struct i2c_adapter *adapter = diasom_rk3588_i2c_get_adapter(9);
-	void *cam_ovl;
+	struct i2c_client client;
 
-	if (!adapter)
-		return false;
+	if (diasom_rk3588_probe_i2c(adapter, SONY_CAMERA_I2C_ADDR))
+		return -ENODEV;
 
-	if (!diasom_rk3588_probe_i2c(adapter, 0x18)) {
-		extern char __dtbo_rk3588_diasom_btb_evb_cam0_ar0234_start[];
+	client.adapter = adapter;
+	client.addr = SONY_CAMERA_I2C_ADDR;
 
-		pr_info("CAM0: Camera AR0234 detected.\n");
+	for (int i = 0; cameras[i].detect; i++)
+		if (!cameras[i].detect(&client, prefix))
+			return diasom_rk3588_load_overlay(cameras[i].overlay);
 
-		cam_ovl = __dtbo_rk3588_diasom_btb_evb_cam0_ar0234_start;
-
-		return diasom_rk3588_load_overlay(cam_ovl);
-	}
-
-	pr_info("CAM0: No cameras detected.\n");
-
-	return false;
+	return -ENODEV;
 }
 
-static bool __init diasom_rk3588_detect_btb_evb_cam1_cameras(void)
+static void __init diasom_rk3588_detect_btb_evb_cameras(int adapter_nr,
+	const char *prefix, const struct cameras *cameras,
+	void *dtbo_ar0234_start)
 {
-	struct i2c_adapter *adapter = diasom_rk3588_i2c_get_adapter(10);
-	void *cam_ovl;
+	struct i2c_adapter *adapter = diasom_rk3588_i2c_get_adapter(adapter_nr);
 
 	if (!adapter)
-		return false;
+		return;
 
 	if (!diasom_rk3588_probe_i2c(adapter, 0x18)) {
-		extern char __dtbo_rk3588_diasom_btb_evb_cam1_ar0234_start[];
+		pr_info("%s: Camera AR0234 detected.\n", prefix);
 
-		pr_info("CAM1: Camera AR0234 detected.\n");
+		diasom_rk3588_load_overlay(dtbo_ar0234_start);
 
-		cam_ovl = __dtbo_rk3588_diasom_btb_evb_cam1_ar0234_start;
-
-		return diasom_rk3588_load_overlay(cam_ovl);
+		return;
 	}
 
-	pr_info("CAM1: No cameras detected.\n");
+	if (!diasom_rk3588_sony_camera_detect(adapter, prefix, cameras))
+		return;
 
-	return false;
+	pr_info("%s: No cameras detected.\n", prefix);
 }
 
 static int __init diasom_rk3588_late_init(void)
 {
 	if (of_machine_is_compatible("diasom,ds-rk3588-btb-evb")) {
-		diasom_rk3588_detect_btb_evb_cam0_cameras();
-		diasom_rk3588_detect_btb_evb_cam1_cameras();
+		extern char __dtbo_rk3588_diasom_btb_evb_cam0_ar0234_start[];
+		extern char __dtbo_rk3588_diasom_btb_evb_cam1_ar0234_start[];
+		const struct cameras cam0_sony[] = {
+			{ }
+		};
+		const struct cameras cam1_sony[] = {
+			{ }
+		};
+
+		diasom_rk3588_detect_btb_evb_cameras(9, "CAM0", cam0_sony,
+			__dtbo_rk3588_diasom_btb_evb_cam0_ar0234_start);
+
+		diasom_rk3588_detect_btb_evb_cameras(10, "CAM1", cam1_sony,
+			__dtbo_rk3588_diasom_btb_evb_cam1_ar0234_start);
 	}
 
 	return 0;

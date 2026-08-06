@@ -198,7 +198,7 @@
 	/* m41t62lc6f */
 	rtc: rtc@68 {
 		pinctrl-names = "default";
-		pinctrl-0 = <&rtc_pins>;
+		pinctrl-0 = <&rtc_sqw_pins>;
 		compatible = "st,m41t62";
 		reg = <0x68>;
 
@@ -655,7 +655,7 @@
 	};
 
 	rtc {
-		rtc_pins: rtc-pins {
+		rtc_sqw_pins: rtc-sqw-pins {
 			rockchip,pins =
 				<0 RK_PB2 1 &pcfg_pull_up>;			/* clk32k_in */
 		};

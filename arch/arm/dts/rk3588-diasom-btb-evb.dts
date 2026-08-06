@@ -752,6 +752,13 @@
 	status = "okay";
 };
 
+&rtc {
+	pinctrl-0 = <&rtc_sqw_pins &rtc_irq_pins>;
+	interrupt-parent = <&gpio1>;
+	interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
+	wakeup-source;
+};
+
 &sdmmc {
 	bus-width = <4>;
 	disable-wp;
@@ -1007,6 +1014,13 @@
 		pcie3x4_pins: pci3x4-pins {
 			rockchip,pins =
 				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;		/* pcie30x4_perstn_m3 */
+		};
+	};
+
+	rtc {
+		rtc_irq_pins: rtc-irq-pins {
+			rockchip,pins =
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* irq_rtc */
 		};
 	};
 

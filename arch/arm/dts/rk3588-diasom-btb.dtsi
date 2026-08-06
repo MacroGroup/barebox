@@ -113,6 +113,7 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <675000>;
 		regulator-max-microvolt = <950000>;
+		regulator-enable-ramp-delay = <500>;
 		regulator-ramp-delay = <2300>;
 		vin-supply = <&vcc4v0_sys>;
 
@@ -129,6 +130,7 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <675000>;
 		regulator-max-microvolt = <950000>;
+		regulator-enable-ramp-delay = <500>;
 		regulator-ramp-delay = <2300>;
 		vin-supply = <&vcc4v0_sys>;
 
@@ -149,6 +151,7 @@
 		regulator-name = "vdd_npu";
 		regulator-min-microvolt = <675000>;
 		regulator-max-microvolt = <950000>;
+		regulator-enable-ramp-delay = <500>;
 		regulator-ramp-delay = <2300>;
 		vin-supply = <&vcc4v0_sys>;
 
@@ -350,7 +353,6 @@
 		regulators {
 			vdd_gpu: dcdc-reg1 {
 				regulator-name = "vdd_gpu";
-				regulator-boot-on;
 				regulator-min-microvolt = <675000>;
 				regulator-max-microvolt = <950000>;
 				regulator-enable-ramp-delay = <400>;
@@ -415,9 +417,12 @@
 				regulator-name = "vdd2_ddr";
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
 
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1100000>;
 				};
 			};
 
@@ -450,9 +455,12 @@
 				regulator-name = "vddq_ddr";
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <600000>;
 
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <600000>;
 				};
 			};
 
@@ -533,15 +541,9 @@
 			};
 
 			pldo-reg6 {
-				regulator-name = "vcca_1v8_pldo6";
-				regulator-always-on;
-				regulator-boot-on;
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-
+				/* Unused */
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1800000>;
+					regulator-off-in-suspend;
 				};
 			};
 

@@ -4,6 +4,8 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/media/video-interfaces.h>
+
 &{/} {
 	cam1clk: cam0clk {
 		compatible = "fixed-clock";
@@ -18,6 +20,7 @@
 
 &csi4_in {
 	ar0234_csi4_in: endpoint {
+		bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
 		data-lanes = <1 2 3 4>;
 		link-frequencies = /bits/ 64 <360000000 450000000>;
 		remote-endpoint = <&ar0234_csi4_out>;

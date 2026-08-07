@@ -442,7 +442,7 @@
 };
 
 &hdmi_receiver {
-	//FIXME: Cannot be used until 7+ kernel & Open-source TF-A
+	//FIXME: Should be used with Open-source TF-A
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmim1_rx_scl &hdmim1_rx_sda &hdmim1_rx_cec &hdmim1_rx_hpdin>;
 	hpd-gpios = <&exp 12 GPIO_ACTIVE_LOW>;

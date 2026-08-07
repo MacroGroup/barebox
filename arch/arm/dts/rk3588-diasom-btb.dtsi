@@ -149,6 +149,9 @@
 		reg = <0x42>;
 		fcs,suspend-voltage-selector = <1>;
 		regulator-name = "vdd_npu";
+		/* boot/always-on are used to proper exit from "freeze" */
+		regulator-always-on;
+		regulator-boot-on;
 		regulator-min-microvolt = <675000>;
 		regulator-max-microvolt = <950000>;
 		regulator-enable-ramp-delay = <500>;
@@ -390,6 +393,9 @@
 
 			vdd_vdenc: dcdc-reg4 {
 				regulator-name = "vdd_vdenc";
+				/* boot/always-on are used to proper exit from "freeze" */
+				regulator-always-on;
+				regulator-boot-on;
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <750000>;
 				regulator-ramp-delay = <12500>;

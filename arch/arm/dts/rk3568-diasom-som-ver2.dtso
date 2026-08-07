@@ -50,6 +50,7 @@
 		regulator-name = "vdd_cpu";
 		regulator-min-microvolt = <900000>;
 		regulator-max-microvolt = <1150000>;
+		regulator-enable-ramp-delay = <500>;
 		regulator-ramp-delay = <2300>;
 		vin-supply = <&vcc3v3_pmu>;
 		

@@ -128,10 +128,6 @@
 	status = "okay";
 };
 
-&gmac1 {
-	status = "okay";
-};
-
 &pcie2x1 {
 	status = "okay";
 };

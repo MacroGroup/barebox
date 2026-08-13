@@ -391,7 +391,6 @@
 };
 
 &hdmi0 {
-	//FIXME: Warnings during boot
 	pinctrl-0 = <&hdmim0_tx0_hpd &hdmim2_tx0_scl &hdmim2_tx0_sda>;
 	status = "okay";
 };
@@ -414,7 +413,6 @@
 };
 
 &hdmi1 {
-	//FIXME: Warnings during boot
 	pinctrl-0 = <&hdmim1_tx1_hpd &hdmim2_tx1_cec &hdmim1_tx1_scl &hdmim1_tx1_sda>;
 	frl-enable-gpios = <&exp 11 GPIO_ACTIVE_LOW>;
 	status = "okay";

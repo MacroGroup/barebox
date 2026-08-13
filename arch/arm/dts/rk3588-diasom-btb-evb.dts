@@ -445,7 +445,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmim1_rx_scl &hdmim1_rx_sda &hdmim1_rx_cec &hdmim1_rx_hpdin>;
 	hpd-gpios = <&exp 12 GPIO_ACTIVE_LOW>;
-	hpd-is-active-low;
 	status = "okay";
 };
 

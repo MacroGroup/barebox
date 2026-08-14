@@ -339,7 +339,7 @@
 };
 
 &dp0 {
-//	status = "okay";
+	status = "okay";
 };
 
 &dp0_in {

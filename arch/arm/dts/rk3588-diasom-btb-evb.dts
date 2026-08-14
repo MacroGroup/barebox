@@ -349,7 +349,9 @@
 };
 
 &dp0_out {
-	//TODO:
+	dp0_out_usbdp: endpoint {
+		remote-endpoint = <&usbdp_phy0_dp>;
+	};
 };
 
 &gmac0 {
@@ -843,8 +845,17 @@
 		};
 
 		port@2 {
-			/* Orientation Switch */
+			/* DP */
 			reg = <2>;
+
+			usbdp_phy0_dp: endpoint {
+				remote-endpoint = <&dp0_out_usbdp>;
+			};
+		};
+
+		port@3 {
+			/* Orientation Switch */
+			reg = <3>;
 
 			usbdp_phy0_sbu: endpoint {
 				remote-endpoint = <&typec0_sbu>;

@@ -524,7 +524,7 @@
 							reg = <1>;
 
 							typec0_ss: endpoint {
-								remote-endpoint = <&usb_host0_xhci_ss>;
+								remote-endpoint = <&usbdp_phy0_ss>;
 							};
 						};
 
@@ -533,7 +533,7 @@
 							reg = <2>;
 
 							typec0_sbu: endpoint {
-								remote-endpoint = <&usbdp_phy0_dp_sbu>;
+								remote-endpoint = <&usbdp_phy0_sbu>;
 							};
 						};
 					};
@@ -783,11 +783,11 @@
 		};
 
 		port@1 {
-			/* SS */
+			/* XHCI <-> DP */
 			reg = <1>;
 
 			usb_host0_xhci_ss: endpoint {
-				remote-endpoint = <&typec0_ss>;
+				remote-endpoint = <&usbdp_phy0_ss_in>;
 			};
 		};
 	};
@@ -825,10 +825,28 @@
 		#size-cells = <0>;
 
 		port@0 {
-			/* Orientation Switch */
+			/* SS */
 			reg = <0>;
 
-			usbdp_phy0_dp_sbu: endpoint {
+			usbdp_phy0_ss: endpoint {
+				remote-endpoint = <&typec0_ss>;
+			};
+		};
+
+		port@1 {
+			/* XHCI <-> DP */
+			reg = <1>;
+
+			usbdp_phy0_ss_in: endpoint {
+				remote-endpoint = <&usb_host0_xhci_ss>;
+			};
+		};
+
+		port@2 {
+			/* Orientation Switch */
+			reg = <2>;
+
+			usbdp_phy0_sbu: endpoint {
 				remote-endpoint = <&typec0_sbu>;
 			};
 		};

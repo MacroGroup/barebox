@@ -53,16 +53,6 @@
 
 /delete-node/ &xin32k;
 
-&av1d {
-	/* Missing driver */
-	/delete-property/ iommus;
-};
-
-&av1d_mmu {
-	/* Missing driver */
-	status = "disabled";
-};
-
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0>;
 };
@@ -232,13 +222,8 @@
 	};
 };
 
-&rga3_core0 {
-	/* Missing driver */
-	status = "disabled";
-};
-
 &rga3_core1 {
-	/* Missing driver */
+	/* Missing multi-core support */
 	status = "disabled";
 };
 

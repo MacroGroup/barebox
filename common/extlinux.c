@@ -12,7 +12,6 @@
 #include <globalvar.h>
 #include <libfile.h>
 #include <libgen.h>
-#include <malloc.h>
 #include <string.h>
 
 struct extlinux_entry {
@@ -26,38 +25,10 @@ struct extlinux_entry {
 	char *append;
 };
 
-static char *remove_param(const char *params, const char *param)
-{
-	char *result, *dst;
-	const char *src;
-
-	result = xmalloc(strlen(params) + 1);
-
-	src = params;
-	dst = result;
-
-	while (*src) {
-		if (!strncasecmp(src, param, strlen(param))) {
-			while (*src && *src != ' ')
-				src++;
-
-			src = skip_spaces(src);
-
-			continue;
-		}
-
-		*dst++ = *src++;
-	}
-
-	*dst = '\0';
-
-	return result;
-}
-
-static int extlinux_boot(struct bootentry *be, int verbose, int dryrun)
+static int extlinux_boot(struct bootentry *entry, int verbose, int dryrun)
 {
 	struct extlinux_entry *e =
-		container_of(be, struct extlinux_entry, entry);
+		container_of(entry, struct extlinux_entry, entry);
 	char *kernel_abs, *initrd_abs = NULL, *fdt_abs = NULL;
 	struct bootm_data data = {};
 	int ret;
@@ -82,30 +53,15 @@ static int extlinux_boot(struct bootentry *be, int verbose, int dryrun)
 		data.oftree_file = fdt_abs;
 	}
 
-	if (e->append) {
-		char *append;
-
-		/*
-		 * The same rootfs image may be launched from eMMC or SD card.
-		 * Remove any hardcoded root= parameter from "append" to avoid
-		 * conflicts, then let barebox automatically add the correct
-		 * root= (via global.bootm.appendroot) based on the boot device.
-		 */
-		if (data.appendroot)
-			append = remove_param(e->append, "ROOT=");
-		else
-			append = xstrdup(e->append);
-
-		globalvar_add_simple("linux.bootargs.dyn.extlinux", append);
-
-		free(append);
-	}
+	if (e->append)
+		globalvar_add_simple("linux.bootargs.dyn.bootentries",
+				     e->append);
 
 	pr_info("Booting extlinux label '%s'\n", e->label);
 
-	ret = bootm_boot(&data);
+	ret = bootm_entry(entry, &data);
 	if (ret)
-		pr_err("bootm failed: %s\n", strerror(-ret));
+		pr_err("bootm failed: %pe\n", ERR_PTR(ret));
 
 	free(kernel_abs);
 	free(initrd_abs);
@@ -114,10 +70,10 @@ static int extlinux_boot(struct bootentry *be, int verbose, int dryrun)
 	return ret;
 }
 
-static void extlinux_entry_free(struct bootentry *be)
+static void extlinux_entry_free(struct bootentry *entry)
 {
 	struct extlinux_entry *e =
-		container_of(be, struct extlinux_entry, entry);
+		container_of(entry, struct extlinux_entry, entry);
 
 	free(e->rootpath);
 	free(e->label);
@@ -129,6 +85,10 @@ static void extlinux_entry_free(struct bootentry *be)
 	free(e);
 }
 
+/*
+ * Parse extlinux.conf. Only the entry pointed to by the DEFAULT keyword
+ * is extracted; all other LABEL sections are ignored.
+ */
 static struct extlinux_entry *parse_extlinux_conf(const char *abspath,
 						  const char *rootpath)
 {
@@ -231,6 +191,7 @@ static int extlinux_scan_file(struct bootscanner *scanner,
 			      const char *configname)
 {
 	const char *rootpath = get_mounted_path(configname);
+
 	if (IS_ERR(rootpath))
 		return PTR_ERR(rootpath);
 

@@ -1,9 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-# just to build a built-in.o. Otherwise compilation fails when no devicetree is
-# created.
-obj- += dummy.o
-
 lwl-$(CONFIG_MACH_ADVANTECH_ROM_742X) += imx6dl-advantech-rom-7421.dtb.o
 lwl-$(CONFIG_MACH_AFI_GF) += am335x-afi-gf.dtb.o
 lwl-$(CONFIG_MACH_AM625_SK) += k3-am625-sk.dtb.o k3-am625-r5-sk.dtb.o k3-am625sip-r5-sk.dtb.o
@@ -61,6 +57,7 @@ lwl-$(CONFIG_MACH_DIGI_CCIMX6ULSBCPRO) += imx6ul-ccimx6ulsbcpro.dtb.o
 lwl-$(CONFIG_MACH_FREESCALE_MX53_VMX53) += imx53-voipac-bsb.dtb.o
 lwl-$(CONFIG_MACH_FREESCALE_MX7_SABRESD) += imx7d-sdb.dtb.o
 lwl-$(CONFIG_MACH_MEERKAT96) += imx7d-meerkat96.dtb.o
+lwl-$(CONFIG_MACH_GIRA_NCP) += imx8mm-gira-ncp.dtb.o
 lwl-$(CONFIG_MACH_GK802) += imx6q-gk802.dtb.o
 lwl-$(CONFIG_MACH_GLOBALSCALE_GURUPLUG) += kirkwood-guruplug-server-plus-bb.dtb.o
 lwl-$(CONFIG_MACH_GLOBALSCALE_MIRABOX) += armada-370-mirabox-bb.dtb.o

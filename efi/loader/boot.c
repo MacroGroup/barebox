@@ -370,7 +370,7 @@ static efi_status_t EFIAPI efi_get_memory_map_ext(
 	r = efi_get_memory_map(memory_map_size, memory_map, map_key,
 			       descriptor_size, descriptor_version);
 
-	__EFI_PRINT("%sEFI: Exit: %s(%zu@%p, %p, 0x%lx@%p, %zu@%p, %u@%p): %u\n",
+	__EFI_PRINT("%sEFI: Exit: %s(%zu@%p, %p, 0x%zx@%p, %zu@%p, %u@%p): %u\n",
 		    __efi_nesting_dec(), __func__,
 		    *memory_map_size, memory_map_size, memory_map,
 		    *map_key, map_key, *descriptor_size, descriptor_size,
@@ -736,6 +736,27 @@ static efi_status_t EFIAPI efi_create_event_ext(
 }
 
 /**
+ * efi_timer_rearm_periodic() - re-arm a periodic timer after it fired
+ * @evt:	timer event
+ * @now:	current time in ns
+ *
+ * Timers are polled. If a periodic timer is serviced late, signal it once
+ * and skip missed intervals so clients do not drain a backlog of stale ticks.
+ */
+static void efi_timer_rearm_periodic(struct efi_event *evt, u64 now)
+{
+	u64 periods;
+
+	if (!evt->trigger_time) {
+		evt->trigger_next = now;
+		return;
+	}
+
+	periods = div64_u64(now - evt->trigger_next, evt->trigger_time) + 1;
+	evt->trigger_next += periods * evt->trigger_time;
+}
+
+/**
  * efi_timer_check() - check if a timer event has occurred
  *
  * Check if a timer event has occurred or a queued notification function should
@@ -760,7 +781,7 @@ void efi_timer_check(void)
 			evt->trigger_type = EFI_TIMER_CANCEL;
 			break;
 		case EFI_TIMER_PERIODIC:
-			evt->trigger_next += evt->trigger_time;
+			efi_timer_rearm_periodic(evt, now);
 			break;
 		default:
 			continue;

@@ -14,6 +14,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 	bison \
 	build-essential \
 	coreutils \
+	dosfstools \
 	flex \
 	gawk \
 	git \
@@ -32,6 +33,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 	lzma-alone \
 	lzop \
 	mount \
+	mtools \
 	musl-tools \
 	openssl \
 	pkg-config \
@@ -54,6 +56,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 	python3-setuptools \
 	python3-virtualenv \
 	python3-yaml \
+	rustc rust-src bindgen rustfmt rust-clippy \
 	virtualenv \
 	sudo \
 	device-tree-compiler \
@@ -65,6 +68,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 
 ENV GCC_VERSION=15.2.0
 ENV LLVM_VERSION=20
+ENV LIBCLANG_PATH=/usr/lib/llvm-19/lib
 
 RUN apt-get update && apt-get install -y --no-install-recommends lsb-release gnupg \
 	&& wget https://apt.llvm.org/llvm.sh \
@@ -113,5 +117,18 @@ ENV LLVM_SUFFIX=-${LLVM_VERSION}
 # Workaround for https://github.com/llvm/llvm-project/issues/112458
 RUN ln -Ts /usr/lib/llvm-${LLVM_VERSION}/lib/clang/${LLVM_VERSION}/lib/linux/ \
            /usr/lib/llvm-${LLVM_VERSION}/lib/clang/${LLVM_VERSION}/lib/x86_64-pc-linux-gnu
+
+ENV OPENSSL_VERSION=3.5.6
+ENV PKG_CONFIG_PATH=/opt/openssl-musl/lib64/pkgconfig
+RUN cd /tmp && \
+	wget https://github.com/openssl/openssl/releases/download/openssl-$OPENSSL_VERSION/openssl-$OPENSSL_VERSION.tar.gz && \
+	echo "deae7c80cba99c4b4f940ecadb3c3338b13cb77418409238e57d7f31f2a3b736 openssl-$OPENSSL_VERSION.tar.gz" | sha256sum --check --status && \
+	tar -xzf openssl-$OPENSSL_VERSION.tar.gz && \
+	cd openssl-$OPENSSL_VERSION && \
+	./Configure linux-x86_64 no-shared no-tests no-secure-memory no-afalgeng \
+		--prefix=/opt/openssl-musl --openssldir=/opt/openssl-musl/ssl CC=musl-gcc && \
+	make -j$(nproc) && make install_sw && \
+	ln -s /opt/openssl-musl/include/openssl /usr/include/x86_64-linux-musl && \
+	rm -rf /tmp/openssl-$OPENSSL_VERSION.tar.gz /tmp/openssl-$OPENSSL_VERSION
 
 USER barebox:barebox

@@ -90,6 +90,26 @@
 	status = "okay";
 };
 
+&hdmi0 {
+	pinctrl-0 = <&hdmim0_tx0_hpd &hdmim2_tx0_scl &hdmim2_tx0_sda>;
+};
+
+&hdmi0_in {
+	hdmi0_in_vp0: endpoint {
+		remote-endpoint = <&vp0_out_hdmi0>;
+	};
+};
+
+&hdmi0_out {
+	hdmi0_out_con: endpoint {
+		remote-endpoint = <&hdmi0_con_in>;
+	};
+};
+
+&hdmi0_sound {
+	simple-audio-card,name = "HDMI0";
+};
+
 &i2c0 {
 	pinctrl-0 = <&i2c0m2_xfer>;
 	clock-frequency = <400000>;

@@ -31,6 +31,34 @@
 		};
 	};
 
+	/* Temporary add until 7.3 */
+	can1: can@fea60000 {
+		compatible = "rockchip,rk3588-canfd";
+		reg = <0x0 0xfea60000 0x0 0x1000>;
+		interrupts = <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH 0>;
+		clocks = <&cru CLK_CAN1>, <&cru PCLK_CAN1>;
+		clock-names = "baud", "pclk";
+		assigned-clocks = <&cru CLK_CAN1>;
+		assigned-clock-rates = <300000000>;
+		resets = <&cru SRST_CAN1>, <&cru SRST_P_CAN1>;
+		reset-names = "can", "apb";
+		status = "disabled";
+	};
+
+	/* Temporary add until 7.3 */
+	can2: can@fea70000 {
+		compatible = "rockchip,rk3588-canfd";
+		reg = <0x0 0xfea70000 0x0 0x1000>;
+		interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH 0>;
+		clocks = <&cru CLK_CAN2>, <&cru PCLK_CAN2>;
+		clock-names = "baud", "pclk";
+		assigned-clocks = <&cru CLK_CAN2>;
+		assigned-clock-rates = <300000000>;
+		resets = <&cru SRST_CAN2>, <&cru SRST_P_CAN2>;
+		reset-names = "can", "apb";
+		status = "disabled";
+	};
+
 	vcc_1v1_nldo: vcc1v1-nldo-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v1_nldo";

@@ -17,6 +17,8 @@
 		     "rockchip,rk3588";
 
 	aliases {
+		can0 = &can1;
+		can1 = &can2;
 		ethernet0 = &ethernet2;
 		ethernet1 = &ethernet3;
 		ethernet2 = &gmac0;
@@ -312,6 +314,18 @@
 			pixelclk-active = <0>;
 		};
 	};
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can1m1_pins>;
+	status = "okay";
+};
+
+&can2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can2m1_pins>;
+	status = "okay";
 };
 
 &combphy0_ps {

@@ -173,16 +173,13 @@
 
 	pmic@23 {
 		pinctrl-names = "default";
-		pinctrl-0 = <
-			&pmic_pins &rk806_dvs1_null
-			&rk806_dvs2_null &rk806_dvs3_null
-		>;
+		pinctrl-0 = <&pmic_pins &rk806_dvs1 &rk806_dvs2 &rk806_dvs3>;
 		compatible = "rockchip,rk806";
 		reg = <0x23>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA7 IRQ_TYPE_LEVEL_LOW>;
 		system-power-controller;
-		rockchip,reset-mode = <RK806_RESET_NOTIFY>;
+		rockchip,reset-mode = <RK806_RESTART>;
 
 		vcc1-supply = <&vdd_in>;
 		vcc2-supply = <&vdd_in>;
@@ -204,18 +201,21 @@
 		wakeup-source;
 		#gpio-cells = <2>;
 
-		rk806_dvs1_null: dvs1-null-pins {
+		rk806_dvs1: dvs1-pins {
 			pins = "gpio_pwrctrl1";
+			//FIXME:
 			function = "pin_fun0";
 		};
 
-		rk806_dvs2_null: dvs2-null-pins {
+		rk806_dvs2: dvs2-pins {
 			pins = "gpio_pwrctrl2";
+			//FIXME:
 			function = "pin_fun0";
 		};
 
-		rk806_dvs3_null: dvs3-null-pins {
+		rk806_dvs3: dvs3-pins {
 			pins = "gpio_pwrctrl3";
+			//FIXME:
 			function = "pin_fun0";
 		};
 

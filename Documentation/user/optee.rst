@@ -20,10 +20,10 @@ During the PBL
 
 To start OP-TEE during the lowlevel initialization of your board in the ``PBL``,
 enable the ``CONFIG_PBL_OPTEE`` configuration variable. Your board should then
-call the function ``start_optee_early(void* tee, void* fdt)`` with a valid tee
+call the function ``start_optee_early(void *fdt, void *tee)`` with a valid tee
 and FDT. If you're running on an i.MX6 platform your board code should call
 ``imx6q_start_optee_early()`` or ``imx6ul_start_optee_early()`` instead since it
-validates that the TZASC not bypassed and is configured as expected by OP-TEE.
+validates that the TZASC is not bypassed and is configured as expected by OP-TEE.
 
 Ensure that your OP-TEE is compiled with ``CFG_NS_ENTRY_ADDR`` unset, otherwise
 OP-TEE will not correctly return to barebox after startup. Since OP-TEE in the
@@ -39,15 +39,10 @@ main barebox start function.
 Before Linux start
 ^^^^^^^^^^^^^^^^^^
 
-.. warning:: Late loading of OP-TEE is deprecated, greatly increases the
-   attack surface and is only supported on 32-bit ARM systems.
-   Systems should prefer early loading OP-TEE whenever possible.
-
-Enable the `CONFIG_BOOTM_OPTEE` configuration variable and configure the
-`CONFIG_OPTEE_SIZE` variable. This will reserve a memory area at the end
-of memory for OP-TEE to run, usually Barebox would relocate itself there. To
-load OP-TEE before the kernel is started, configure the global ``bootm.tee``
-variable to point to a valid OPTEE v1 binary.
+The support for late loading of OP-TEE had been deprecated and ultimately
+removed as it greatly increased the attack surface and was only supported
+on 32-bit ARM systems.
+OP-TEE loading is now only supported :ref:`in the prebootloader <optee_early_loading>`.
 
 Communication with OP-TEE
 -------------------------
@@ -56,5 +51,5 @@ Controlled by the ``CONFIG_OPTEE`` option, barebox has support for
 communicating with OP-TEE via secure monitor calls and dynamic shared memory.
 This is possible independently of whether OP-TEE was loaded by barebox or not.
 
-The primary use cases currently is SCMI-over-OP-TEE, which is required on
+The primary use case currently is SCMI-over-OP-TEE, which is required on
 the STM32MP13.

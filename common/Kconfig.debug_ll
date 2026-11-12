@@ -275,6 +275,16 @@ config DEBUG_RPI2_3_UART
 	  Say Y here if you want low-level debugging support on
 	  RaspberryPi 2 and 3 boards.
 
+config DEBUG_RPI4_UART
+	bool "RaspberryPi 4 PL011 UART"
+	depends on ARCH_BCM283X
+	select DEBUG_BCM283X_UART
+	help
+	  Say Y here if you want low-level debugging support on
+	  RaspberryPi 4 / CM4 boards using the PL011 UART (uart0),
+	  e.g. when the disable-bt overlay routes it onto the GPIO
+	  header pins instead of the mini UART.
+
 config DEBUG_RPI3_MINI_UART
 	bool "RaspberryPi 3 mini UART"
 	depends on ARCH_BCM283X
@@ -290,6 +300,14 @@ config DEBUG_RPI4_MINI_UART
 	help
 	  Say Y here if you want low-level debugging support on
 	  RaspberryPi 4 board mini UART.
+
+config DEBUG_RPI5_UART
+	bool "RaspberryPi 5 PL011 UART"
+	depends on ARCH_BCM283X
+	select DEBUG_BCM283X_UART
+	help
+	  Say Y here if you want low-level debugging support on
+	  RaspberryPi 5 boards.
 
 config DEBUG_ZYNQ_UART
 	bool "Zynq debug UART"
@@ -393,12 +411,25 @@ config DEBUG_TEGRA_UART
 	bool "Tegra debug UART"
 	depends on ARCH_TEGRA
 
+config DEBUG_PXA_UART
+	bool "PXA debug UART"
+	depends on ARCH_PXA
+
 endchoice
 
 config DEBUG_LL_NS16550
 	bool
 	help
 	  Selected by RISC-V and PowerPC platforms that use ns16550 for debug_ll
+
+config DEBUG_PXA_UART_PORT
+	int "PXA Debug UART Port Selection" if DEBUG_PXA_UART
+	default 0
+	depends on ARCH_PXA
+	help
+	  Choose UART port on which barebox low-level debug messages
+	  should be output. Possible values are:
+	  0 - FFUART, 1 - BTUART, 2 - STUART
 
 config DEBUG_IMX_UART_PORT
 	int "i.MX Debug UART Port Selection" if DEBUG_IMX1_UART || \

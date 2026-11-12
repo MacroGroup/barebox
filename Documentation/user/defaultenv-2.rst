@@ -23,7 +23,8 @@ The default environment is composed from different directories during compilatio
   defaultenv/defaultenv-2-dfu                  -> overlay for DFU
   defaultenv/defaultenv-2-reboot-mode          -> overlay for reboot modes
   defaultenv/defaultenv-2-menu                 -> overlay for menus
-  defaultenv/defaultenv-2-security-policy       -> overlay for security policy
+  defaultenv/defaultenv-2-security-policy      -> overlay for security policy
+  defaultenv/defaultenv-2-devboot              -> overlay for devboot snippets
   arch/$ARCH/boards/<board>/defaultenv-<board> -> board specific overlay
   $(CONFIG_DEFAULT_ENVIRONMENT_PATH)           -> config specific overlay
 
@@ -32,6 +33,11 @@ same file exists in a later overlay, it will overwrite the preceding one.  The
 board specific overlay, or overlays, could be at any path, but usually follows
 the form given.  They must be added to a Makefile in ``bbenv-y`` and
 ``defaultenv_append_directory()`` used to add them in board init code.
+
+Overlays that are only available at runtime, like an environment passed
+via QEMU fw_cfg as ``opt/org.barebox.env``, are applied after all of the
+above and can thus also overwrite files from
+``$(CONFIG_DEFAULT_ENVIRONMENT_PATH)``.
 
 Note that not all of the above directories will necessarily be
 included in your default environment, it depends on your barebox
@@ -45,6 +51,7 @@ and their respective included directories in ``defaultenv/Makefile``:
   bbenv-$(CONFIG_DEFAULT_ENVIRONMENT_GENERIC_NEW_DFU) += defaultenv-2-dfu
   bbenv-$(CONFIG_DEFAULT_ENVIRONMENT_GENERIC_NEW_REBOOT_MODE) += defaultenv-2-reboot-mode
   bbenv-$(CONFIG_DEFAULT_ENVIRONMENT_GENERIC_NEW_SECURITY_POLICY) += defaultenv-2-security-policy
+  bbenv-$(CONFIG_DEFAULT_ENVIRONMENT_GENERIC_NEW_DEVBOOT) += defaultenv-2-devboot
   bbenv-$(CONFIG_DEFAULT_ENVIRONMENT_GENERIC) += defaultenv-1
 
 /env/bin/init
@@ -165,8 +172,16 @@ had requested a specific :ref:`reboot_mode` (via e.g. ``reboot bootloader``
 under Linux). After the ``/env/init`` scripts were executed, barebox will
 ``source /env/bmode/${global.system.reboot_mode.prev}`` if available.
 
-/env/mach.of_compatible/
-------------------------
+/env/devboot/
+-------------
+
+This optional directory contains snippets that a :ref:`devboot <devboot>`
+configuration script can source to set up common overrides, e.g.
+``. /env/devboot/defaults``. It is available when
+``CONFIG_DEFAULT_ENVIRONMENT_GENERIC_NEW_DEVBOOT`` is enabled.
+
+/env/match.of_compatible/
+-------------------------
 
 On devicetree enabled systems, this optional directory may contain
 environment overlays that should be applied onto ``/env``.

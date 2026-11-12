@@ -47,7 +47,9 @@ Patch series can be sent and fetched from the list using `b4 <https://pypi.org/p
 
    b4 shazam -M https://lore.barebox.org/$messageid # replace with link
 
-Fixes should apply on master and new features on the next branch.
+Base your work on ``master``. Fixes are applied there directly, new features
+go to ``next`` first. See :ref:`patch_flow` for the branches involved and
+what happens to a patch after it has been picked up from the list.
 
 If a series fails to apply, ``b4`` can determine/guess the base
 and have ``FETCH_HEAD`` point at it::
@@ -65,6 +67,15 @@ patches can be sent with::
 
 See the `b4 documentation <https://b4.docs.kernel.org/en/latest/>`_ for details.
 
+GitHub Pull Requests
+--------------------
+
+Besides the mailing list, contributions are also accepted as pull requests
+against `the project on GitHub <https://github.com/barebox/barebox>`_. The
+same rules apply: base your work on ``master`` and target the pull request
+at ``next``, so that GitHub can detect when it has been applied. See
+:ref:`patch_flow` for details.
+
 Continuous Integration
 ----------------------
 
@@ -76,7 +87,7 @@ GitHub Actions. The CI performs a range of checks, including:
 * Building host tools against musl
 * Shuffle make dependency build order to find missing dependencies
 
-You can run the exact same tests yourself by forking the
+You can run the exact same tests yourself by forking
 `the project on Github <https://github.com/barebox/barebox>`_.
 
 Read along for instructions on reproducing locally.
@@ -95,7 +106,7 @@ When cross-compiling, you need to set one of::
   CROSS_COMPILE_<arch>
   CROSS_COMPILE_<defconfig>
 
-You can also also build all configs for an architecture by omitting
+You can also build all configs for an architecture by omitting
 configs or just build everything at once::
 
   ./MAKEALL
@@ -133,7 +144,7 @@ it directly from PyPI instead of your distro's package repositories::
 
 Example usage::
 
-  # Run x86 VM runnig the EFI payload from efi_defconfig
+  # Run x86 VM running the EFI payload from efi_defconfig
   scripts/qemu_interactive.py test/x86/efi_defconfig.yaml
 
   # Run the test suite against the same
@@ -196,7 +207,7 @@ The CI performs randomized build ordering checks using ``make --shuffle``
 to detect missing dependencies between build targets.
 
 This may lead to occasional build failures, which is a good thing, because
-it allows us to fix issues, before downstream uns into them.
+it allows us to fix issues, before downstream runs into them.
 
 If a failure occurs, the log will include a ``shuffle=`` value::
 

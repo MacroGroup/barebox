@@ -71,7 +71,7 @@
 		/* Used by RAW probe for cameras connected via I2C */
 		regulator-boot-on;
 		enable-active-high;
-		gpio = <&gpio2 RK_PD1 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio2 RK_PD1 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_cam0";
 		startup-delay-us = <250000>;
 	};
@@ -81,7 +81,7 @@
 		pinctrl-0 = <&csi1_pwr>;
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_cam1";
 		startup-delay-us = <250000>;
 	};
@@ -114,7 +114,7 @@
 		/* Fixup for PCI-e in the bootloader */
 		regulator-always-on;
 		regulator-boot-on;
-		gpio = <&gpio4 RK_PC5 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_LOW>;
 		regulator-name = "vcc3v3_pcie30_clk_oe";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;

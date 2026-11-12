@@ -149,7 +149,7 @@ just like every other program::
   # ./barebox -i squashfs.bin
 
   add fd0 backed by file squashfs.bin
-  add stickypage backed by file /run/user/1000/barebox/stickypage.1661112
+  add stickypage backed by file /proc/self/fd/3
 
   barebox 2024.07.0 #0 Wed Jul 18 11:36:31 CEST 2024
   [...]
@@ -256,9 +256,10 @@ are the release rules:
   to get patches in on a very short time scale (usually a month at most).
 
 - New features are applied to the ``next`` branch. Fixes directly to the
-  ``master`` branch. Releases are always branched from ``master`` and then
-  ``next`` is merged into ``master``. Thus new features take 1-2 months
-  until they hit a release.
+  ``master`` branch. Releases are always branched from ``master``, and only
+  afterwards is the material queued in ``next`` merged into ``master``. Thus
+  new features take 1-2 months until they hit a release. See
+  ``Documentation/devel/patch-flow.rst`` for the details.
 
 - Usually, there are no bugfix releases, so z=0. If there is a need
   to make a bugfix release, z is the right place to increment.
@@ -273,10 +274,25 @@ are the release rules:
   We think that there is no need for pre releases, but if it's ever
   necessary, this is the scheme we follow.
 
+- Occasionally, a release may be designated a long term stable (LTS)
+  release and will continue to receive fixes for a longer period of
+  time. Refer to ``SECURITY.md`` in this directory to see, what
+  releases, besides the most recent, are actively maintained.
+
 - Only the monthly releases are archived on the web site. The tarballs
   are located in https://www.barebox.org/download/ and this location
   does never change, in order to make life easier for distribution
   people.
+
+Security
+--------
+
+The `threat model <https://www.barebox.org/doc/latest/user/threat-model.html>`_
+describes what barebox does and does not protect against and which bugs are
+considered security vulnerabilities. The
+`Security Considerations <https://www.barebox.org/doc/latest/user/security.html>`_
+chapter describes how to configure barebox for verified boot. Refer to
+``SECURITY.md`` for how to report vulnerabilities.
 
 .. _contributing:
 

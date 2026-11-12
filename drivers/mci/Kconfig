@@ -154,6 +154,11 @@ config MCI_BCM283X_SDHOST
 	depends on ARCH_BCM283X || COMPILE_TEST
 	select MCI_SDHCI
 
+config MCI_BCMSTB
+	bool "MCI support for BCMSTB"
+	depends on ARCH_BCM283X || COMPILE_TEST
+	select MCI_SDHCI
+
 config MCI_DOVE
 	bool "Marvell Dove SDHCI"
 	depends on ARCH_DOVE || COMPILE_TEST
@@ -192,10 +197,10 @@ config MCI_OMAP_HSMMC
 
 config MCI_PXA
 	bool "PXA"
-	depends on ARCH_PXA2XX
+	depends on ARCH_PXA
 	help
 	  Enable this entry to add support to read and write SD cards on a
-	  XScale PXA25x / PXA27x based system.
+	  XScale PXA3xx based system.
 
 config MCI_ATMEL
 	bool "ATMEL (AT91)"

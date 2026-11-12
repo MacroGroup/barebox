@@ -24,13 +24,13 @@ barebox itself uses a *state* driver to access the variables in the
 persistent memory.
 
 Currently there is only one implementation, enabled by
-``CONFIG_STATE_DRV=y``. Without driver, the state framework will silently
+``CONFIG_STATE_DRV=y``. Without a driver, the state framework will silently
 fail and be non-functional.
 
 For the Linux run-time there is a userspace tool_ to do
 the same.
 
-.. _tool: https://git.pengutronix.de/cgit/tools/dt-utils/
+.. _tool: https://github.com/barebox/dt-utils/
 
 To define a *state* variable set, a devicetree based description is used. Refer to
 :ref:`barebox,state` for further details.
@@ -49,7 +49,7 @@ Some non-volatile memory is needed for storing a *state* variable set:
 - all kinds of NAND and NOR flash memories (mtd)
 - MRAM
 - EEPROM
-- all kind of SRAMs (backup battery assumed)
+- all kinds of SRAMs (backup battery assumed)
 
 For classic MTDs (NOR/NAND/SRAM), a partition is required and understood by
 the Linux kernel as well to define the location inside the device where to store
@@ -113,13 +113,15 @@ embedded *state* variable set. Refer to
 
 .. important:: It is important to share this layout definition in all
    'worlds' which want to read or manipulate the *state* variable set. This
-   includes offsets, sizes and endianesses of the binary data. Refer to
+   includes offsets, sizes and endiannesses of the binary data. Refer to
    :ref:`Configuring the state variable set <barebox,state_setup>` on how to
    setup barebox to ensure this is done automatically for devicetree based
    operating systems.
 
 .. note:: When calculating the ``backend-stridesize`` take the header overhead
-   into account. The header overhead is always 16 bytes.
+   into account. The header overhead is always 16 bytes. On block devices
+   the stride must additionally be a multiple of the block size, refer
+   :ref:`Direct Storage Backend Redundancy <state_framework,direct_redundancy>`.
 
 .. _state_framework,dtb:
 
@@ -158,7 +160,7 @@ EEPROMs.
 These media are characterized by:
 
 - memory cells can be simply written at any time (no previous erase required).
-- memory cells can be written as often as required (unlimted or very high endurance).
+- memory cells can be written as often as required (unlimited or very high endurance).
 - memory cells can be written on a byte-by-byte manner.
 
 Example: MRAM with 64 bytes at device's offset 0:
@@ -265,7 +267,7 @@ the eraseblock again. This reduces the need for a flash memory erase by factors.
 **NAND type flash memory is additionally characterized by**
 
 - it is organized in pages (size is a detectable, physical value).
-- writes can only happen in multiples of the page size (which much less than the eraseblock size).
+- writes can only happen in multiples of the page size (which is much less than the eraseblock size).
 - partially writing a page can be limited in count or be entirely forbidden (in
   the case of *MLC* NANDs).
 
@@ -322,7 +324,7 @@ Changing the *state* variable set the 64th time:
 
 The next time the *state* variable set changes again, the eraseblock will be
 erased and the *state* variable set gets stored at the first position inside
-the eraseblock again. This significantly reduces the need for a block erases.
+the eraseblock again. This significantly reduces the need for block erases.
 
 .. important:: One copy of the *state* variable set is limited to the page size
    of the used backend (e.g. NAND type flash memory)
@@ -336,6 +338,8 @@ variable set changes, only one *state* variable set copy gets changed at a time.
 In the case of an interruption and/or power loss resulting in an incomplete
 write to the backend, the system can fall back to a different *state* variable
 set copy (previous *state* variable set).
+
+.. _state_framework,direct_redundancy:
 
 Direct Storage Backend Redundancy
 #################################
@@ -366,6 +370,21 @@ size of a partition).
    It's a good idea though to increase stride size beyond the minimum to leave
    some free space for in-place addition of new variables in future.
 
+.. important:: The redundancy only helps if an interrupted write can damage
+   just the copy being written.
+   The stride size must therefore be a multiple of the block size and the
+   backend partition must start on a block boundary, otherwise two copies
+   share a block and a power loss during a write can corrupt both.
+   barebox warns at startup when this is the case.
+   Increasing the stride size on an already deployed device is deemed safe,
+   even across a power loss: the first copy always stays at the start of
+   the backend and is not rewritten during the migration, so it
+   remains readable while the other copies are rewritten at their new
+   positions on the next load. This requires the new stride size to be a
+   multiple of that atomically written block size, otherwise rewriting a copy
+   during the migration can damage the first copy.
+   Byte-writable backends like EEPROM, SRAM or MRAM have no such constraint.
+
 Circular Storage Backend Redundancy
 ###################################
 
@@ -373,11 +392,10 @@ Circular Storage Backend Redundancy
 
 Redundant copies of the *state* variable set are stored based on the memory's
 eraseblocks and this size is automatically detected at run-time.
-It needs a stride size as well, because a NOR type flash memory can be written
-on a byte-by-byte manner.
-In contrast to the ``direct`` storage backend redundancy, the
-stride size for the ``circular`` storage backend redundancy defines the
-side-by-side location of the *state* variable set copies.
+The stride size is not used. Since NOR type flash memory can be written on a
+byte-by-byte manner, the *state* variable set copies are packed back to back
+inside the eraseblock, each padded to the write granularity reported by the
+MTD device (at least 8 bytes).
 
 .. code-block:: text
 
@@ -388,7 +406,8 @@ side-by-side location of the *state* variable set copies.
     |<--------- eraseblock --------->|<--------- eraseblock --------->|<-
     |<------- redundant area ------->|<------- redundant area ------->|<-
 
-*<X>* defines the stride size, *C#1*, *C#2* the *state* variable set copies.
+*<X>* is the size of one copy rounded up to the write granularity, *C#1*, *C#2*
+the *state* variable set copies.
 
 Since these kinds of MTD devices are partitioned, it's a good practice to always
 reserve multiple eraseblocks for the barebox' *state* feature. Keep in mind:
@@ -451,7 +470,7 @@ must happen on an eraseblock basis. Typical eraseblock sizes are 128 kiB or
 (much) larger for parallel NOR flashes and 4 kiB or larger for serial NOR
 flashes.
 
-From the Linux kernel perspective this type of memory is a *Memory Technologie
+From the Linux kernel perspective this type of memory is a *Memory Technology
 Device* (aka 'MTD') and handled by barebox in the same manner. It needs a
 partition configuration.
 
@@ -501,7 +520,7 @@ This type of memory can be written on a *page* base (typically 512 bytes,
 erasing must happen on an eraseblock base. Typical eraseblock sizes are
 64 kiB or (much) larger.
 
-From the Linux kernel perspective this type of memory is a *Memory Technologie
+From the Linux kernel perspective this type of memory is a *Memory Technology
 Device* (aka 'MTD') and handled by barebox in the same manner. It needs a
 partition configuration.
 
@@ -567,7 +586,7 @@ as follows:
 		magic = <0xab67421f>;
 		backend-type = "raw";
 		backend = <&backend_state_sd>;
-		backend-stridesize = <0x40>;
+		backend-stridesize = <0x200>;
 
 		variable@0 {
 			reg = <0x0 0x1>;
@@ -603,6 +622,7 @@ Here is an abridged example:
 				mmc1: mmc@2190000 {
 					// … MMC device definition …
 				};
+			};
 		};
 
 		aliases {
@@ -615,7 +635,7 @@ Here is an abridged example:
 		};
 	};
 
-This is the recommended approach for device tree enabled system with state
+This is the recommended approach for device tree enabled systems with state
 located on SD or eMMC.
 
 Referencing the partition by *partuuid*
@@ -664,7 +684,7 @@ SRAM
 This type of memory can be written on a byte base and there is no need for an
 erase prior writing a new value.
 
-From the Linux kernel perspective this type of memory is a *Memory Technologie
+From the Linux kernel perspective this type of memory is a *Memory Technology
 Device* (aka 'MTD') and handled by barebox in the same manner. It needs a
 partition definition.
 
@@ -711,7 +731,7 @@ EEPROM
 
 This type of memory can be written on a byte base and must be erased prior
 writing, but in contrast to the other flash memories, an EEPROM does the erase
-of the address to be written to by its own, so its transparent to the
+of the address to be written to by its own, so it's transparent to the
 application.
 
 While from the Linux kernel perspective this type of memory does not support

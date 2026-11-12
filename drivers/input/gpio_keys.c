@@ -30,25 +30,18 @@ struct gpio_keys {
 	struct input_device input;
 };
 
-static void gpio_key_poller(void *data)
+static void gpio_keys_read(struct gpio_keys *gk, bool force)
 {
-	struct gpio_keys *gk = data;
 	struct gpio_key *gb;
 	int i, pressed;
-
-	for (i = 0; i < gk->nbuttons; i++) {
-		gb = &gk->buttons[i];
-
-		if (gpiod_slice_acquired(gb->gpio))
-			goto out;
-	}
 
 	for (i = 0; i < gk->nbuttons; i++) {
 
 		gb = &gk->buttons[i];
 		pressed = gpiod_get_value(gb->gpio);
 
-		if (!is_timeout(gb->debounce_start, gb->debounce_interval * MSECOND))
+		if (!force && !is_timeout(gb->debounce_start,
+					  gb->debounce_interval * MSECOND))
 			continue;
 
 		if (pressed != gb->previous_state) {
@@ -59,6 +52,22 @@ static void gpio_key_poller(void *data)
 			gb->previous_state = pressed;
 		}
 	}
+}
+
+static void gpio_key_poller(void *data)
+{
+	struct gpio_keys *gk = data;
+	struct gpio_key *gb;
+	int i;
+
+	for (i = 0; i < gk->nbuttons; i++) {
+		gb = &gk->buttons[i];
+
+		if (gpiod_slice_acquired(gb->gpio))
+			goto out;
+	}
+
+	gpio_keys_read(gk, false);
 out:
 	poller_call_async(&gk->poller, 10 * MSECOND, gpio_key_poller, gk);
 }
@@ -87,10 +96,9 @@ static int gpio_keys_probe_pdata(struct gpio_keys *gk, struct device *dev)
 			flags |= GPIOF_ACTIVE_LOW;
 
 		gpio = gpiod_request_one(pdata->buttons[i].gpio, flags, "gpio_keys");
-		if (IS_ERR(gpio)) {
-			pr_err("gpio_keys: gpio #%d can not be requested\n", i);
-			return PTR_ERR(gpio);
-		}
+		if (IS_ERR(gpio))
+			return dev_errp_probe(dev, gpio,
+					      "requesting gpio #%d\n", i);
 
 		gk->buttons[i].gpio = gpio;
 		gk->buttons[i].code = pdata->buttons[i].code;
@@ -119,10 +127,9 @@ static int gpio_keys_probe_dt(struct gpio_keys *gk, struct device *dev)
 		of_property_read_string(npkey, "label", &label);
 
 		gpio = dev_gpiod_get(dev, npkey, NULL, GPIOD_IN, label);
-		if (IS_ERR(gpio)) {
-			pr_err("gpio_keys: gpio #%d can not be requested\n", i);
-			return PTR_ERR(gpio);
-		}
+		if (IS_ERR(gpio))
+			return dev_errp_probe(dev, gpio,
+					      "requesting gpio #%d\n", i);
 
 		gk->buttons[i].gpio = gpio;
 
@@ -166,6 +173,8 @@ static int __init gpio_keys_probe(struct device *dev)
 	ret = poller_async_register(&gk->poller, dev_name(dev));
 	if (ret)
 		return ret;
+
+	gpio_keys_read(gk, true);
 
 	poller_call_async(&gk->poller, 10 * MSECOND, gpio_key_poller, gk);
 

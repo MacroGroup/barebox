@@ -91,6 +91,7 @@ static const struct filetype_str filetype_str[] = {
 					   "rk-image" },
 	[filetype_x86_linux_image] = { "x86 Linux image", "x86-linux" },
 	[filetype_x86_efi_linux_image] = { "x86 Linux/EFI image", "x86-efi-linux" },
+	[filetype_pxa_ntim] = { "Marvell PXA3xx NTIM image", "pxa-ntim" },
 };
 
 static const char *file_type_to_nr_string(enum filetype f)
@@ -386,6 +387,16 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 	if (buf[0] == be32_to_cpu(0x534F4659))
 		return filetype_bpk;
 
+	/*
+	 * The NTIM header the PXA3xx Boot ROM reads from the start of the boot
+	 * device. It has no magic of its own, so match the version the images
+	 * barebox builds carry along with the identifier of the header itself,
+	 * which is the first of the image entries behind it.
+	 */
+	if (le32_to_cpu(buf[0]) == 0x00030102 &&
+	    le32_to_cpu(buf[1]) == 0x54494d48)	/* 'TIMH' */
+		return filetype_pxa_ntim;
+
 	if (strncmp(buf8, "RKNS", 4) == 0)
 		return filetype_rockchip_rkns_image;
 	if (strncmp(buf8, "RKSS", 4) == 0)
@@ -405,7 +416,8 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 			for (i = 0; i <= 0x1e; ++i)
 				sum += buf8[i];
 
-			if (sum == buf8[0x1f])
+			if (sum == buf8[0x1f] ||
+			    fuzz_insecure_checksum_accepted(sum, buf8[0x1f]))
 				return filetype_kwbimage_v0;
 		} else if (buf8[0x8] == 1) {
 			if (buf8[0x1d] == 0 &&
@@ -432,10 +444,10 @@ enum filetype file_detect_type(const void *_buf, size_t bufsize)
 
 	if (is_arm64_linux_bootimage(buf))
 		return is_dos_exe(buf8) ? filetype_arm64_efi_linux_image : filetype_arm64_linux_image;
+	if (is_barebox_riscv_head(buf))
+		return filetype_riscv_barebox_image;
 	if (is_riscv_linux_bootimage(buf))
 		return is_dos_exe(buf8) ? filetype_riscv_efi_linux_image : filetype_riscv_linux_image;
-	if (is_riscv_linux_bootimage(buf) && !memcmp(&buf[12], "barebox", 8))
-		return filetype_riscv_barebox_image;
 	if (bufsize > 0x206 && is_x86_linux_bootimage(buf))
 		return is_dos_exe(buf8) ? filetype_x86_efi_linux_image : filetype_x86_linux_image;
 

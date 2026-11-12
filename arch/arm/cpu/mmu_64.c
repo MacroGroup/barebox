@@ -286,10 +286,15 @@ static void early_remap_range(uint64_t addr, size_t size, maptype_t map_type)
 
 int arch_remap_range(void *virt_addr, phys_addr_t phys_addr, size_t size, maptype_t map_type)
 {
-	map_type = arm_mmu_maybe_skip_permissions(map_type);
-
+	/*
+	 * Check against the original map_type: permission-stripping below
+	 * can turn MAP_CACHED into MAP_CACHED_RWX, which would look
+	 * incompatible.
+	 */
 	if (!maptype_is_compatible(map_type, MAP_CACHED))
 		flush_cacheable_pages(virt_addr, size);
+
+	map_type = arm_mmu_maybe_skip_permissions(map_type);
 
 	return __arch_remap_range((uint64_t)virt_addr, phys_addr, (uint64_t)size, map_type, true);
 }
@@ -386,6 +391,8 @@ void mmu_early_enable(unsigned long membase, unsigned long memsize)
 
 	if (get_cr() & CR_M)
 		return;
+
+	cache_invalidate_stale();
 
 	pr_debug("enabling MMU, ttb @ 0x%08lx\n", ttb);
 

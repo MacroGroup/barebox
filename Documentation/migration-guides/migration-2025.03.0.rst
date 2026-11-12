@@ -12,7 +12,7 @@ fixed-partitions on SD/MMC
 --------------------------
 
 Linux v6.13-rc1 added ``CONFIG_OF_PARTITION``, which interprets
-``fixed partitions`` nodes in SD/MMC nods differently to the barebox
+``fixed-partitions`` nodes in SD/MMC nodes differently to the barebox
 behavior: It ignores the GPT/MBR if fixed-partitions are specified,
 instead of allowing them to co-exist like in barebox.
 
@@ -20,6 +20,7 @@ To accommodate both the existing barebox and the new kernel functionality,
 users should replace ``fixed-partitions``-compatible device tree subnodes
 of SD/eMMC with ``barebox,fixed-partitions``.
 
-Similarly, the default for ``global.of_partition_binding`` has been changed
-to the new ``adaptive`` option, which fixes up ``barebox,fixed-partitions``
-except for MTD.
+Similarly, the default for
+:ref:`global.of_partition_binding <magicvar_global_of_partition_binding>`
+has been changed to the new ``adaptive`` option, which fixes up
+``barebox,fixed-partitions`` except for MTD.

@@ -28,7 +28,7 @@
 #include <magicvar.h>
 #include <asm-generic/memory_layout.h>
 
-#define BOOTM_OPTS_COMMON "sca:e:vo:fdt:"
+#define BOOTM_OPTS_COMMON "a:e:vo:fd"
 
 #ifdef CONFIG_BOOTM_INITRD
 #define BOOTM_OPTS BOOTM_OPTS_COMMON "L:r:"
@@ -55,13 +55,6 @@ static int do_bootm(int argc, char *argv[])
 
 	while ((opt = getopt(argc, argv, BOOTM_OPTS)) > 0) {
 		switch(opt) {
-		case 'c':
-			if (data.verify < BOOTM_VERIFY_HASH)
-				data.verify = BOOTM_VERIFY_HASH;
-			break;
-		case 's':
-			data.verify = BOOTM_VERIFY_SIGNATURE;
-			break;
 #ifdef CONFIG_BOOTM_INITRD
 		case 'L':
 			data.initrd_address = simple_strtoul(optarg, NULL, 0);
@@ -88,9 +81,6 @@ static int do_bootm(int argc, char *argv[])
 		case 'd':
 			data.dryrun = 1;
 			break;
-		case 't':
-			data.tee_file = optarg;
-			break;
 		default:
 			return COMMAND_ERROR_USAGE;
 		}
@@ -116,8 +106,6 @@ err_out:
 
 BAREBOX_CMD_HELP_START(bootm)
 BAREBOX_CMD_HELP_TEXT("Options:")
-BAREBOX_CMD_HELP_OPT ("-c\t",  "hash check image integrity")
-BAREBOX_CMD_HELP_OPT ("-s\t",  "check signature of image")
 BAREBOX_CMD_HELP_OPT ("-d\t",  "dry run: check data, but do not run")
 BAREBOX_CMD_HELP_OPT ("-f\t",  "load images even if type is undetectable")
 #ifdef CONFIG_BOOTM_INITRD
@@ -129,9 +117,6 @@ BAREBOX_CMD_HELP_OPT ("-e OFFS\t","entry point to the image relative to start (0
 #ifdef CONFIG_OFTREE
 BAREBOX_CMD_HELP_OPT ("-o DTB\t","specify open firmware device tree")
 #endif
-#ifdef CONFIG_BOOTM_OPTEE
-BAREBOX_CMD_HELP_OPT ("-t TEE\t","specify TEE image")
-#endif
 #ifdef CONFIG_BOOTM_VERBOSE
 BAREBOX_CMD_HELP_OPT ("-v\t","verbose")
 #endif
@@ -140,7 +125,7 @@ BAREBOX_CMD_HELP_END
 BAREBOX_CMD_START(bootm)
 	.cmd		= do_bootm,
 	BAREBOX_CMD_DESC("boot an application image")
-	BAREBOX_CMD_OPTS("[-cdf"
+	BAREBOX_CMD_OPTS("[-df"
 #ifdef CONFIG_BOOTM_INITRD
 					  "rL"
 #endif
@@ -150,9 +135,6 @@ BAREBOX_CMD_START(bootm)
 #endif
 #ifdef CONFIG_BOOTM_VERBOSE
 					  "v"
-#endif
-#ifdef CONFIG_BOOTM_OPTEE
-					  "t"
 #endif
 					  "] IMAGE")
 	BAREBOX_CMD_GROUP(CMD_GRP_BOOT)

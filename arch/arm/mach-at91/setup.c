@@ -8,6 +8,7 @@
 #include <common.h>
 #include <io.h>
 #include <init.h>
+#include <magicvar.h>
 #include <restart.h>
 #include <linux/clk.h>
 
@@ -360,12 +361,18 @@ static int at91_soc_device(void)
 	struct device *dev;
 
 	dev = add_generic_device_res("soc", DEVICE_ID_SINGLE, NULL, 0, NULL);
+	if (!dev)
+		return -ENODEV;
+
 	dev_add_param_fixed(dev, "name", soc_name[at91_soc_initdata.type]);
 	dev_add_param_fixed(dev, "subname", soc_subtype_name[at91_soc_initdata.subtype]);
 
 	return 0;
 }
 coredevice_initcall(at91_soc_device);
+
+BAREBOX_MAGICVAR(soc.name, "AT91 SoC name");
+BAREBOX_MAGICVAR(soc.subname, "AT91 SoC subtype name");
 
 void at91sam_phy_reset(void __iomem *rstc_base)
 {

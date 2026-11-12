@@ -73,6 +73,25 @@ void log_clean(unsigned int limit)
 	}
 }
 
+/**
+ * log_set_max_messages - limit the number of buffered log messages
+ *
+ * @max:	The maximum number of messages to keep in the log buffer.
+ *		Zero means buffering without any limit, a negative value
+ *		disables buffering altogether.
+ *
+ * Messages already exceeding the new limit are dropped.
+ */
+void log_set_max_messages(int max)
+{
+	barebox_log_max_messages = max;
+
+	if (max > 0)
+		log_clean(max);
+	else if (max < 0)
+		log_clean(0);
+}
+
 static void print_colored_log_level(struct console_device *con, const int level)
 {
 	if (!console_allow_color())
@@ -191,6 +210,12 @@ static int console_common_init(void)
 	return globalvar_add_simple_int("loglevel", &barebox_loglevel, "%d");
 }
 core_initcall(console_common_init);
+
+BAREBOX_MAGICVAR(global.loglevel,
+		 "Console log level: only messages up to this level are printed");
+BAREBOX_MAGICVAR(global.log_max_messages,
+		 "Maximum number of messages kept in the log buffer");
+BAREBOX_MAGICVAR(global.allow_color, "Allow colored console output");
 
 int log_writefile(const char *filepath)
 {

@@ -183,6 +183,7 @@ include $(srctree)/images/Makefile.malta
 include $(srctree)/images/Makefile.mvebu
 include $(srctree)/images/Makefile.mxs
 include $(srctree)/images/Makefile.omap3
+include $(srctree)/images/Makefile.pxa
 include $(srctree)/images/Makefile.rockchip
 include $(srctree)/images/Makefile.exynos
 include $(srctree)/images/Makefile.sandbox
@@ -193,6 +194,7 @@ include $(srctree)/images/Makefile.versatile
 include $(srctree)/images/Makefile.vexpress
 include $(srctree)/images/Makefile.xburst
 include $(srctree)/images/Makefile.at91
+include $(srctree)/images/Makefile.microchip
 include $(srctree)/images/Makefile.zynq
 include $(srctree)/images/Makefile.zynqmp
 include $(srctree)/images/Makefile.layerscape

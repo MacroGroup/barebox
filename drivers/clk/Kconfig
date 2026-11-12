@@ -43,8 +43,8 @@ config CLK_SOCFPGA
 if COMMON_CLK
 
 config COMMON_CLK_STM32F
-	bool "STM32F4 and STM32F7 clock driver" if COMPILE_TEST
-	depends on ARCH_STM32
+	bool "STM32F4 and STM32F7 clock driver"
+	depends on ARCH_STM32 || COMPILE_TEST
 	help
 	  Support for stm32f4 and stm32f7 SoC families clocks
 
@@ -83,5 +83,14 @@ config COMMON_CLK_GPIO
 	depends on COMMON_CLK_OF_PROVIDER
 
 source "drivers/clk/sifive/Kconfig"
+
+config COMMON_CLK_LAN966X
+	bool "Generic Clock Controller driver for LAN966X SoC"
+	depends on OFDEVICE
+	depends on COMMON_CLK
+	help
+	  Microchip LAN966X and LAN969X SoC Generic Clock Controller (GCK).
+	  GCK generates and supplies clocks to various peripherals within the
+	  SoC.
 
 endif

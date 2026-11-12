@@ -71,7 +71,7 @@ It's also possible to select a specific configuration explicitly:
 
   global.bootm.image=/dev/mmc0.fit@conf-imx8mm-evk.dtb
 
-**NOTE:** it may happen that barebox is probed from the devicetree, but you have
+**NOTE:** it may happen that barebox is probed from the devicetree, but you
 want to start a Kernel without passing a devicetree. In this case set the
 :ref:`global.bootm.boot_atag <magicvar_global_bootm_boot_atag_arm>` variable to
 ``true``.
@@ -111,8 +111,9 @@ Kernel command line arguments that barebox generates internally are not
 interleaved with externally provided command-line arguments:
 
 * Following arguments will be concatenated **after** all other options:
+
   * ``root=`` and ``rootwait=`` controlled by :ref:`global.bootm.appendroot <magicvar_global_bootm_appendroot>`
-    :ref:`global.linux.rootwait <magicvar_global_linux_rootwait>`
+    and :ref:`global.linux.rootwait <magicvar_global_linux_rootwait>`
   * ``earlycon=`` controlled by :ref:`global.bootm.earlycon <magicvar_global_bootm_earlycon>`
   * ``systemd.machine_id=`` controlled by :ref:`global.bootm.provide_machine_id <magicvar_global_bootm_provide_machine_id>`
   * ``systemd.hostname=`` controlled by :ref:`global.bootm.provide_hostname <magicvar_global_bootm_provide_hostname>`
@@ -129,10 +130,11 @@ to the Kernel command line. This is done when
 is true. How the root= option is appended depends on the device type
 and filesystem the kernel is booted from. For disk like devices (SD/MMC,
 ATA) the partition UUID will be used, the root= option will be something
-like ``root=PARTUUID=deadbeef-1``. For UBIFS fileystems it will be
+like ``root=PARTUUID=deadbeef-1``. For UBIFS filesystems it will be
 ``root=ubi0:volname ubi.mtd=mtdpartname rootfstype=ubifs``. NFS
 filesystems will result in ``root=/dev/nfs nfsroot=ip:/path/to/nfsroot,v3,tcp``.
-The ``v3,tcp`` part is configurable in ``global.linux.rootnfsopts``.
+The ``v3,tcp`` part is configurable in
+:ref:`global.linux.rootnfsopts <magicvar_global_linux_rootnfsopts>`.
 
 The boot command
 ----------------
@@ -171,6 +173,16 @@ This entry can be booted with ``boot mmc``. It can also be made the default by
 setting the :ref:`global.boot.default <magicvar_global_boot_default>` variable
 to ``mmc`` and then calling ``boot`` without arguments.
 
+A boot target of the form ``SCRIPT@ARGUMENT`` runs the boot entry
+``SCRIPT`` and passes ``ARGUMENT`` to it as first argument, so ``boot
+mmc@1`` runs ``/env/boot/mmc 1``. ``ARGUMENT`` must start with a slash,
+dash, underscore, dot or alphanumeric character and is passed to the
+script as is, so paths and URLs work as arguments. Device names,
+partitions and paths are resolved before boot scripts are looked up, and
+a script or directory that exists under the literal name takes
+precedence, so neither the ``DEVICE.PARTITION`` boot targets described
+below nor an existing path is mistaken for a script with an argument.
+
 Especially for development, it can be useful to override only parts of
 the images used in a boot. To do so, set ``CONFIG_BOOT_OVERRIDE=y``
 and configure the overrides as arguments to the ``boot`` command:
@@ -189,7 +201,7 @@ A single boot target can yield multiple entries, e.g., one for each
 bootloader spec file detected at runtime as described in the next section.
 
 There is also a number of generic default boot targets available, when
-``CONFIG_BOOT_DEFAULTS`` is enabled. These expands to a single device at most:
+``CONFIG_BOOT_DEFAULTS`` is enabled. These expand to a single device at most:
 
 * :ref:`bootsource <magicvar_bootsource>`: expands to the device barebox booted from
 * ``diskuuid.*``: expands to the device with specified ``*`` diskuuid
@@ -198,7 +210,7 @@ For these targets that expand to a single device, a partition can also be specif
 e.g., ``bootsource.esp`` to reference the partition with the ``esp`` partition
 label within the bootsource.
 
-Following target can expand to multiple devices:
+Following targets can expand to multiple devices:
 
 * ``storage.removable``: expands to removable storage devices,
   like USB flash drives or SD-Cards in slots
@@ -291,13 +303,15 @@ NFS URIs, when passed to the :ref:`boot command <command_boot>`:
 Additional notes about keys in the bootloader spec entries:
 
 ``machine-id``
-   This key is optional. If the ``global.boot.machine_id`` variable is set to a
-   non-empty value, barebox will only boot the Bootloader Spec Entry whose
-   ``machine-id`` key matches the ``global.boot.machine_id`` variable.  All
+   This key is optional. If the
+   :ref:`global.boot.machine_id <magicvar_global_boot_machine_id>` variable is
+   set to a non-empty value, barebox will only boot the Bootloader Spec Entry
+   whose ``machine-id`` key matches the
+   :ref:`global.boot.machine_id <magicvar_global_boot_machine_id>` variable.  All
    other Bootloader Spec entries will be ignored.
 
 ``linux-appendroot``
-   This boolean option is understood by Barebox although it is not part of the
+   This boolean option is understood by barebox although it is not part of the
    original specification. If set to ``true``, barebox will automatically append
    a ``root=`` string to the Linux commandline based on the device where the
    entry is found on. This makes it possible to use the same rootfs image on
@@ -315,6 +329,7 @@ many Linux distributions. This format is often found on SD cards, USB drives,
 or disk partitions prepared with tools like ``extlinux --install``.
 
 The configuration file is named ``extlinux.conf`` and can be located at:
+
 * ``/boot/extlinux/extlinux.conf``
 * ``/extlinux/extlinux.conf``
 
@@ -353,14 +368,15 @@ Network boot
 With the following steps, barebox can start the kernel and root filesystem
 over the network, a standard development case.
 
-See :ref:`networking` for informations how to configure your network interfaces.
+See :ref:`networking` for information how to configure your network interfaces.
 
 Note that barebox will pass the same IP settings to the kernel, i.e. it passes
 ``ip=$ipaddr:$serverip:$gateway:$netmask::<linuxdevname>:`` for a static IP setup
 and ``ip=dhcp`` for a dynamic DHCP setup. ``<linuxdevname>`` is a configurable value.
-set ``nv.dev.<ethdev>.linuxdevname`` to the name the device has in Linux.
+Set ``nv.dev.<ethdev>.linuxdevname`` to the name the device has in Linux.
 
-By default, barebox uses the variables ``global.user`` and
+By default, barebox uses the variables
+:ref:`global.user <magicvar_global_user>` and
 :ref:`global.hostname <magicvar_global_hostname>`
 to retrieve its kernel image over TFTP, which makes it possible to use multiple
 boards for multiple users with one single server.
@@ -411,7 +427,7 @@ If the preconfigured paths or names are not suitable, they can be adjusted in
 
   nfsroot="/home/${global.user}/nfsroot/${global.hostname}"
   ip_route_get -b ${global.net.server} global.linux.bootargs.dyn.ip
-  
+
   global.linux.bootargs.dyn.root="root=/dev/nfs nfsroot=$nfsroot,v3,tcp"
 
 ``boot net`` will then retrieve the kernel (and also the device tree and
@@ -420,7 +436,7 @@ initramfs, if used) over TFTP and boot it.
 mtdparts/blkdevparts fixup
 --------------------------
 
-All variables starting with ``global.linux.mtdparts.`` or ``global.linux.blkdevparts``
+All variables starting with ``global.linux.mtdparts.`` or ``global.linux.blkdevparts.``
 are concatenated to a ``mtdparts=`` or ``blkdevparts=`` parameter to the
 kernel, respectively.
 This makes it possible to consistently partition devices with the :ref:`command_addpart`

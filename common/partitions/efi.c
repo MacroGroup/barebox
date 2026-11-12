@@ -22,6 +22,7 @@
 #include <state.h>
 #include <fcntl.h>
 #include <linux/ctype.h>
+#include <fuzz.h>
 
 #include <efi/partition.h>
 #include <partitions.h>
@@ -263,7 +264,7 @@ static gpt_header *alloc_read_gpt_header(struct block_device *blk,
 static int is_gpt_valid(struct block_device *blk, u64 lba,
 			gpt_header **gpt, gpt_entry **ptes)
 {
-	u32 crc, origcrc, count;
+	u32 crc, origcrc, count, ptescrc;
 	u64 lastlba;
 
 	if (!ptes)
@@ -289,7 +290,7 @@ static int is_gpt_valid(struct block_device *blk, u64 lba,
 	(*gpt)->header_crc32 = 0;
 	crc = efi_crc32((const unsigned char *) (*gpt), le32_to_cpu((*gpt)->header_size));
 
-	if (crc != origcrc) {
+	if (crc != origcrc && !fuzz_insecure_checksum_accepted(crc, origcrc)) {
 		dev_dbg(blk->dev, "GUID Partition Table Header CRC is wrong: %x != %x\n",
 			 crc, origcrc);
 		goto fail;
@@ -308,15 +309,27 @@ static int is_gpt_valid(struct block_device *blk, u64 lba,
 	/* Check the first_usable_lba and last_usable_lba are within the disk. */
 	lastlba = last_lba(blk);
 	if (le64_to_cpu((*gpt)->first_usable_lba) > lastlba) {
-		dev_dbg(blk->dev, "GPT: first_usable_lba incorrect: %lld > %lld\n",
+		dev_dbg(blk->dev, "GPT: first_usable_lba incorrect: %llu > %llu\n",
 			 (unsigned long long)le64_to_cpu((*gpt)->first_usable_lba),
 			 (unsigned long long)lastlba);
 		goto fail;
 	}
 	if (le64_to_cpu((*gpt)->last_usable_lba) > lastlba) {
-		dev_dbg(blk->dev, "GPT: last_usable_lba incorrect: %lld > %lld\n",
+		dev_dbg(blk->dev, "GPT: last_usable_lba incorrect: %llu > %llu\n",
 			 (unsigned long long)le64_to_cpu((*gpt)->last_usable_lba),
 			 (unsigned long long)lastlba);
+		goto fail;
+	}
+
+	/*
+	 * The entry array is allocated from sizeof_partition_entry, but
+	 * walked as an array of gpt_entry, so anything else than the
+	 * size of that structure would index past the allocation.
+	 */
+	if (le32_to_cpu((*gpt)->sizeof_partition_entry) != sizeof(gpt_entry)) {
+		dev_dbg(blk->dev, "GUID Partition Entry Size check failed: %u != %zu\n",
+			le32_to_cpu((*gpt)->sizeof_partition_entry),
+			sizeof(gpt_entry));
 		goto fail;
 	}
 
@@ -331,9 +344,10 @@ static int is_gpt_valid(struct block_device *blk, u64 lba,
 	/* Check the GUID Partition Table Entry Array CRC */
 	crc = efi_crc32((const unsigned char *)*ptes, count);
 
-	if (crc != le32_to_cpu((*gpt)->partition_entry_array_crc32)) {
+	ptescrc = le32_to_cpu((*gpt)->partition_entry_array_crc32);
+	if (crc != ptescrc && !fuzz_insecure_checksum_accepted(crc, ptescrc)) {
 		dev_dbg(blk->dev, "GUID Partitition Entry Array CRC check failed: 0x%08x 0x%08x\n",
-			crc, le32_to_cpu((*gpt)->partition_entry_array_crc32));
+			crc, ptescrc);
 		goto fail_ptes;
 	}
 
@@ -359,9 +373,13 @@ static int is_gpt_valid(struct block_device *blk, u64 lba,
 static inline int
 is_pte_valid(const gpt_entry *pte, const u64 lastlba)
 {
+	u64 start = le64_to_cpu(pte->starting_lba);
+	u64 end = le64_to_cpu(pte->ending_lba);
+
 	if (guid_is_null(&pte->partition_type_guid) ||
-	    le64_to_cpu(pte->starting_lba) > lastlba	 ||
-	    le64_to_cpu(pte->ending_lba)   > lastlba)
+	    start > lastlba ||
+	    end > lastlba ||
+	    start > end)
 		return 0;
 	return 1;
 }
@@ -380,14 +398,15 @@ compare_gpts(struct block_device *blk, gpt_header *pgpt, gpt_header *agpt,
 	     u64 lastlba)
 {
 	struct device *dev = blk->dev;
-
+	u32 pgptcrc, agptcrc;
 	int error_found = 0;
+
 	if (!pgpt || !agpt)
 		return;
 	if (le64_to_cpu(pgpt->my_lba) != le64_to_cpu(agpt->alternate_lba)) {
 		dev_warn(dev,
 		       "GPT:Primary header LBA != Alt. header alternate_lba\n");
-		dev_warn(dev, "GPT:%lld != %lld\n",
+		dev_warn(dev, "GPT:%llu != %llu\n",
 		       (unsigned long long)le64_to_cpu(pgpt->my_lba),
 		       (unsigned long long)le64_to_cpu(agpt->alternate_lba));
 		error_found++;
@@ -395,7 +414,7 @@ compare_gpts(struct block_device *blk, gpt_header *pgpt, gpt_header *agpt,
 	if (le64_to_cpu(pgpt->alternate_lba) != le64_to_cpu(agpt->my_lba)) {
 		dev_warn(dev,
 		       "GPT:Primary header alternate_lba != Alt. header my_lba\n");
-		dev_warn(dev, "GPT:%lld != %lld\n",
+		dev_warn(dev, "GPT:%llu != %llu\n",
 		       (unsigned long long)le64_to_cpu(pgpt->alternate_lba),
 		       (unsigned long long)le64_to_cpu(agpt->my_lba));
 		error_found++;
@@ -403,7 +422,7 @@ compare_gpts(struct block_device *blk, gpt_header *pgpt, gpt_header *agpt,
 	if (le64_to_cpu(pgpt->first_usable_lba) !=
 	    le64_to_cpu(agpt->first_usable_lba)) {
 		dev_warn(dev, "GPT:first_usable_lbas don't match.\n");
-		dev_warn(dev, "GPT:%lld != %lld\n",
+		dev_warn(dev, "GPT:%llu != %llu\n",
 		       (unsigned long long)le64_to_cpu(pgpt->first_usable_lba),
 		       (unsigned long long)le64_to_cpu(agpt->first_usable_lba));
 		error_found++;
@@ -411,7 +430,7 @@ compare_gpts(struct block_device *blk, gpt_header *pgpt, gpt_header *agpt,
 	if (le64_to_cpu(pgpt->last_usable_lba) !=
 	    le64_to_cpu(agpt->last_usable_lba)) {
 		dev_warn(dev, "GPT:last_usable_lbas don't match.\n");
-		dev_warn(dev, "GPT:%lld != %lld\n",
+		dev_warn(dev, "GPT:%llu != %llu\n",
 		       (unsigned long long)le64_to_cpu(pgpt->last_usable_lba),
 		       (unsigned long long)le64_to_cpu(agpt->last_usable_lba));
 		error_found++;
@@ -437,19 +456,19 @@ compare_gpts(struct block_device *blk, gpt_header *pgpt, gpt_header *agpt,
 		       le32_to_cpu(agpt->sizeof_partition_entry));
 		error_found++;
 	}
-	if (le32_to_cpu(pgpt->partition_entry_array_crc32) !=
-	    le32_to_cpu(agpt->partition_entry_array_crc32)) {
+	pgptcrc = le32_to_cpu(pgpt->partition_entry_array_crc32);
+	agptcrc = le32_to_cpu(agpt->partition_entry_array_crc32);
+	if (pgptcrc != agptcrc &&
+	    !fuzz_insecure_checksum_accepted(pgptcrc, agptcrc)) {
 		dev_warn(dev,
 		       "GPT:partition_entry_array_crc32 values don't match: "
-		       "0x%x != 0x%x\n",
-		       le32_to_cpu(pgpt->partition_entry_array_crc32),
-		       le32_to_cpu(agpt->partition_entry_array_crc32));
+		       "0x%x != 0x%x\n", pgptcrc, agptcrc);
 		error_found++;
 	}
 	if (le64_to_cpu(pgpt->alternate_lba) != lastlba) {
 		dev_warn(dev,
 		       "GPT:Primary header thinks Alt. header is not at the end of the disk.\n");
-		dev_warn(dev, "GPT:%lld != %lld\n",
+		dev_warn(dev, "GPT:%llu != %llu\n",
 			(unsigned long long)le64_to_cpu(pgpt->alternate_lba),
 			(unsigned long long)lastlba);
 		error_found++;
@@ -458,7 +477,7 @@ compare_gpts(struct block_device *blk, gpt_header *pgpt, gpt_header *agpt,
 	if (le64_to_cpu(agpt->my_lba) != lastlba) {
 		dev_warn(dev,
 		       "GPT:Alternate GPT header not at the end of the disk.\n");
-		dev_warn(dev, "GPT:%lld != %lld\n",
+		dev_warn(dev, "GPT:%llu != %llu\n",
 			(unsigned long long)le64_to_cpu(agpt->my_lba),
 			(unsigned long long)lastlba);
 		error_found++;
@@ -626,18 +645,18 @@ static struct partition_desc *efi_partition(void *buf, struct block_device *blk)
 
 	nb_part = le32_to_cpu(gpt->num_partition_entries);
 
-	if (nb_part > MAX_PARTITION) {
-		dev_warn(blk->dev, "GPT has more partitions than we support (%d) > max partition number (%d)\n",
-			 nb_part, MAX_PARTITION);
-		nb_part = MAX_PARTITION;
-	}
-
 	snprintf(blk->cdev.diskuuid, sizeof(blk->cdev.diskuuid), "%pUl", &gpt->disk_guid);
 	add_gpt_diskuuid_param(epd, blk);
 
 	for (i = 0; i < nb_part; i++) {
 		if (!is_pte_valid(&ptes[i], last_lba(blk))) {
 			dev_dbg(blk->dev, "Invalid pte %d\n", i);
+			continue;
+		}
+
+		if (i >= MAX_PARTITION) {
+			dev_warn(blk->dev, "ignoring GPT partition %d beyond the %d we support\n",
+				 i + 1, MAX_PARTITION);
 			continue;
 		}
 
@@ -752,12 +771,12 @@ static __maybe_unused int efi_partition_mkpart(struct partition_desc *pd,
 	const guid_t *guid;
 
 	if (start_lba < 34) {
-		pr_err("invalid start LBA %lld, minimum is 34\n", start_lba);
+		pr_err("invalid start LBA %llu, minimum is 34\n", start_lba);
 		return -EINVAL;
 	}
 
 	if (end_lba >= last_lba(pd->blk) - 33) {
-		pr_err("invalid end LBA %lld, maximum is %lld\n", end_lba,
+		pr_err("invalid end LBA %llu, maximum is %llu\n", end_lba,
 		       last_lba(pd->blk) - 34);
 		return -EINVAL;
 	}

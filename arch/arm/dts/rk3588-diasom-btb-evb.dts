@@ -135,7 +135,7 @@
 		pinctrl-0 = <&host20_1_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vbus_host20_1";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -147,7 +147,7 @@
 		pinctrl-0 = <&host30_1_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vbus_host30_1";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -159,7 +159,7 @@
 		pinctrl-0 = <&host30_2_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vbus_host30_2";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -171,7 +171,7 @@
 		pinctrl-0 = <&typec_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vbus_typec";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -216,7 +216,7 @@
 		/* Used by RAW probe for cameras connected via I2C */
 		regulator-boot-on;
 		enable-active-high;
-		gpio = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_cam0";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -231,7 +231,7 @@
 		/* Used by RAW probe for cameras connected via I2C */
 		regulator-boot-on;
 		enable-active-high;
-		gpio = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_cam1";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -242,7 +242,7 @@
 	vcc_lcd: vcc-lcd-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&exp 13 GPIO_ACTIVE_HIGH>;
+		gpios = <&exp 13 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_lcd";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -254,7 +254,7 @@
 		pinctrl-0 = <&pcie30_vcc_pins>;
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_pcie30";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;

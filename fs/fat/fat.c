@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <block.h>
 #include <linux/sizes.h>
+#include <fuzz.h>
 #include "ff.h"
 #include "integer.h"
 #include "diskio.h"
@@ -52,7 +53,7 @@ DRESULT disk_read(FATFS *fat, BYTE *buf, DWORD sector, BYTE count)
 	size_t len = count * sector_size;
 	int ret;
 
-	debug("%s: sector: %ld count: %d\n", __func__, sector, count);
+	debug("%s: sector: %u count: %d\n", __func__, sector, count);
 
 	ret = cdev_read(priv->cdev, buf, len, (loff_t)sector * sector_size, 0);
 	if (ret != len)
@@ -68,7 +69,7 @@ DRESULT disk_write(FATFS *fat, const BYTE *buf, DWORD sector, BYTE count)
 	size_t len = count * sector_size;
 	int ret;
 
-	debug("%s: buf: %p sector: %ld count: %d\n",
+	debug("%s: buf: %p sector: %u count: %d\n",
 			__func__, buf, sector, count);
 
 	ret = cdev_write(priv->cdev, buf, len, (loff_t)sector * sector_size, 0);
@@ -76,6 +77,13 @@ DRESULT disk_write(FATFS *fat, const BYTE *buf, DWORD sector, BYTE count)
 		return RES_ERROR;
 
 	return RES_OK;
+}
+
+DRESULT disk_flush(FATFS *fat)
+{
+	struct fat_priv *priv = fat->userdata;
+
+	return cdev_flush(priv->cdev) ? RES_ERROR : RES_OK;
 }
 
 /* ---------------------------------------------------------------*/
@@ -89,53 +97,30 @@ static int fat_create(struct device *dev, const char *pathname, mode_t mode)
 
 	ret = f_open(&priv->fat, &f_file, pathname, FA_OPEN_ALWAYS);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
-	f_close(&f_file);
-
-	return 0;
+	return f_close(&f_file);
 }
 
 static int fat_unlink(struct device *dev, const char *pathname)
 {
 	struct fat_priv *priv = dev->priv;
-	int ret;
 
-	ret = f_unlink(&priv->fat, pathname);
-	if (ret)
-		return ret;
-
-	cdev_flush(priv->cdev);
-
-	return 0;
+	return f_unlink(&priv->fat, pathname);
 }
 
 static int fat_mkdir(struct device *dev, const char *pathname)
 {
 	struct fat_priv *priv = dev->priv;
-	int ret;
 
-	ret = f_mkdir(&priv->fat, pathname);
-	if (ret)
-		return ret;
-
-	cdev_flush(priv->cdev);
-
-	return 0;
+	return f_mkdir(&priv->fat, pathname);
 }
 
 static int fat_rmdir(struct device *dev, const char *pathname)
 {
 	struct fat_priv *priv = dev->priv;
-	int ret;
 
-	ret = f_unlink(&priv->fat, pathname);
-	if (ret)
-		return ret;
-
-	cdev_flush(priv->cdev);
-
-	return 0;
+	return f_unlink(&priv->fat, pathname);
 }
 
 static int fat_write(struct file *f, const void *buf, size_t insize)
@@ -204,7 +189,7 @@ static int fat_open(struct device *dev, struct file *file, const char *filename)
 	ret = f_open(&priv->fat, f_file, filename, flags);
 	if (ret) {
 		free(f_file);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (file->f_flags & O_APPEND) {
@@ -212,7 +197,7 @@ static int fat_open(struct device *dev, struct file *file, const char *filename)
 		if (ret) {
 			f_close(f_file);
 			free(f_file);
-			return -EINVAL;
+			return ret;
 		}
 	}
 
@@ -224,16 +209,14 @@ static int fat_open(struct device *dev, struct file *file, const char *filename)
 
 static int fat_close(struct device *dev, struct file *f)
 {
-	struct fat_priv *priv = dev->priv;
 	FIL *f_file = f->private_data;
+	int ret;
 
-	f_close(f_file);
+	ret = f_close(f_file);
 
 	free(f_file);
 
-	cdev_flush(priv->cdev);
-
-	return 0;
+	return ret;
 }
 
 static int fat_read(struct file *f, void *buf, size_t insize)
@@ -397,6 +380,68 @@ static void fat_remove(struct device *dev)
 {
 	free(dev->priv);
 }
+
+static int fuzz_fat(struct block_device *ramdisk)
+{
+	FATFS fat = {};
+	struct fat_priv priv = {};
+	FF_DIR dir;
+	FILINFO finfo;
+	FIL fil;
+	BYTE buf[512];
+	UINT br;
+	int ret, i;
+	char lfname[256];
+
+	priv.cdev = &ramdisk->cdev;
+	fat.userdata = &priv;
+
+	ret = f_mount(&fat);
+	if (ret)
+		return 0;
+
+	ret = f_opendir(&fat, &dir, "/");
+	if (ret)
+		return 0;
+
+	/*
+	 * Bound the number of entries and the number of reads per file:
+	 * a crafted image can otherwise describe an arbitrarily long
+	 * directory or a cyclic cluster chain.
+	 */
+	for (i = 0; i < 64; i++) {
+		memset(&finfo, 0, sizeof(finfo));
+
+		if (IS_ENABLED(CONFIG_FS_FAT_LFN)) {
+			finfo.lfname = lfname;
+			finfo.lfsize = sizeof(lfname);
+		}
+
+		ret = f_readdir(&dir, &finfo);
+		if (ret || finfo.fname[0] == '\0')
+			break;
+
+		if (!(finfo.fattrib & AM_DIR)) {
+			char path[14];
+
+			snprintf(path, sizeof(path), "/%s", finfo.fname);
+			ret = f_open(&fat, &fil, path, FA_READ);
+			if (ret == 0) {
+				int reads = 0;
+
+				do {
+					ret = f_read(&fil, buf, sizeof(buf),
+						     &br);
+				} while (!ret && br == sizeof(buf) &&
+					 ++reads < 1024);
+				f_close(&fil);
+			}
+		}
+	}
+
+	return 0;
+}
+fuzz_test_ramdisk("fat", fuzz_fat, 512, NULL);
 
 static const struct fs_legacy_ops fat_ops = {
 	.open      = fat_open,

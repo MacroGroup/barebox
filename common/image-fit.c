@@ -36,6 +36,18 @@
 
 static LIST_HEAD(open_fits);
 
+static struct device_node *fit_get_child_by_name_exact(const struct device_node *node,
+						       const char *name)
+{
+	struct device_node *child;
+
+	for_each_child_of_node(node, child)
+		if (child->name && (strcmp(child->name, name) == 0))
+			return child;
+
+	return NULL;
+}
+
 static uint32_t dt_struct_advance(struct fdt_header *f, uint32_t dt, int size)
 {
 	dt += size;
@@ -57,7 +69,7 @@ static char *dt_string(struct fdt_header *f, char *strstart, uint32_t ofs)
 
 static int fit_digest(struct fit_handle *handle, struct digest *digest,
 		      struct string_list *inc_nodes, struct string_list *exc_props,
-		      uint32_t hashed_strings_start, uint32_t hashed_strings_size)
+		      uint32_t hashed_strings_size)
 {
 	const struct fdt_header *fdt = handle->fit;
 	const void *fit = handle->fit;
@@ -78,9 +90,7 @@ static int fit_digest(struct fit_handle *handle, struct digest *digest,
 	f.off_dt_strings = fdt32_to_cpu(fdt->off_dt_strings);
 	f.size_dt_strings = fdt32_to_cpu(fdt->size_dt_strings);
 
-	if (hashed_strings_start > f.size_dt_strings ||
-	    hashed_strings_size > f.size_dt_strings ||
-	    hashed_strings_start + hashed_strings_size > f.size_dt_strings) {
+	if (hashed_strings_size > f.size_dt_strings) {
 		pr_err("%s: hashed-strings too large\n", __func__);
 		return -EINVAL;
 	}
@@ -96,7 +106,6 @@ static int fit_digest(struct fit_handle *handle, struct digest *digest,
 		const struct fdt_node_header *fnh;
 		const char *name;
 		int include = 0;
-		int stop_at = 0;
 		int offset = dt_struct;
 		int maxlen, len;
 
@@ -126,14 +135,10 @@ static int fit_digest(struct fit_handle *handle, struct digest *digest,
 			strcpy(end, name);
 			end += len;
 			stack[depth] = want;
-			if (want == 1)
-				stop_at = offset;
 			if (string_list_contains(inc_nodes, path))
 				want = 2;
 			else if (want)
 				want--;
-			else
-				stop_at = offset;
 			include = want;
 
 			break;
@@ -163,7 +168,6 @@ static int fit_digest(struct fit_handle *handle, struct digest *digest,
 						      sizeof(struct fdt_property) + len);
 
 			include = want >= 2;
-			stop_at = offset;
 			if (string_list_contains(exc_props, name))
 				include = 0;
 
@@ -173,7 +177,6 @@ static int fit_digest(struct fit_handle *handle, struct digest *digest,
 			dt_struct = dt_struct_advance(&f, dt_struct, FDT_TAGSIZE);
 
 			include = want >= 2;
-			stop_at = offset;
 
 			break;
 
@@ -208,8 +211,8 @@ static int fit_digest(struct fit_handle *handle, struct digest *digest,
 	pr_debug("region: 0x%p+0x%x\n", fit + start, dt_struct - start);
 	digest_update(digest, fit + start, dt_struct - start);
 
-	pr_debug("strings: 0x%p+0x%x\n", dt_strings+hashed_strings_start, hashed_strings_size);
-	digest_update(digest, dt_strings + hashed_strings_start, hashed_strings_size);
+	pr_debug("strings: 0x%p+0x%x\n", dt_strings, hashed_strings_size);
+	digest_update(digest, dt_strings, hashed_strings_size);
 
 	return 0;
 }
@@ -333,7 +336,15 @@ static int fit_config_build_hash_nodes(struct fit_handle *handle,
 		    !strcmp(prop->name, "default"))
 			continue;
 
+		/* permit neither empty properties, nor unterminated strings.
+		 * Should we choose to support e.g. the boolean load-only
+		 * property in future, we should handle it specially and
+		 * allow that only it can be empty and not all properties.
+		 */
 		count = of_property_count_strings(conf_node, prop->name);
+		if (count < 0)
+			return count;
+
 		for (i = 0; i < count; i++) {
 			if (of_property_read_string_index(conf_node, prop->name,
 							  i, &unit))
@@ -346,7 +357,7 @@ static int fit_config_build_hash_nodes(struct fit_handle *handle,
 			if (ret)
 				return ret;
 
-			image_node = of_get_child_by_name(handle->images, unit);
+			image_node = fit_get_child_by_name_exact(handle->images, unit);
 			if (!image_node)
 				return -EINVAL;
 
@@ -397,6 +408,41 @@ static void fit_config_check_hash_nodes(struct device_node *sig_node,
 }
 
 /*
+ * Hash algorithms in order of precedence. Only the hash with the strongest
+ * algorithm is verified. The insecure algorithms are only good for detecting
+ * accidental corruption and are never used for verified boot.
+ */
+static const struct fit_hash_algo {
+	const char *name;
+	bool secure;
+} fit_hash_algos[] = {
+	{ .name = "sha512", .secure = true },
+	{ .name = "sha384", .secure = true },
+	{ .name = "sha256", .secure = true },
+	{ .name = "sha1", .secure = false },
+	{ .name = "md5", .secure = false },
+	{ .name = "crc32", .secure = false },
+};
+
+static struct device_node *fit_find_hash_node(struct device_node *image,
+					      const char *name)
+{
+	struct device_node *hash;
+	const char *algo;
+
+	for_each_child_of_node(image, hash) {
+		if (!of_node_has_prefix(hash, "hash"))
+			continue;
+
+		if (!of_property_read_string(hash, "algo", &algo) &&
+		    !strcmp(algo, name))
+			return hash;
+	}
+
+	return NULL;
+}
+
+/*
  * The consistency of the FTD structure was already checked by of_unflatten_dtb()
  */
 static int fit_verify_signature(struct fit_handle *handle,
@@ -413,6 +459,11 @@ static int fit_verify_signature(struct fit_handle *handle,
 	if (of_property_read_u32_index(sig_node, "hashed-strings", 0,
 	    &hashed_strings_start)) {
 		pr_err("hashed-strings start not found in %pOF\n", sig_node);
+		return -EINVAL;
+	}
+
+	if (hashed_strings_start != 0) {
+		pr_err("%pOF: hashed-strings offset must be 0\n", sig_node);
 		return -EINVAL;
 	}
 
@@ -439,24 +490,19 @@ static int fit_verify_signature(struct fit_handle *handle,
 		goto out_sl;
 	}
 
-	ret = fit_digest(handle, digest, &inc_nodes, &exc_props, hashed_strings_start,
-			 hashed_strings_size);
+	ret = fit_digest(handle, digest, &inc_nodes, &exc_props, hashed_strings_size);
 	if (ret)
-		goto out_sl;
+		goto out_digest;
 
 	hash = xzalloc(digest_length(digest));
 	digest_final(digest, hash);
 
 	ret = fit_check_signature(handle, sig_node, algo, hash);
-	if (ret) {
+	if (ret)
 		fit_config_check_hash_nodes(sig_node, &inc_nodes);
-		goto out_free_hash;
-	}
 
-	ret = 0;
-
- out_free_hash:
 	free(hash);
+ out_digest:
 	digest_free(digest);
  out_sl:
 	string_list_free(&inc_nodes);
@@ -465,33 +511,12 @@ static int fit_verify_signature(struct fit_handle *handle,
 	return ret;
 }
 
-static int fit_verify_hash(struct fit_handle *handle, struct device_node *image,
-			   const void *data, int data_len)
+static int fit_verify_hash_node(struct fit_handle *handle,
+				struct device_node *hash, struct digest *d,
+				const void *data, int data_len)
 {
-	struct digest *d;
-	const char *algo;
 	const char *value_read;
-	int hash_len, ret;
-	struct device_node *hash;
-
-	switch (handle->verify) {
-	case BOOTM_VERIFY_NONE:
-		return 0;
-	case BOOTM_VERIFY_AVAILABLE:
-		ret = 0;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	hash = of_get_child_by_name(image, "hash-1");
-	if (!hash)
-		hash = of_get_child_by_name(image, "hash@1");
-	if (!hash) {
-		if (ret)
-			pr_err("image %pOF does not have hashes\n", image);
-		return ret;
-	}
+	int hash_len;
 
 	value_read = of_get_property(hash, "value", &hash_len);
 	if (!value_read) {
@@ -499,21 +524,9 @@ static int fit_verify_hash(struct fit_handle *handle, struct device_node *image,
 		return -EINVAL;
 	}
 
-	if (of_property_read_string(hash, "algo", &algo)) {
-		pr_err("%pOF: \"algo\" property not found\n", hash);
-		return -EINVAL;
-	}
-
-	d = digest_alloc(algo);
-	if (!d) {
-		pr_err("%pOF: unsupported algo %s\n", hash, algo);
-		return -EINVAL;
-	}
-
 	if (hash_len != digest_length(d)) {
 		pr_err("%pOF: invalid hash length %d\n", hash, hash_len);
-		ret = -EINVAL;
-		goto err_digest_free;
+		return -EINVAL;
 	}
 
 	digest_init(d);
@@ -521,17 +534,59 @@ static int fit_verify_hash(struct fit_handle *handle, struct device_node *image,
 
 	if (digest_verify(d, value_read)) {
 		pr_err("%pOF: hash BAD\n", hash);
-		ret =  -EBADMSG;
-	} else {
-		if (handle->verbose)
-			pr_info("%pOF: hash OK\n", hash);
-		ret = 0;
+		return -EBADMSG;
 	}
 
-err_digest_free:
-	digest_free(d);
+	if (handle->verbose)
+		pr_info("%pOF: hash OK\n", hash);
 
-	return ret;
+	return 0;
+}
+
+static int fit_verify_hash(struct fit_handle *handle, struct device_node *image,
+			   const void *data, int data_len)
+{
+	const struct fit_hash_algo *algo;
+	struct device_node *hash;
+	struct digest *d;
+	int i, ret;
+
+	if (handle->verify == BOOTM_VERIFY_NONE)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(fit_hash_algos); i++) {
+		algo = &fit_hash_algos[i];
+
+		if (handle->verify == BOOTM_VERIFY_SIGNATURE && !algo->secure)
+			break;
+
+		hash = fit_find_hash_node(image, algo->name);
+		if (!hash)
+			continue;
+
+		d = digest_alloc(algo->name);
+		if (!d) {
+			pr_debug("%pOF: unsupported algo %s, skipping\n",
+				 hash, algo->name);
+			continue;
+		}
+
+		ret = fit_verify_hash_node(handle, hash, d, data, data_len);
+		digest_free(d);
+
+		return ret;
+	}
+
+	if (handle->verify == BOOTM_VERIFY_AVAILABLE)
+		return 0;
+
+	if (handle->verify == BOOTM_VERIFY_SIGNATURE)
+		pr_err("image %pOF has no supported hash allowed for verified boot\n",
+		       image);
+	else
+		pr_err("image %pOF has no supported hash\n", image);
+
+	return -EINVAL;
 }
 
 static int fit_image_verify_signature(struct fit_handle *handle,
@@ -544,8 +599,13 @@ static int fit_image_verify_signature(struct fit_handle *handle,
 	void *hash;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_FITIMAGE_SIGNATURE))
-		return 0;
+	if (!IS_ENABLED(CONFIG_FITIMAGE_SIGNATURE)) {
+		if (handle->verify != BOOTM_VERIFY_SIGNATURE)
+			return 0;
+
+		pr_err("signature verification required but support is disabled\n");
+		return -ENOSYS;
+	}
 
 	switch (handle->verify) {
 	case BOOTM_VERIFY_NONE:
@@ -557,9 +617,9 @@ static int fit_image_verify_signature(struct fit_handle *handle,
 		ret = -EINVAL;
 	}
 
-	sig_node = of_get_child_by_name(image, "signature-1");
+	sig_node = fit_get_child_by_name_exact(image, "signature-1");
 	if (!sig_node)
-		sig_node = of_get_child_by_name(image, "signature@1");
+		sig_node = fit_get_child_by_name_exact(image, "signature@1");
 	if (!sig_node) {
 		pr_err("Image %pOF has no signature\n", image);
 		return ret;
@@ -622,7 +682,7 @@ fit_get_image(struct fit_handle *handle, void *configuration,
 		}
 	}
 
-	return of_get_child_by_name(handle->images, *unit);
+	return fit_get_child_by_name_exact(handle->images, *unit);
 }
 
 /**
@@ -797,8 +857,13 @@ int fit_config_verify_signature(struct fit_handle *handle, struct device_node *c
 	struct device_node *sig_node;
 	int ret = -EINVAL;
 
-	if (!IS_ENABLED(CONFIG_FITIMAGE_SIGNATURE))
-		return 0;
+	if (!IS_ENABLED(CONFIG_FITIMAGE_SIGNATURE)) {
+		if (handle->verify != BOOTM_VERIFY_SIGNATURE)
+			return 0;
+
+		pr_err("signature verification required but support is disabled\n");
+		return -ENOSYS;
+	}
 
 	switch (handle->verify) {
 	case BOOTM_VERIFY_NONE:
@@ -841,7 +906,6 @@ static int fit_fdt_is_compatible(struct fit_handle *handle,
 	const char *unit = "fdt";
 	int data_len;
 	const void *data;
-	int ret;
 
 	if (of_property_present(child, "compatible"))
 		return 0;
@@ -849,10 +913,8 @@ static int fit_fdt_is_compatible(struct fit_handle *handle,
 		return 0;
 
 	image = fit_get_image(handle, child, &unit, 0);
-	if (!image) {
-		ret = -ENOENT;
+	if (!image)
 		goto err;
-	}
 
 	data = of_get_property(image, "data", &data_len);
 	if (!data)
@@ -986,7 +1048,7 @@ void *fit_open_configuration(struct fit_handle *handle, const char *name,
 		}
 	}
 
-	conf_node = of_get_child_by_name(conf_node, unit);
+	conf_node = fit_get_child_by_name_exact(conf_node, unit);
 	if (!conf_node) {
 		pr_err("configuration '%s' not found\n", unit);
 		return ERR_PTR(-ENOENT);
@@ -1031,12 +1093,11 @@ static int fit_do_open(struct fit_handle *handle)
 
 	handle->root = root;
 
-	handle->images = of_get_child_by_name(handle->root, "images");
+	handle->images = fit_get_child_by_name_exact(handle->root, "images");
 	if (!handle->images)
 		return -ENOENT;
 
-	handle->configurations = of_get_child_by_name(handle->root,
-						      "configurations");
+	handle->configurations = fit_get_child_by_name_exact(handle->root, "configurations");
 
 	of_property_read_string(handle->root, "description", &desc);
 	pr_info("Opened FIT image: %s\n", desc);
@@ -1217,50 +1278,151 @@ static int bootm_fit_register(void)
 }
 late_initcall(bootm_fit_register);
 
+/*
+ * Verification modes selected by the control byte. All of them are
+ * reachable in practice, and which one is in effect decides whether
+ * hashes and signatures are merely checked when present or required.
+ */
+static const enum bootm_verify fuzz_verify_modes[] = {
+	BOOTM_VERIFY_NONE,
+	BOOTM_VERIFY_HASH,
+	BOOTM_VERIFY_SIGNATURE,
+	BOOTM_VERIFY_AVAILABLE,
+};
+
+/*
+ * The image types a configuration can name. Each of these properties may
+ * list any number of images, so cap how many of them are opened.
+ */
+static const char * const fuzz_image_names[] = {
+	"kernel", "fdt", "ramdisk", "tee", "loadables",
+};
+
+#define FUZZ_FIT_MAX_IMAGES	8
+#define FUZZ_FIT_FILE		"/fuzz.fit"
+
+/* The candidate filter bootm applies while a configuration is picked */
+static bool fuzz_fit_has_kernel(struct fit_handle *handle,
+				struct device_node *config)
+{
+	return fit_has_image(handle, config, "kernel");
+}
+
+/*
+ * bootm opens a FIT by name: open_fdt() checks the header against the file
+ * size and a second open of the same name is served from the handle cache.
+ */
+static struct fit_handle *fuzz_fit_open_file(const u8 *data, size_t size,
+					     enum bootm_verify verify)
+{
+	struct fit_handle *handle, *cached;
+	int ret;
+
+	ret = write_file(FUZZ_FIT_FILE, data, size);
+	if (ret)
+		return ERR_PTR(ret);
+
+	handle = fit_open(FUZZ_FIT_FILE, false, verify);
+	if (!IS_ERR(handle)) {
+		cached = fit_open(FUZZ_FIT_FILE, false, verify);
+		if (!IS_ERR(cached))
+			fit_close(cached);
+	}
+
+	unlink(FUZZ_FIT_FILE);
+
+	return handle;
+}
+
+static void fuzz_fit_open_images(struct fit_handle *handle, void *config)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(fuzz_image_names); i++) {
+		const char *name = fuzz_image_names[i];
+		const void *outdata;
+		unsigned long outsize, addr;
+		int idx, count;
+
+		/*
+		 * Without a configuration the image is looked up by its
+		 * own name, so there is exactly one to open.
+		 */
+		count = config ? clamp(fit_count_images(handle, config, name),
+				       0, FUZZ_FIT_MAX_IMAGES) : 1;
+
+		for (idx = 0; idx < count; idx++)
+			fit_open_image(handle, config, name, idx,
+				       &outdata, &outsize);
+
+		fit_get_image_address(handle, config, name, "load", &addr);
+		fit_get_image_address(handle, config, name, "entry", &addr);
+	}
+}
+
+/*
+ * A FIT that verifies goes on to run a kernel of its choosing, so what it
+ * does afterwards is not attack surface: this stops at fit_open_image(),
+ * where the hash and the image signature are checked. The hash comparison
+ * including its success path does matter, as a hash is trivially recomputed
+ * for modified data wherever signatures are not enforced.
+ */
 static int fuzz_fit(const u8 *data, size_t size)
 {
-	const char *unit, *imgname = "kernel";
-	struct fit_handle handle = {};
-	const void *outdata;
-	unsigned long outsize, addr;
-	int ret;
+	struct fit_handle *handle;
+	enum bootm_verify verify;
+	const char *unit;
 	void *config;
+	u8 ctrl = 0;
 
-	handle.verbose = false;
-	handle.verify = BOOTM_VERIFY_AVAILABLE;
+	if (size < sizeof(struct fdt_header))
+		return 0;
 
-	handle.size = size;
-	handle.fit = data;
-	handle.fit_alloc = NULL;
+	/*
+	 * If the buffer is larger than the FDT claims to be, take the
+	 * first trailing byte as a control byte to vary what the fuzzer
+	 * exercises. Corpus entries that are exactly one FDT get 0.
+	 * Input that is no FDT at all has no structure worth preserving,
+	 * so there the last byte selects.
+	 */
+	if (fdt_magic(data) == FDT_MAGIC) {
+		uint32_t fdt_size = fdt_totalsize(data);
 
-	refcount_set(&handle.users, 1);
-
-	ret = fit_do_open(&handle);
-	if (ret)
-		goto out;
-
-	config = fit_open_configuration(&handle, NULL, NULL);
-	if (IS_ERR(config)) {
-		ret = fit_find_last_unit(&handle, &unit);
-		if (ret)
-			goto out;
-		config = fit_open_configuration(&handle, unit, NULL);
-	}
-	if (IS_ERR(config)) {
-		ret = PTR_ERR(config);
-		goto out;
+		if (fdt_size >= sizeof(struct fdt_header) && fdt_size < size) {
+			ctrl = data[fdt_size];
+			size = fdt_size;
+		}
+	} else {
+		ctrl = data[size - 1];
 	}
 
-	ret = fit_open_image(&handle, config, imgname, 0, &outdata, &outsize);
-	if (ret)
-		goto out;
+	verify = fuzz_verify_modes[ctrl % ARRAY_SIZE(fuzz_verify_modes)];
 
-	fit_get_image_address(&handle, config, imgname, "load", &addr);
-	fit_get_image_address(&handle, config, imgname, "entry", &addr);
+	if (ctrl & BIT(2))
+		handle = fuzz_fit_open_file(data, size, verify);
+	else
+		handle = fit_open_buf(data, size, false, verify);
+	if (IS_ERR(handle))
+		return 0;
 
-	ret = fit_open_image(&handle, NULL, imgname, 0, &outdata, &outsize);
-out:
-	__fit_close(&handle);
+	/*
+	 * Opening without a name picks the configuration matching barebox'
+	 * own compatible. Fall back to the last one, so images that describe
+	 * a different machine are explored as well.
+	 */
+	config = fit_open_configuration(handle, NULL, fuzz_fit_has_kernel);
+	if (IS_ERR(config) && !fit_find_last_unit(handle, &unit))
+		config = fit_open_configuration(handle, unit, NULL);
+
+	if (!IS_ERR(config)) {
+		fit_config_get_name(handle, config);
+		fuzz_fit_open_images(handle, config);
+	}
+
+	/* Without a configuration an image's own signature is checked */
+	fuzz_fit_open_images(handle, NULL);
+
+	fit_close(handle);
 
 	return 0;
 }

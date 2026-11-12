@@ -2026,8 +2026,18 @@ efi_status_t EFIAPI efiloader_load_image(bool boot_policy,
 	} else {
 		dest_buffer = source_buffer;
 	}
-	/* split file_path which contains both the device and file parts */
-	ret = efi_dp_split_file_path(file_path, &dp, &fp);
+	/*
+	 * DevicePath is optional when SourceBuffer is given, the loaded image
+	 * then has no device handle and an empty file path.
+	 */
+	if (file_path) {
+		/* file_path contains both the device and the file parts */
+		ret = efi_dp_split_file_path(file_path, &dp, &fp);
+	} else {
+		dp = NULL;
+		fp = efi_dp_append_node(NULL, NULL);
+		ret = fp ? EFI_SUCCESS : EFI_OUT_OF_RESOURCES;
+	}
 	if (ret == EFI_SUCCESS) {
 		ret = efi_setup_loaded_image(dp, fp, image_obj, &info);
 		if (ret == EFI_SUCCESS)
@@ -3132,8 +3142,6 @@ efi_status_t __efi_start_image(efi_handle_t image_handle,
 
 	pr_info("Starting EFI payload at %p\n", entry);
 
-	// FIXME: we need the below if we enable CONFIG_ARM_MMU_PERMISSIONS...
-	// remap_range(info->image_base, info->image_size, MAP_ARCH(2));
 	sync_caches_for_execution();
 
 	efi_set_variable_usec("LoaderTimeExecUSec", &efi_systemd_vendor_guid,

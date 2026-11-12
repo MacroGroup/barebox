@@ -13,6 +13,7 @@ config ARM
 	select HAVE_PBL_IMAGE
 	select HAVE_PBL_MULTI_IMAGES
 	select RELOCATABLE
+	select PBL_CONSTRUCTORS
 	select PBL_RELOCATABLE
 	select USE_COMPRESSED_DTB
 	select HAVE_ARCH_BOARD_GENERIC_DT if OFDEVICE
@@ -118,11 +119,6 @@ config ARCH_MXS
 	select COMMON_CLK
 	select HAS_DEBUG_LL
 
-config ARCH_PXA
-	bool "Intel/Marvell PXA based"
-	depends on 32BIT
-	select GENERIC_GPIO
-
 config ARCH_SOCFPGA
 	bool "Altera SOCFPGA"
 	select HAS_DEBUG_LL
@@ -184,6 +180,14 @@ config ARCH_K3
 	select HAS_DEBUG_LL
 	select COMMON_CLK_OF_PROVIDER
 	select PM_GENERIC_DOMAINS
+
+config ARCH_PXA
+	bool "Intel/Marvell PXA based"
+	depends on 32BIT
+	select GPIOLIB
+	select HAS_DEBUG_LL
+	select OFTREE
+	select OFDEVICE
 
 config ARCH_SUNXI
 	bool "Allwinner (sunxi) SoCs"
@@ -272,6 +276,21 @@ config ARCH_ZYNQMP
 	select GPIOLIB
 	select HAS_MACB
 
+config ARCH_MICROCHIP
+	bool "Microchip ARM64 SoC support"
+	depends on ARCH_MULTIARCH
+	depends on 64BIT
+	select OFDEVICE
+	select COMMON_CLK
+	select COMMON_CLK_OF_PROVIDER
+	select PINCTRL
+	select GPIOLIB
+	help
+	  This enables support for Microchip ARM64-based SoCs,
+	  including the LAN969X Ethernet switch family.
+
+	  For ARM32 Microchip/Atmel SoCs (AT91, SAMA5), use ARCH_AT91.
+
 source "arch/arm/cpu/Kconfig"
 source "arch/arm/mach-at91/Kconfig"
 source "arch/arm/mach-bcm283x/Kconfig"
@@ -293,6 +312,27 @@ source "arch/arm/mach-vexpress/Kconfig"
 source "arch/arm/mach-tegra/Kconfig"
 source "arch/arm/mach-zynq/Kconfig"
 source "arch/arm/mach-zynqmp/Kconfig"
+
+if ARCH_MICROCHIP
+
+config MACH_NOVARQ_TACTICAL_1000
+	bool "Novarq Tactical 1000"
+	select COMMON_CLK_LAN966X
+	select PINCTRL_OCELOT
+	select GPIO_MICROCHIP_SGPIO
+	select RESET_CONTROLLER
+	select RESET_MICROCHIP_SPARX5
+	help
+	  Support for the Novarq Tactical 1000, a switch built around the
+	  Microchip LAN9696: 24 1G ports plus 4 10G SFP+ uplinks, an ARM64
+	  CPU and AT91/SAMA5 compatible peripherals. barebox runs as the
+	  BL33 payload started by TF-A and can update itself into the FIP
+	  image on the QSPI NOR.
+
+	  This covers the pre-production revision, which is laid out as a
+	  close copy of the Microchip EV23X71A reference design.
+
+endif # ARCH_MICROCHIP
 
 config BOARD_ARM_VIRT
 	bool
@@ -428,7 +468,7 @@ config ARM_UNWIND
 
 config ARM_MMU_PERMISSIONS
 	bool "Map with extended RO/X permissions"
-	depends on MMU && !EFI_RUNTIME
+	depends on MMU
 	default y
 	help
 	  Enable this option to map readonly sections as readonly, executable

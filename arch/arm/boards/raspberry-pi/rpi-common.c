@@ -5,6 +5,7 @@
 #include <deep-probe.h>
 #include <init.h>
 #include <fs.h>
+#include <magicvar.h>
 #include <of.h>
 #include <of_device.h>
 #include <linux/stat.h>
@@ -61,8 +62,9 @@ struct rpi_priv {
 };
 
 struct rpi_property_fixup_data {
-    const struct device_node* vc_node;
-    const char *propname;
+	const struct device_node* vc_node;
+	const char *propname;
+	const char *alias;
 };
 
 static void rpi_set_usbethaddr(void)
@@ -175,6 +177,7 @@ static int rpi_mem_init(void)
 	if (!of_machine_is_compatible("brcm,bcm2837") &&
 	    !of_machine_is_compatible("brcm,bcm2835") &&
 	    !of_machine_is_compatible("brcm,bcm2711") &&
+	    !of_machine_is_compatible("brcm,bcm2712") &&
 	    !of_machine_is_compatible("brcm,bcm2836"))
 		return 0;
 
@@ -313,9 +316,23 @@ static int rpi_vc_fdt_fixup_property(struct device_node *root, void *data)
 	struct device_node *node;
 	struct property *prop;
 
-	node = of_create_node(root, fixup->vc_node->full_name);
-	if (!node)
-		return -ENOMEM;
+	if (fixup->alias) {
+		/*
+		 * The node name need not be the same in the VideoCore FDT
+		 * and in the DT we fix up (e.g. /emmc2bus was renamed to
+		 * /emmc2-bus@fe000000 in Linux v7.0), so look it up via
+		 * the alias like the firmware does and don't create it.
+		 */
+		node = of_find_node_by_alias(root, fixup->alias);
+		if (!node) {
+			pr_debug("no '%s' alias found in fdt\n", fixup->alias);
+			return 0;
+		}
+	} else {
+		node = of_create_node(root, fixup->vc_node->full_name);
+		if (!node)
+			return -ENOMEM;
+	}
 
 	prop = of_find_property(fixup->vc_node, fixup->propname, NULL);
 	if (!prop)
@@ -331,13 +348,15 @@ static int register_vc_property_fixup(struct device_node *root,
 	struct device_node *node, *tmp;
 	struct rpi_property_fixup_data* fixup_data;
 
-	node = of_find_node_by_path_from(root, path);
+	node = of_find_node_by_path_or_alias(root, path);
 	if (node) {
 		tmp = of_dup(node);
 		tmp->full_name = xstrdup(node->full_name);
 		fixup_data = xzalloc(sizeof(*fixup_data));
 		fixup_data->vc_node = tmp;
 		fixup_data->propname = xstrdup(propname);
+		if (*path != '/')
+			fixup_data->alias = xstrdup(path);
 
 		of_register_fixup(rpi_vc_fdt_fixup_property, fixup_data);
 	} else {
@@ -376,7 +395,7 @@ static void rpi_vc_fdt_parse(struct device_node *root)
 	register_vc_property_fixup(root, "/reserved-memory/nvram@0", "reg");
 	register_vc_property_fixup(root, "/reserved-memory/nvram@0", "status");
 	register_vc_fixup(root, "/hat");
-	register_vc_property_fixup(root, "/emmc2bus", "dma-ranges");
+	register_vc_property_fixup(root, "emmc2bus", "dma-ranges");
 	register_vc_fixup(root, "/chosen/bootloader");
 	chosen = register_vc_fixup(root, "/chosen");
 	if (!chosen) {
@@ -732,6 +751,13 @@ static const struct rpi_machine_data rpi_4_ids[] = {
 	},
 };
 
+static const struct rpi_machine_data rpi_5_ids[] = {
+	{
+		.hw_id = BCM2712_BOARD_REV_5,
+	}, {
+		.hw_id = U8_MAX
+	},
+};
 static const struct of_device_id rpi_of_match[] = {
 	/* BCM2835 based Boards */
 	{ .compatible = "raspberrypi,model-a", .data = rpi_1_ids },
@@ -762,6 +788,9 @@ static const struct of_device_id rpi_of_match[] = {
 	{ .compatible = "raspberrypi,4-compute-module-s", .data = rpi_4_ids },
 	{ .compatible = "raspberrypi,400", .data = rpi_4_ids },
 
+	/* BCM2712 based Boards */
+	{ .compatible = "raspberrypi,5-model-b", .data = rpi_5_ids },
+
 	{ /* sentinel */ },
 };
 BAREBOX_DEEP_PROBE_ENABLE(rpi_of_match);
@@ -772,3 +801,11 @@ static struct driver rpi_board_driver = {
 	.of_compatible = DRV_OF_COMPAT(rpi_of_match),
 };
 late_platform_driver(rpi_board_driver);
+
+BAREBOX_MAGICVAR(global.vc.bootargs, "Kernel command line from the VideoCore device tree");
+BAREBOX_MAGICVAR(global.vc.overlay_prefix, "overlay_prefix from the VideoCore device tree");
+BAREBOX_MAGICVAR(global.vc.os_prefix, "os_prefix from the VideoCore device tree");
+BAREBOX_MAGICVAR(global.vc.boot_mode, "Boot mode reported by the VideoCore firmware");
+BAREBOX_MAGICVAR(global.vc.boot_partition, "Boot partition reported by the VideoCore firmware");
+BAREBOX_MAGICVAR(global.vc.kernel,
+		 "Default kernel image name for the CPU: kernel.img, kernel7.img or kernel8.img");

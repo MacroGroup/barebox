@@ -62,7 +62,7 @@ work on the internal devicetree. It is possible to add/remove nodes using the
   # dump the whole devicetree
   of_dump
 
-  # dump node of_dump /soc/nand@d8000000/
+  # dump node /soc/nand@d8000000/
   of_dump /soc/nand@d8000000/
 
   # create a new node
@@ -73,15 +73,15 @@ work on the internal devicetree. It is possible to add/remove nodes using the
 
 It is important to know that these commands normally work on the internal
 devicetree. If you want to modify the devicetree the kernel is started with
-see the -f options to of_property and of_node. This option will register the
-operation for later execution on the Kernel devicetree.
+see the -f option to of_property and of_node. This option will register the
+operation for later execution on the kernel devicetree.
 
 Device tree overlays
 --------------------
 
 barebox has support for device tree overlays. barebox knows two different trees,
-the live tree and the device tree the kernel is started with. Both can be applied
-overlays to.
+the live tree and the device tree the kernel is started with. Overlays can be
+applied to both.
 
 .. note:: Compiling a device tree discards label information by default. To be able
  to use phandles into the base device tree from inside an overlay, pass to dtc the
@@ -140,3 +140,18 @@ For upstream device trees, this is currently done on a case-by-case basis in the
 Makefiles::
 
   DTC_FLAGS_bcm2711-rpi-4-b := -@
+
+.. _of_overlay_fit:
+
+Overlays in a FIT image
+^^^^^^^^^^^^^^^^^^^^^^^
+
+If :ref:`global.of.overlay.path <magicvar_global_of_overlay_path>` points at a
+file, barebox opens it as a FIT image and applies, in order, the first ``fdt``
+image of each configuration that has neither ``kernel`` nor ``firmware``.
+:ref:`global.of.overlay.pattern <magicvar_global_of_overlay_pattern>` is
+matched against the configuration name, not the image name. The FIT is
+verified according to
+:ref:`global.bootm.verify <magicvar_global_bootm_verify>`; overlays in a
+directory are not verified at all. Processing stops at the first configuration
+that fails to verify or apply, but the kernel is still booted.

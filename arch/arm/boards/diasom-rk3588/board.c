@@ -75,13 +75,13 @@ static int __init diasom_rk3588_check_adc(void)
 	adapter = diasom_rk3588_i2c_get_adapter(2);
 	if (!adapter) {
 		pr_err("Could get I2C2 bus. "
-		"Probably this is not Diasom board!\n");
+		       "Probably this is not Diasom board!\n");
 		return 0;
 	}
 
 	if (diasom_rk3588_probe_i2c(adapter, 0x42)) {
 		pr_err("Could get I2C2 device. "
-		"Probably this is not Diasom board!\n");
+		       "Probably this is not Diasom board!\n");
 		return 0;
 	}
 
@@ -249,8 +249,8 @@ static int __init diasom_rk3588_init(void)
 		som_val = diasom_rk3588_check_adc();
 
 		switch (som_val) {
-			case 151 ... 349:
-				som_revision = 0;
+			case 201 ... 349:
+				som_revision = 2;
 				break;
 			default:
 				pr_err("Cannot determine SMARC revision. ADC = %i\n",
@@ -300,7 +300,9 @@ static int __init diasom_rk3588_init(void)
 		if (diasom_rk3588_detect_btb_evb_hat())
 			do_probe = true;
 	} else if (of_machine_is_compatible("diasom,ds-rk3588-smarc-evb")) {
-		//TODO:
+		//FIXME: Fixed at rev1 at now
+		evb_revision = 1;
+		pr_info("EVB revision: %i\n", evb_revision);
 	} else
 		pr_info("RAW module variant used.\n");
 

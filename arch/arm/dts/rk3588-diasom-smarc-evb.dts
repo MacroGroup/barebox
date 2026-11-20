@@ -22,45 +22,112 @@
 			status = "disabled";
 		};
 	};
+
+	evb_1v8: evb-1v8-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&evb_12v0>;
+	};
+
+	evb_3v3: evb-3v3-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&evb_12v0>;
+	};
+
+	evb_5v0: evb-5v0-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "5v0";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&evb_12v0>;
+	};
+
+	evb_12v0: evb-12v0-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "12v0";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+};
+
+&i2c4 {
+	/* MDIO */
+	clock-frequency = <100000>;
+	status = "okay";
+
+	//TODO: 53
 };
 
 &i2c5 {
 	/* I2C_GP */
+
+	//TODO: 11
 };
 
 &i2c7 {
 	/* I2C_PM */
+	clock-frequency = <100000>;
 	status = "okay";
+
+	//TODO: 53
 };
 
 &sdmmc {
+	//FIXME: vmmc-supply (vcc_sdmmc0) is not used with EVB rev 1
 	status = "okay";
 };
 
 &sfc {
 	/* SPI1 */
+
+	flash@1 {
+		compatible = "jedec,spi-nor";
+		reg = <1>;
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+		vcc-supply = <&vcc_1v8>;
+	};
 };
 
 &spi3 {
 	/* SPI0 */
 	status = "okay";
 
-	spi@0 {
-		compatible = "rohm,dh2228fv";
+	flash@0 {
+		compatible = "jedec,spi-nor";
 		reg = <0>;
-		spi-max-frequency = <20000000>;
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+		vcc-supply = <&evb_1v8>;
 	};
 
-	spi@1 {
-		compatible = "rohm,dh2228fv";
+	flash@1 {
+		compatible = "jedec,spi-nor";
 		reg = <1>;
-		spi-max-frequency = <20000000>;
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+		vcc-supply = <&evb_1v8>;
 	};
 };
 
 &uart1 {
 	/* SER3 */
-	status = "okay";
+//	status = "okay";
 };
 
 &uart2 {
@@ -69,10 +136,14 @@
 
 &uart6 {
 	/* SER0 */
-	status = "okay";
+//	status = "okay";
 };
 
 &uart9 {
 	/* SER2 */
-	status = "okay";
+//	status = "okay";
+};
+
+&vdd_in {
+	vin-supply = <&evb_12v0>;
 };

@@ -74,6 +74,8 @@ Override rules
 ``bootm.initrd``
   A colon-separated list of initrd/CPIO files. Linux can transparently
   extract any number of concatenated CPIOs, even if individually compressed.
+  barebox zero-pads each file to a 4-byte boundary, as Linux requires before
+  an uncompressed CPIO.
   A leading colon appends to the initrd that the boot entry already provides:
 
   .. code-block:: sh
@@ -207,9 +209,9 @@ which the configuration script can source instead of spelling them out:
 
 ``/env/devboot/defaults``
   Sets ``devboot_image``, ``devboot_oftree`` and ``devboot_initrd`` to
-  ``${global.user}-image-${global.hostname}``,
+  ``${global.user}-linux-${global.hostname}``,
   ``${global.user}-oftree-${global.hostname}`` and
-  ``${global.user}-initrd-${global.hostname}`` respectively, but only
+  ``${global.user}-initramfs-${global.hostname}`` respectively, but only
   for those files that exist in the fetch directory. Symlink the build
   artifacts under these names into the TFTP directory and the script
   needs no further configuration.
@@ -221,7 +223,7 @@ which the configuration script can source instead of spelling them out:
   line, so RAUC neither marks the slot as booted nor as good.
 
 ``/env/devboot/rsinit-modules``
-  Appends the ``${global.user}-modules-${global.arch}`` CPIO archive to
+  Appends the ``${global.user}-modules-${global.hostname}`` CPIO archive to
   the initrd, as built by the Linux kernel ``make modules-cpio-pkg``
   target, and adds ``rsinit.bind_modules`` to the kernel command
   line, so that the rsinit init in the initramfs bind mounts the modules

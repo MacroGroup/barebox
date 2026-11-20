@@ -22,19 +22,6 @@
 #include <security/config.h>
 #include <security/policy.h>
 
-/*
- * All device parameter iteration happens in lexicographical order.
- * To ensure that bootm options are consistently applied before or after
- * other options from the environment or boot configuration files, we
- * employ following convention for the prefix:
- *
- *   !		0x21 is less than any non-space printable character
- *   ~		0x7e is greater than any printable character
- *
- * Users will never see those as bootm_boot_cleanup() will delete them again.
- */
-#define LINUX_BOOTARGS_BOOTM_LATE	"linux.bootargs.~bootm."
-
 static LIST_HEAD(handler_list);
 static struct sconfig_notifier_block sconfig_notifier;
 
@@ -241,11 +228,19 @@ const struct resource *bootm_load_os(struct image_data *data,
 	    end_address <= load_address || !data->os)
 		return ERR_PTR(-EINVAL);
 
-	res = loadable_extract_into_sdram_all(data->os, load_address, end_address);
+	res = loadable_extract_into_sdram_all(data->os, load_address, end_address,
+					      NULL);
 	if (!IS_ERR(res))
 		data->os_res = res;
 
 	return res;
+}
+
+/* Linux only detects uncompressed cpio archives at 4-byte aligned offsets */
+static unsigned long bootm_initrd_fixup_adr(struct loadable *l,
+					    unsigned long adr)
+{
+	return ALIGN(adr, 4);
 }
 
 /**
@@ -281,7 +276,8 @@ bootm_load_initrd(struct image_data *data, ulong load_address, ulong end_address
 	if (end_address <= load_address)
 		return ERR_PTR(-EINVAL);
 
-	res = loadable_extract_into_sdram_all(data->initrd, load_address, end_address);
+	res = loadable_extract_into_sdram_all(data->initrd, load_address,
+					      end_address, bootm_initrd_fixup_adr);
 	if (!IS_ERR(res))
 		data->initrd_res = res;
 	return res;
@@ -330,7 +326,9 @@ void *bootm_get_devicetree(struct image_data *data)
 			printf("using %s as devicetree\n", data->oftree->name);
 
 	} else {
-		data->of_root_node = of_dup_root_node_for_boot();
+		/* image handlers may preset barebox' own device tree */
+		if (!data->of_root_node)
+			data->of_root_node = of_dup_root_node_for_boot();
 		if (!data->of_root_node) {
 			if (bootm_verbose(data))
 				printf("using no devicetree\n");
@@ -803,6 +801,7 @@ void bootm_boot_cleanup(struct image_data *data)
 	if (data->of_root_node)
 		of_delete_node(data->of_root_node);
 
+	globalvar_remove(LINUX_BOOTARGS_BOOTM_EARLY "*");
 	globalvar_remove(LINUX_BOOTARGS_BOOTM_LATE  "*");
 	free(data->os_header);
 	free(data->os_file);

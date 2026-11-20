@@ -15,7 +15,12 @@ fuzzer-$(CONFIG_OF_OVERLAY)	+= dtb-overlay
 fuzzer-$(CONFIG_EFI_PE_PARSER)	+= pe
 fuzzer-$(CONFIG_TLV)		+= tlv
 fuzzer-$(CONFIG_FS_FAT)		+= fat
+fuzzer-$(CONFIG_FS_SQUASHFS)	+= squashfs
+fuzzer-$(CONFIG_FS_EXT4)	+= ext4
 fuzzer-$(CONFIG_STATE)		+= state-direct
+fuzzer-$(CONFIG_DM_LVM)		+= lvm
+fuzzer-$(CONFIG_DM_LVM)		+= lvm-md
+fuzzer-$(CONFIG_USB_HOST)	+= usb-config
 
 ifeq ($(CONFIG_SANDBOX),y)
 

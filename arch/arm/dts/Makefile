@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+ifdef CONFIG_EFI_PAYLOAD
+obj-pbl-$(CONFIG_OFDEVICE) += fallback.dtb.o
+endif
+
 lwl-$(CONFIG_MACH_ADVANTECH_ROM_742X) += imx6dl-advantech-rom-7421.dtb.o
 lwl-$(CONFIG_MACH_AFI_GF) += am335x-afi-gf.dtb.o
 lwl-$(CONFIG_MACH_AM625_SK) += k3-am625-sk.dtb.o k3-am625-r5-sk.dtb.o k3-am625sip-r5-sk.dtb.o
@@ -197,7 +201,7 @@ lwl-$(CONFIG_MACH_SEEED_ODYSSEY) += stm32mp157c-odyssey.dtb.o
 lwl-$(CONFIG_MACH_STM32MP15XX_DKX) += stm32mp157c-dk2.dtb.o stm32mp157a-dk1.dtb.o \
 					stm32mp157c-dk2-scmi.dtb.o stm32mp157a-dk1-scmi.dtb.o
 lwl-$(CONFIG_MACH_STM32MP13XX_DK) += stm32mp135f-dk.dtb.o
-lwl-$(CONFIG_MACH_LXA_MC1) += stm32mp157c-lxa-mc1.dtb.o stm32mp157c-lxa-mc1-scmi.dtb.o
+lwl-$(CONFIG_MACH_LXA_MC1) += stm32mp157c-lxa-mc1-scmi.dtb.o
 lwl-$(CONFIG_MACH_LXA_TAC) += stm32mp157c-lxa-tac-gen1.dtb.o stm32mp157c-lxa-tac-gen2.dtb.o \
 				stm32mp153c-lxa-tac-gen3.dtb.o
 lwl-$(CONFIG_MACH_LXA_FAIRYTUX2) += stm32mp153c-lxa-fairytux2-gen1.dtb.o stm32mp153c-lxa-fairytux2-gen2.dtb.o
@@ -294,6 +298,10 @@ lwl-$(CONFIG_MACH_TQMA93XX) += imx93-tqma9352-mba93xxca.dtb.o \
 
 obj-$(CONFIG_MACH_WOLFVISION_PF5) += rk3568-wolfvision-pf5-io-expander.dtbo.o \
 				     rk3568-wolfvision-pf5-display-vz.dtbo.o
+
+overlay-$(CONFIG_ARCH_STM32MP157) += stm32mp151.dtbo
+DTBO_BASE_stm32mp151 := stm32mp151-symbols
+
 clean-files := *.dtb *.dtb.S .*.dtc .*.pre .*.dts *.dtb.z
-clean-files += *.dtbo *.dtbo.S .*.dtso
+clean-files += *.dtbo *.dtbo.S .*.dtso *-paths.h
 lwl-$(CONFIG_MACH_RAUMFELD_SPEAKER) += pxa300-raumfeld-speaker.dtb.o

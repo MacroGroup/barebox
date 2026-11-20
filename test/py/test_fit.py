@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import hashlib
 import re
 import os
 import pytest
@@ -42,8 +43,8 @@ def fit_testdata(barebox_config, testfs):
         mkcpio("LICENSES/exceptions/", outdir / "ramdisk2.cpio")
         mkcpio("LICENSES/preferred/", outdir / "ramdisk3.cpio.gz")
 
-        run(["mkimage", "-G", "test/self/development_rsa2048.pem", "-r", "-f",
-             str(builddir / its_name), str(outfile)])
+        run(["mkimage", "-G", "crypto/snakeoil-4096-development.pem",
+             "-r", "-f", str(builddir / its_name), str(outfile)])
     except FileNotFoundError as e:
         pytest.skip(f"Skip dm tests due to missing dependency: {e}")
 
@@ -87,8 +88,24 @@ def test_fit_dryrun(barebox, strategy, fitimage):
     # If we actually did boot, this variable would be undefined
     barebox.run_check('[ "$global.dryrun_attempts" = 5 ]')
 
+    # Apply fixups and check the FIT's cmdline did not outlive bootm -d
+    stdout = barebox.run_check("of_dump -F -p /chosen")
+    for line in stdout:
+        if line.startswith("bootargs"):
+            assert "fit.param" not in line, \
+                   f"FIT cmdline survived bootm dry run: {line}"
 
-def test_fit(barebox, strategy, fitimage):
+
+def padded_ramdisks(testfs):
+    # bootm pads every ramdisk to a 4-byte boundary before the next one
+    data = b""
+    for name in ["ramdisk1.cpio.gz", "ramdisk2.cpio", "ramdisk3.cpio.gz"]:
+        data += bytes(-len(data) % 4)
+        data += (Path(testfs) / name).read_bytes()
+    return data
+
+
+def test_fit(barebox, strategy, testfs, fitimage):
     # Sanity check, this is only fixed up on first boot
     assert of_get_property(barebox, "/chosen/barebox-version") is False
     [ver] = barebox.run_check("echo barebox-$global.version")
@@ -102,16 +119,10 @@ def test_fit(barebox, strategy, fitimage):
 
     barebox.run_check("global linux.bootargs.testarg=barebox.chainloaded")
 
-    barebox.run_check("cat -o /tmp/ramdisks.cpio /mnt/9p/testfs/ramdisk*.cpio*")
-    [hashsum1] = barebox.run_check("md5sum /tmp/ramdisks.cpio")
-
-    hashsum1 = re.split("/tmp/ramdisks.cpio", hashsum1, maxsplit=1)[0]
-    # Get the actual size of the concatenated ramdisks file
-    [fileinfo] = barebox.run_check("ls -l /tmp/ramdisks.cpio")
-    # Parse the size from ls -l output (format: permissions links user group size ...)
-    actual_size = int(fileinfo.split()[1])
+    ramdisks = padded_ramdisks(testfs)
 
     boottarget = generate_bootscript(barebox, fitimage)
+    barebox.run_check("global linux.bootargs.dyn.bootentries=entry.param")
 
     with strategy.boot_barebox(boottarget) as barebox:
         assert of_get_property(barebox, "/chosen/barebox-version") == ver, \
@@ -123,17 +134,23 @@ def test_fit(barebox, strategy, fitimage):
         # Check that command line arguments were fixed up
         bootargs = of_get_property(barebox, "/chosen/bootargs")
         assert "barebox.chainloaded" in bootargs
+        assert "fit.param" in bootargs
+
+        # The FIT's cmdline comes first, so everything else can override it
+        assert bootargs.index("fit.param") < bootargs.index("barebox.chainloaded"), \
+               "fit.param found later than bootargs set by scripts"
+        assert bootargs.index("fit.param") < bootargs.index("entry.param"), \
+               "fit.param found later than bootargs set by boot entries"
 
         initrd_start = of_get_property(barebox, "/chosen/linux,initrd-start", ncells=0)
         initrd_end = of_get_property(barebox, "/chosen/linux,initrd-end", ncells=0)
         initrd_size = initrd_end - initrd_start
 
-        # Verify the DT-reported size matches the actual file size
-        assert initrd_size == actual_size, \
-            f"Initrd size mismatch: DT says {initrd_size}, file is {actual_size}"
+        assert initrd_size == len(ramdisks), \
+            f"Initrd size mismatch: DT says {initrd_size}, expected {len(ramdisks)}"
 
-        [hashsum2] = barebox.run_check(f"md5sum {initrd_start}+{initrd_size}")
+        [hashsum] = barebox.run_check(f"md5sum {initrd_start}+{initrd_size}")
 
-        hashsum2 = re.split("/dev/mem", hashsum2, maxsplit=1)[0]
+        hashsum = re.split("/dev/mem", hashsum, maxsplit=1)[0].strip()
 
-        assert hashsum1 == hashsum2
+        assert hashsum == hashlib.md5(ramdisks).hexdigest()

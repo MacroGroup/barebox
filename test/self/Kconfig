@@ -32,8 +32,10 @@ config SELFTEST_ENABLE_ALL
 	select SELFTEST_RANGE
 	select SELFTEST_PRINTF
 	select SELFTEST_MALLOC
+	select SELFTEST_CLEANUP
 	select SELFTEST_PROGRESS_NOTIFIER
 	select SELFTEST_OF_MANIPULATION
+	select SELFTEST_OF_OVERLAY
 	select SELFTEST_ENVIRONMENT_VARIABLES if ENVIRONMENT_VARIABLES
 	select SELFTEST_FS_RAMFS if FS_RAMFS
 	select SELFTEST_DIRFD if FS_RAMFS && FS_DEVFS
@@ -49,6 +51,8 @@ config SELFTEST_ENABLE_ALL
 	select SELFTEST_IDR
 	select SELFTEST_TLV
 	select SELFTEST_DM
+	select SELFTEST_LVM if BLOCK
+	select SELFTEST_UBI if MTD_UBI && MTD_WRITE
 	select SELFTEST_TALLOC
 	select SELFTEST_BLSPEC if BLSPEC && DEFAULT_ENVIRONMENT
 	help
@@ -70,6 +74,15 @@ config SELFTEST_MALLOC
 	help
 	  Tests barebox memory allocator
 
+config SELFTEST_CLEANUP
+	bool "scope-based cleanup selftest"
+	help
+	  Tests the __free() cleanup handlers the barebox allocators define,
+	  i.e. that leaving a scope frees the buffer, that NULL and error
+	  pointers are never freed and that no_free_ptr() inhibits cleanup.
+
+	  If unsure, say n.
+
 config SELFTEST_TALLOC
 	bool "talloc() selftest"
 	help
@@ -85,6 +98,12 @@ config SELFTEST_OF_MANIPULATION
 	select OFTREE
 	help
 	  Tests barebox device tree manipulation functionality
+
+config SELFTEST_OF_OVERLAY
+	bool "OF overlay selftest"
+	select OF_OVERLAY
+	help
+	  Tests devicetree overlay application
 
 config SELFTEST_PROGRESS_NOTIFIER
 	bool "progress notifier selftest"
@@ -107,7 +126,7 @@ config SELFTEST_JSON
 config SELFTEST_JWT
 	bool "JSON Web Token selftest"
 	depends on JWT
-	select TEST_KEY_RSA2048
+	select TEST_KEY_RSA4096
 
 config SELFTEST_MMU
 	bool "MMU remapping selftest"
@@ -152,6 +171,29 @@ config SELFTEST_TLV
 	select TLV
 	select BASE64
 	select BOARD_LXA
+
+config SELFTEST_LVM
+	bool "LVM selftest"
+	depends on BLOCK
+	select DM_LVM
+	select RAMDISK_BLK
+	help
+	  Tests the parsing of LVM2 metadata, using physical volume
+	  images that are assembled in memory and backed by ramdisks.
+	  This covers the tokenizer, the recovery from damaged labels
+	  and metadata areas, the selection of the most recent metadata
+	  when the physical volumes of a group disagree, and the mapping
+	  of logical volumes onto the extents they are made of.
+
+config SELFTEST_UBI
+	bool "UBI selftest"
+	depends on MTD_UBI && MTD_WRITE
+	help
+	  Tests attaching UBI to images that UBI itself wrote to an
+	  in-memory NAND device and that were then changed in one field:
+	  a static volume's last LEB larger than the usable LEB size and,
+	  with fastmap support, PEB numbers in the fastmap outside the
+	  device.
 
 config SELFTEST_DM
 	bool "Device mapper selftest"

@@ -13,6 +13,7 @@
 #include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/iopoll.h>
+#include <linux/overflow.h>
 #include <linux/reset.h>
 
 #include "cadence-sdhci.h"
@@ -415,7 +416,9 @@ static int sdhci_cdns_probe(struct device *dev)
 	int ret;
 	bool is_sd4hc = of_device_is_compatible(dev->device_node, "cdns,sd4hc");
 
-	priv = xzalloc(sizeof(*priv));
+	nr_phy_params = sdhci_cdns_phy_param_count(dev->of_node);
+
+	priv = xzalloc(struct_size(priv, phy_params, nr_phy_params));
 	mci = &priv->mci;
 
 	priv->rst = reset_control_get(dev, "sdhc-reset");
@@ -424,9 +427,9 @@ static int sdhci_cdns_probe(struct device *dev)
 		return PTR_ERR(priv->rst);
 	}
 
-	priv->softphy_rst = reset_control_get(dev, "softphy-reset");
+	priv->softphy_rst = reset_control_get(dev, "combophy");
 	if (IS_ERR(priv->softphy_rst)) {
-		dev_err(dev, "Invalid reset line 'softphy-reset'.\n");
+		dev_err(dev, "Invalid reset line 'combophy'.\n");
 		return PTR_ERR(priv->softphy_rst);
 	}
 
@@ -456,8 +459,6 @@ static int sdhci_cdns_probe(struct device *dev)
 
 	mci->ops = sdhci_cdns_ops;
 	mci->hw_dev = dev;
-
-	nr_phy_params = sdhci_cdns_phy_param_count(dev->of_node);
 
 	priv->biu_clk = clks[MAIN_CLOCK_INDEX];
 

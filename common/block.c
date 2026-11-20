@@ -490,7 +490,7 @@ int blockdevice_register(struct block_device *blk)
 
 	for (i = 0; i < 8; i++) {
 		struct chunk *chunk = xzalloc(sizeof(*chunk));
-		chunk->data = dma_alloc(BUFSIZE);
+		chunk->data = dma_xalloc(BUFSIZE);
 		chunk->num = i;
 		list_add_tail(&chunk->list, &blk->idle_blocks);
 	}
@@ -650,7 +650,7 @@ int cdev_get_linux_root_and_opts(const struct cdev *partcdev, const char **root,
 	if (!blk)
 		return -EINVAL;
 
-	if (blk->ops->get_root)
+	if (blk->ops && blk->ops->get_root)
 		root_local = blk->ops->get_root(blk, partcdev);
 	if (!root_local && partcdev->partuuid[0] != 0)
 		root_local = xasprintf("PARTUUID=%s", partcdev->partuuid);

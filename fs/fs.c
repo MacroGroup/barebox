@@ -393,6 +393,9 @@ int ftruncate(int fd, loff_t length)
 	if (IS_ERR(f))
 		return -errno;
 
+	if (length < 0)
+		return errno_set(-EINVAL);
+
 	if (!i_size_is_bound(f->f_inode))
 		return 0;
 
@@ -436,8 +439,12 @@ static ssize_t __read(struct file *f, void *buf, size_t count)
 	if (fsdrv != ramfs_driver)
 		assert_command_context();
 
-	if (i_size_is_bound(f->f_inode) && f->f_pos + count > f->f_size)
-		count = f->f_size - f->f_pos;
+	if (i_size_is_bound(f->f_inode)) {
+		/* pread() can place the position beyond the end */
+		if (f->f_pos >= f->f_size)
+			return 0;
+		count = min_t(u64, count, f->f_size - f->f_pos);
+	}
 
 	if (!count)
 		return 0;
@@ -455,6 +462,8 @@ ssize_t pread(int fd, void *buf, size_t count, loff_t offset)
 
 	if (IS_ERR(f))
 		return -errno;
+	if (offset < 0)
+		return errno_set(-EINVAL);
 
 	pos = f->f_pos;
 	f->f_pos = offset;
@@ -501,11 +510,9 @@ static ssize_t __write(struct file *f, const void *buf, size_t count)
 		if (ret) {
 			if (ret == -EPERM)
 				ret = -ENOSPC;
-			if (ret != -ENOSPC)
+			if (ret != -ENOSPC || f->f_pos >= f->f_size)
 				goto out;
 			count = f->f_size - f->f_pos;
-			if (!count)
-				goto out;
 		} else {
 			f->f_size = f->f_pos + count;
 		}
@@ -524,6 +531,8 @@ ssize_t pwrite(int fd, const void *buf, size_t count, loff_t offset)
 
 	if (IS_ERR(f))
 		return -errno;
+	if (offset < 0)
+		return errno_set(-EINVAL);
 
 	pos = f->f_pos;
 	f->f_pos = offset;
@@ -1087,6 +1096,11 @@ static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
 {
 	struct readdir_callback *rd = container_of(ctx, struct readdir_callback, ctx);
 	struct readdir_entry *entry;
+
+	if (namlen >= sizeof(entry->d.d_name)) {
+		pr_warn("skipping directory entry %.32s...: name too long\n", name);
+		return 0;
+	}
 
 	entry = xzalloc(sizeof(*entry));
 	memcpy(entry->d.d_name, name, namlen);
@@ -2680,20 +2694,27 @@ static int do_dentry_open(struct file *f)
 	if (!i_size_valid(f->f_inode)) {
 		dev_warn(&f->fsdev->dev, "%s: bad i_size value: %lld\n",
 			 f->path, f->f_size);
-		return -EUCLEAN;
+		error = -EUCLEAN;
+		goto err_release;
 	}
 
 	if (f->f_flags & O_TRUNC) {
 		error = fsdev_truncate(f, 0);
 		f->f_size = 0;
 		if (error)
-			return error;
+			goto err_release;
 	}
 
 	if (f->f_flags & O_APPEND)
 		f->f_pos = f->f_size;
 
 	return 0;
+
+err_release:
+	if (f->f_inode->i_fop->release)
+		f->f_inode->i_fop->release(f->f_inode, f);
+
+	return error;
 }
 
 /**
@@ -3016,8 +3037,10 @@ DIR *fdopendir(int fd)
 	dir->fd = fd;
 
 	ret = __opendir(dir);
-	if (ret)
+	if (ret) {
+		free(dir);
 		goto err;
+	}
 
 	return dir;
 err:
@@ -3028,6 +3051,7 @@ EXPORT_SYMBOL(fdopendir);
 
 DIR *opendir(const char *pathname)
 {
+	DIR *dir;
 	int fd;
 
 	fd = open(pathname, O_DIRECTORY);
@@ -3036,7 +3060,12 @@ DIR *opendir(const char *pathname)
 		return NULL;
 	}
 
-	return fdopendir(fd);
+	/* fdopendir() takes the descriptor only when it succeeds */
+	dir = fdopendir(fd);
+	if (!dir)
+		close(fd);
+
+	return dir;
 }
 EXPORT_SYMBOL(opendir);
 
@@ -3090,7 +3119,9 @@ int readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz)
 		goto out_put;
 	}
 
-	link = inode->i_op->get_link(dentry, inode);
+	link = inode->i_link;
+	if (!link)
+		link = inode->i_op->get_link(dentry, inode);
 	if (IS_ERR(link)) {
 		ret =  PTR_ERR(link);
 		goto out_put;
@@ -3413,6 +3444,8 @@ err_no_driver:
 	unregister_device(&fsdev->dev);
 err_register:
 	fs_remove(&fsdev->dev);
+	free(fsdev);
+	mntput(path.mnt);
 out:
 	path_put(&path);
 

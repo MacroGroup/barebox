@@ -101,6 +101,7 @@ struct usb_device {
 	struct usb_device_descriptor *descriptor; /* Device Descriptor */
 	struct usb_config config; /* config descriptor */
 	struct devrequest *setup_packet;
+	u64 last_control_ns;		/* end of the last control transfer */
 
 	int have_langid;		/* whether string_langid is valid yet */
 	int string_langid;		/* language ID for strings */
@@ -159,6 +160,12 @@ struct usb_driver {
 extern struct bus_type usb_bus_type;
 
 int usb_driver_register(struct usb_driver *);
+
+struct usb_interface *usb_match_interface(struct usb_device *usbdev,
+					  const struct usb_device_id *id);
+
+#define module_usb_driver(drv)	\
+	register_driver_macro(device, usb, drv)
 
 struct usb_host {
 	int (*init)(struct usb_host *);

@@ -181,7 +181,9 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 
 	case S_IFLNK:
 		inode->i_op = &simple_symlink_inode_operations;
+		/* the VFS frees i_link when destroying the inode */
 		inode->i_link = f->target;
+		f->target = NULL;
 		break;
 
 	case S_IFDIR:
@@ -406,6 +408,11 @@ static int jffs2_probe(struct device *dev)
 	ret = fsdev_open_cdev(fsdev);
 	if (ret)
 		goto err_out;
+
+	if (!fsdev->cdev->mtd) {
+		dev_err(dev, "%s is not an MTD device\n", fsdev->backingstore);
+		return -EINVAL;
+	}
 
 	ctx = kzalloc(sizeof(struct jffs2_sb_info), GFP_KERNEL);
 	if (!ctx)

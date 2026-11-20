@@ -52,7 +52,8 @@ static int fec5xxx_miibus_read(struct mii_bus *bus, int phyAddr, int regAddr)
 	/*
 	 * wait for the related interrupt
 	 */
-	while ((timeout--) && (!(fec->eth->ievent & FEC_IEVENT_MII))) ;
+	while ((timeout--) && (!(fec->eth->ievent & FEC_IEVENT_MII)))
+		;
 
 	if (timeout == 0) {
 		debug("Read MDIO failed...\n");
@@ -88,7 +89,8 @@ static int fec5xxx_miibus_write(struct mii_bus *bus, int phyAddr,
 	/*
 	 * wait for the MII interrupt
 	 */
-	while ((timeout--) && (!(fec->eth->ievent & FEC_IEVENT_MII))) ;
+	while ((timeout--) && (!(fec->eth->ievent & FEC_IEVENT_MII)))
+		;
 
 	if (timeout == 0) {
 		debug("Write MDIO failed...\n");
@@ -644,8 +646,8 @@ static int mpc5xxx_fec_probe(struct device *dev)
 	struct eth_device *edev;
 	mpc5xxx_fec_priv *fec;
 
-	edev = (struct eth_device *)xmalloc(sizeof(struct eth_device));
-	fec = (mpc5xxx_fec_priv *)xmalloc(sizeof(*fec));
+	edev = xzalloc(sizeof(*edev));
+	fec = xzalloc(sizeof(*fec));
 	dev->priv = edev;
 	edev->priv = fec;
 	edev->open = mpc5xxx_fec_open;

@@ -4,17 +4,23 @@ obj-$(CONFIG_SELFTEST) += core.o
 obj-$(CONFIG_SELFTEST_BASE64) += base64.o
 obj-$(CONFIG_SELFTEST_RANGE) += range.o
 obj-$(CONFIG_SELFTEST_MALLOC) += malloc.o
+obj-$(CONFIG_SELFTEST_CLEANUP) += cleanup.o
 obj-$(CONFIG_SELFTEST_TALLOC) += talloc.o
 obj-$(CONFIG_SELFTEST_PRINTF) += printf.o
 CFLAGS_printf.o += -Wno-format-security -Wno-format
 obj-$(CONFIG_SELFTEST_PROGRESS_NOTIFIER) += progress-notifier.o
 obj-$(CONFIG_SELFTEST_OF_MANIPULATION) += of_manipulation.o of_manipulation.dtb.o
+obj-$(CONFIG_SELFTEST_OF_OVERLAY) += of_overlay.o
+# Enforce generation of __symbols__ table for overlay tests
+DTC_FLAGS_of_overlay_with_symbols := -@
+obj-$(CONFIG_SELFTEST_OF_OVERLAY) += of_overlay_with_symbols.dtb.o of_overlay_with_symbols.dtbo.o
+obj-$(CONFIG_SELFTEST_OF_OVERLAY) += of_overlay.dtbo.o of_overlay_missing_target.dtbo.o
 obj-$(CONFIG_SELFTEST_ENVIRONMENT_VARIABLES) += envvar.o
 obj-$(CONFIG_SELFTEST_FS_RAMFS) += ramfs.o
 obj-$(CONFIG_SELFTEST_DIRFD) += dirfd.o
 obj-$(CONFIG_SELFTEST_JSON) += json.o
 obj-$(CONFIG_SELFTEST_JWT) += jwt.o
-obj-$(CONFIG_TEST_KEY_RSA2048) += development_rsa2048.pem.o
+obj-$(CONFIG_TEST_KEY_RSA4096) += snakeoil_rsa4096.pem.o
 obj-$(CONFIG_SELFTEST_DIGEST) += digest.o
 obj-$(CONFIG_SELFTEST_MMU) += mmu.o
 obj-$(CONFIG_SELFTEST_STRING) += string.o
@@ -27,11 +33,15 @@ obj-$(CONFIG_SELFTEST_TLV) += tlv.o tlv.dtb.o
 obj-$(CONFIG_SELFTEST_DM) += dm.o
 obj-$(CONFIG_SELFTEST_BLSPEC) += blspec.o
 bbenv-$(CONFIG_SELFTEST_BLSPEC) += defaultenv-blspec-test
+obj-$(CONFIG_SELFTEST_LVM) += lvm.o
+CFLAGS_lvm.o += -I$(srctree)/drivers/block/dm/lvm
+obj-$(CONFIG_SELFTEST_UBI) += ubi.o
+CFLAGS_ubi.o += -I$(srctree)/drivers/mtd/ubi
 
 ifdef REGENERATE_KEYTOC
 
-$(obj)/development_rsa2048.pem.c_shipped: $(src)/development_rsa2048.pem FORCE
-	$(call if_changed,public_keys,$(basename $(target-stem)):$<,-s)
+$(src)/snakeoil_rsa4096.pem.c_shipped: $(srctree)/crypto/snakeoil-4096-development.pem FORCE
+	$(call cmd,public_keys,symbol=__key_snakeoil_rsa4096:$<,-s)
 
 endif
 

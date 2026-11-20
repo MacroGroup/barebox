@@ -111,6 +111,15 @@ jobs:
         done
         echo "testfs=false" >> $GITHUB_OUTPUT
 
+    - name: Check security policy configurator
+      if: matrix.defconfig == 'virt32_secure_defconfig'
+      run: |
+        export ARCH=${{matrix.arch}}
+
+        # Run the configurator before the build step below has generated
+        # any policy lists. The reference platform has four policies.
+        ./test/check-security-policies.sh ${{matrix.defconfig}} 4
+
     - name: Build
       id: build
       run: |
@@ -118,11 +127,11 @@ jobs:
         export ARCH=${{matrix.arch}}
         export KCONFIG_ADD="common/boards/configs/enable_self_test.config \
                             common/boards/configs/disable_target_tools.config \
-                            common/boards/configs/enable_werror.config"
+                            common/boards/configs/enable_werror.config \
+                            common/boards/configs/full.config"
 
         if [ ${{matrix.arch}} = sandbox ] && [ ${{matrix.defconfig}} = allyesconfig ]; then
-          KCONFIG_ADD="${KCONFIG_ADD} CONFIG_CONSOLE_DISABLE_INPUT=n CONFIG_MALLOC_LIBC=y \
-                       CONFIG_CONSOLE_ACTIVATE_ALL=y"
+          KCONFIG_ADD="${KCONFIG_ADD} common/boards/configs/allyestest.config"
         fi
 
         if [ "${{ steps.used-features.outputs.testfs }}" = "true" ]; then
@@ -131,6 +140,18 @@ jobs:
         fi
 
         ./MAKEALL -O ${KBUILD_OUTPUT} -l "" -v 0 ${{matrix.defconfig}}
+
+    - name: Regenerate Shipped Files
+      if: steps.build.outcome == 'success' && matrix.defconfig == 'allyesconfig'
+      run: |
+        export KBUILD_OUTPUT=build-${{matrix.arch}}-${{matrix.defconfig}}
+
+        make -j$(nproc) ARCH=${{matrix.arch}} REGENERATE_KEYTOC=1
+
+        if ! git -c safe.directory="$PWD" diff --exit-code; then
+          echo "::error::Shipped files differ from their regenerated versions, see diff above"
+          exit 1
+        fi
 
     - name: labgrid-pytest
       if: steps.build.outcome == 'success'
